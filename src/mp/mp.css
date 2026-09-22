@@ -1,0 +1,35 @@
+:root { --bg: #0d0f12ee; --fg: #e8e6e1; --acc: #e8c35a; --dim: #8a8f96; --t0: #ff8a70; --t1: #7fc4ff; font-family: system-ui, sans-serif; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #111; color: var(--fg); }
+#game { position: fixed; inset: 0; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#ui > * { pointer-events: auto; }
+.lobby { position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, #232a33, #0b0c0e); overflow: auto; padding: 24px 40px; box-sizing: border-box; }
+.brand { font-weight: 900; letter-spacing: 6px; font-size: 28px; color: var(--acc); }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.tabs button, .btn { background: #1f242b; color: var(--fg); border: 1px solid #333a44; padding: 9px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.tabs button.on, .btn.primary { background: var(--acc); color: #111; border-color: var(--acc); }
+.btn:disabled { opacity: .45; cursor: default; }
+.card { background: #161a20; border: 1px solid #2a3038; border-radius: 10px; padding: 14px; margin: 10px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.mode { cursor: pointer; } .mode:hover { border-color: var(--acc); }
+.xpbar { width: 260px; height: 8px; background: #2a2f36; border-radius: 4px; overflow: hidden; } .xpbar > div { height: 100%; background: var(--acc); }
+select, input { background: #0f1216; color: var(--fg); border: 1px solid #333a44; border-radius: 5px; padding: 6px 8px; }
+.small { font-size: 12px; color: var(--dim); } .err { color: #ff7b6b; } .ok { color: #7bd88f; }
+.locked { opacity: .5; }
+.hud { position: absolute; inset: 0; pointer-events: none !important; }
+.hud * { pointer-events: none; }
+.cross { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px; border: 2px solid #fff8; border-radius: 50%; }
+.hit { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px; opacity: 0; transition: opacity .15s; background: linear-gradient(45deg, transparent 45%, #fff 45%, #fff 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, #fff 45%, #fff 55%, transparent 55%); }
+.hit.head { background: linear-gradient(45deg, transparent 45%, #ff4 45%, #ff4 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, #ff4 45%, #ff4 55%, transparent 55%); }
+.ammo { position: absolute; right: 30px; bottom: 26px; text-align: right; font-weight: 800; font-size: 34px; }
+.health { position: absolute; left: 30px; bottom: 30px; width: 220px; height: 10px; background: #0008; border: 1px solid #fff4; } .health > div { height: 100%; background: #e8e6e1; }
+.score { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-weight: 800; font-size: 20px; background: #0008; padding: 6px 14px; border-radius: 6px; }
+.feed { position: absolute; top: 60px; right: 20px; font-size: 14px; text-align: right; } .feed div { background: #0007; margin: 2px 0; padding: 3px 8px; border-radius: 4px; }
+.streaks { position: absolute; right: 30px; bottom: 90px; font-size: 13px; text-align: right; } .streaks .ready { color: var(--acc); font-weight: 800; }
+.radar { position: absolute; left: 20px; top: 20px; width: 180px; height: 180px; border-radius: 50%; background: #0009; border: 1px solid #fff3; }
+.board { position: absolute; left: 50%; top: 15%; transform: translateX(-50%); background: var(--bg); padding: 14px 20px; border-radius: 10px; min-width: 520px; display: none; }
+.board table { width: 100%; border-collapse: collapse; } .board td, .board th { padding: 4px 8px; text-align: left; }
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+.center-msg { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 28px; font-weight: 800; text-shadow: 0 2px 6px #000; text-align: center; }
+.t0 { color: var(--t0); } .t1 { color: var(--t1); }
+.camo-swatch { width: 18px; height: 18px; border-radius: 4px; display: inline-block; vertical-align: middle; margin-right: 4px; border: 1px solid #fff3; }

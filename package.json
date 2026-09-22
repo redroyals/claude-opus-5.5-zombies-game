@@ -8,7 +8,11 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mp:server": "cd server && pnpm dev",
+    "mp:client": "PORT=5174 vite --open /mp.html",
+    "mp:test:live": "MP_URL=http://127.0.0.1:8787 vitest run tests/live",
+    "mp:test:browser": "node scripts/mp-browser-test.mjs http://127.0.0.1:5174"
   },
   "dependencies": {
     "three": "^0.186.0"
