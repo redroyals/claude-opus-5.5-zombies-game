@@ -1,6 +1,6 @@
 // D1 access. Reads per request/join; writes batched once per match end.
 import { levelForXp, levelUpDollars, DOLLARS, canPrestige } from '../../src/shared/progression';
-import { computeCamos, EMPTY_PROGRESS, type WeaponProgress } from '../../src/shared/camos';
+import { computeCamos, camoPayouts, type WeaponProgress } from '../../src/shared/camos';
 import { DEFAULT_LOADOUTS, MAX_CLASSES, validateLoadout, type Loadout, type Unlocks } from '../../src/shared/loadout';
 import { COSMETIC_BY_ID } from '../../src/data/cosmetics';
 import { isUnlocked, type UnlockKind } from '../../src/shared/unlocks';
@@ -115,23 +115,6 @@ export interface MatchResultPlayer {
   xp: number; dollars: number; xpBefore: number;
   weaponDelta: Record<string, WeaponProgress & { xp: number }>;
   weaponBefore: Record<string, WeaponProgress & { xp: number }>;
-}
-
-/** Everything for one match in ONE D1 batch. Credits are idempotent via ledger.ref. */
-export function camoPayouts(before: Record<string, WeaponProgress & { xp: number }>, delta: Record<string, WeaponProgress & { xp: number }>) {
-  const after: Record<string, WeaponProgress> = {};
-  for (const [w, b] of Object.entries(before)) after[w] = { ...b };
-  for (const [w, d] of Object.entries(delta)) {
-    const b = after[w] ?? { ...EMPTY_PROGRESS };
-    after[w] = { kills: b.kills + d.kills, headshots: b.headshots + d.headshots, longshots: b.longshots + d.longshots, hipKills: b.hipKills + d.hipKills, doubleKills: b.doubleKills + d.doubleKills, noDeathTriples: b.noDeathTriples + d.noDeathTriples, adsKills: b.adsKills + d.adsKills, pointBlank: b.pointBlank + d.pointBlank };
-  }
-  const c0 = computeCamos(before), c1 = computeCamos(after);
-  const gained: { weapon: string; camo: string; dollars: number }[] = [];
-  for (const [w, list] of Object.entries(c1)) for (const camo of list) if (!c0[w]?.includes(camo)) {
-    const dollars = camo === 'gilded' ? DOLLARS.perGilded : camo === 'argent' ? DOLLARS.perArgent : camo === 'prism' ? DOLLARS.perPrism : camo === 'void' ? DOLLARS.perVoid : DOLLARS.perCamo;
-    gained.push({ weapon: w, camo, dollars });
-  }
-  return gained;
 }
 
 export async function writeMatch(db: D1Database, m: { id: string; mode: string; map: string; room: string; winner: number; reason: string }, players: MatchResultPlayer[]) {

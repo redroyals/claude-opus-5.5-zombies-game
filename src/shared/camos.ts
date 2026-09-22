@@ -2,6 +2,7 @@
 //   base ladder (per weapon) -> Gilded (weapon) -> Argent (weapon mastery challenges)
 //   -> Prism (every weapon in the class is Argent) -> Void Matter (every class Prism).
 import { WEAPON_LIST, type WeaponClass } from '../data/weapons';
+import { DOLLARS } from './progression';
 
 export type CamoStat = 'kills' | 'headshots' | 'longshots' | 'hipKills' | 'doubleKills' | 'noDeathTriples' | 'adsKills' | 'pointBlank';
 export interface WeaponProgress { kills: number; headshots: number; longshots: number; hipKills: number; doubleKills: number; noDeathTriples: number; adsKills: number; pointBlank: number }
@@ -69,3 +70,21 @@ export function recordKill(p: WeaponProgress, k: { cls: WeaponClass; dist: numbe
     pointBlank: p.pointBlank + (k.dist <= POINT_BLANK_M ? 1 : 0),
   };
 }
+
+/** Camos newly unlocked by a match's progress delta, with their dollar payouts (server credits these). */
+export function camoPayouts(before: Record<string, WeaponProgress & { xp: number }>, delta: Record<string, WeaponProgress & { xp: number }>) {
+  const after: Record<string, WeaponProgress> = {};
+  for (const [w, b] of Object.entries(before)) after[w] = { ...b };
+  for (const [w, d] of Object.entries(delta)) {
+    const b = after[w] ?? { ...EMPTY_PROGRESS };
+    after[w] = { kills: b.kills + d.kills, headshots: b.headshots + d.headshots, longshots: b.longshots + d.longshots, hipKills: b.hipKills + d.hipKills, doubleKills: b.doubleKills + d.doubleKills, noDeathTriples: b.noDeathTriples + d.noDeathTriples, adsKills: b.adsKills + d.adsKills, pointBlank: b.pointBlank + d.pointBlank };
+  }
+  const c0 = computeCamos(before), c1 = computeCamos(after);
+  const gained: { weapon: string; camo: string; dollars: number }[] = [];
+  for (const [w, list] of Object.entries(c1)) for (const camo of list) if (!c0[w]?.includes(camo)) {
+    const dollars = camo === 'gilded' ? DOLLARS.perGilded : camo === 'argent' ? DOLLARS.perArgent : camo === 'prism' ? DOLLARS.perPrism : camo === 'void' ? DOLLARS.perVoid : DOLLARS.perCamo;
+    gained.push({ weapon: w, camo, dollars });
+  }
+  return gained;
+}
+

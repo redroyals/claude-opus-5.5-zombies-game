@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { signToken, verifySso, mintSession, verifySession, playerIdForEmail, cleanName } from '../server/src/auth';
-import { camoPayouts } from '../server/src/db';
+import { camoPayouts } from '../src/shared/camos';
 
 const SECRET = 'a'.repeat(64), OTHER = 'b'.repeat(64);
 
