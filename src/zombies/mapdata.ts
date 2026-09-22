@@ -71,10 +71,10 @@ export const BOX_SPOTS: Spot[] = [
   { x: -21.35, z: 6.5, face: Math.PI / 2 },
 ];
 export const PERK_SPOTS: Record<PerkId, Spot> = {
-  lifeline: { x: 6.3, z: 6, face: -Math.PI / 2 },
+  lifeline: { x: 6.2, z: 6.2, face: -Math.PI / 2 },
   bulwark: { x: -11.3, z: 0.5, face: Math.PI / 2 },
   quickhands: { x: 15.5, z: 4.75, face: 0 },
-  hammerfall: { x: 15, z: -12.7, face: 0, y: POWER_FLOOR },
+  hammerfall: { x: 15, z: -12.6, face: 0, y: POWER_FLOOR },
 };
 export const PAP_SPOT: Spot = { x: -19, z: 16.9, face: Math.PI };
 export const POWER_SWITCH: Spot = { x: 20.5, z: -13.6, face: 0, y: POWER_FLOOR };

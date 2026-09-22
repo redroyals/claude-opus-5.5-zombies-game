@@ -8,11 +8,14 @@
 - [x] 8 Meshy sample assets (240 credits) + `samples.html` review page
 
 ## M2 — Zombies vertical slice on a real map (~3 weeks)
-- First purpose-built map (pick from DESIGN §6): 3 heights, 4–6 zones behind doors, power in the lowest level
-- Doors/debris zones, barricades + repair, power-ups (max ammo, insta-kill, double points, nuke)
-- Weapon roster to ~10 (procedural viewmodels), recoil patterns, wall penetration
-- Down/bleed-out state, spectate; results screen per round
-- Replace placeholder machines with approved Meshy art (optimized GLBs)
+- [x] First purpose-built map "Nightfall Relay" (`src/zombies/mapdata.ts` + `ZombiesMap.ts`): 5 zones behind doors/debris, raised Power Room with stairs + overlook, own collision world/nav grid
+- [x] Doors/debris zones gate window spawns; barricades (tear/climb, hold-E repair +10, 500/round cap); power-ups (max ammo, insta-kill, double points, nuke, carpenter) with the classic drop cycle
+- [x] Weapon roster to 20 + knife (`ZOMBIE_WEAPONS` in config), wall-buys (chalk) vs Cache pool, reforged names/camo, 3 wonder weapons
+- [x] Zombie roster: shambler/runner/brute/crawler/Scuttler (special rounds)/Warden boss every 8th round; head pops, leg-loss crawlers, hit reactions
+- [x] Results screen ("YOU SURVIVED N ROUNDS"); easter egg (3 relics)
+- [x] Machines/zombies/weapons use the authored GLBs from `public/models/` when present (procedural fallbacks otherwise)
+- [ ] Down/bleed-out state + spectate (co-op), recoil patterns, wall penetration
+- [ ] Use `kit_barricade_window` / wall kit pieces for the map shell (currently procedural boxes)
 
 ## M3 — Netcode foundation (~3 weeks)
 - Extract sim into a transport-agnostic `Room` (inputs in, snapshots out); `LocalTransport` for offline

@@ -98,7 +98,15 @@ export class ZombiesMode {
     // Machine footprints are solid
     const w = this.map.world;
     for (const s of BOX_SPOTS) w.add(s.x - 0.7, 0, s.z - 0.7, s.x + 0.7, 0.62, s.z + 0.7, { surface: 'wood' });
-    for (const id of Object.keys(PERK_SPOTS) as PerkId[]) { const s = PERK_SPOTS[id]; const y = s.y ?? 0; w.add(s.x - 0.55, y, s.z - 0.5, s.x + 0.55, y + 2.2, s.z + 0.5, { surface: 'metal' }); }
+    // Footprints (width along the machine's X, depth along its Z) match the authored models.
+    const FOOT: Record<PerkId, [number, number]> = { bulwark: [1.0, 0.85], quickhands: [0.8, 0.75], hammerfall: [1.9, 1.9], lifeline: [1.75, 1.2] };
+    for (const id of Object.keys(PERK_SPOTS) as PerkId[]) {
+      const s = PERK_SPOTS[id]; const y = s.y ?? 0;
+      const [fw, fd] = FOOT[id];
+      const side = Math.abs(Math.sin(s.face)) > 0.5;
+      const hx = (side ? fd : fw) / 2, hz = (side ? fw : fd) / 2;
+      w.add(s.x - hx, y, s.z - hz, s.x + hx, y + 2.2, s.z + hz, { surface: 'metal' });
+    }
     w.add(PAP_SPOT.x - 1.15, 0, PAP_SPOT.z - 0.65, PAP_SPOT.x + 1.15, 3.2, PAP_SPOT.z + 0.65, { surface: 'metal' });
     w.add(POWER_SWITCH.x - 0.6, POWER_SWITCH.y!, POWER_SWITCH.z - 0.2, POWER_SWITCH.x + 0.6, POWER_SWITCH.y! + 2.1, POWER_SWITCH.z + 0.2, { surface: 'metal' });
     this.map.nav.build(w);
