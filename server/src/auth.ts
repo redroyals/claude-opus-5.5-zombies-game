@@ -25,7 +25,7 @@ export function b64urlDecode(s: string): Uint8Array {
 async function hmacKey(secretHex: string): Promise<CryptoKey> {
   if (!/^[0-9a-f]{64}$/i.test(secretHex)) throw new Error('secret must be 32-byte hex');
   const bytes = new Uint8Array(secretHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
-  return crypto.subtle.importKey('raw', bytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+  return crypto.subtle.importKey('raw', bytes as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
 
 export async function signToken(payload: object, secretHex: string): Promise<string> {
@@ -38,7 +38,7 @@ async function verifyRaw<T>(token: string, secretHex: string): Promise<T | null>
   try {
     const [body, sig] = token.split('.');
     if (!body || !sig) return null;
-    const ok = await crypto.subtle.verify('HMAC', await hmacKey(secretHex), b64urlDecode(sig), enc.encode(body));
+    const ok = await crypto.subtle.verify('HMAC', await hmacKey(secretHex), b64urlDecode(sig) as BufferSource, enc.encode(body) as BufferSource);
     if (!ok) return null;
     return JSON.parse(new TextDecoder().decode(b64urlDecode(body))) as T;
   } catch {
