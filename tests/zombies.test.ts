@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BOX_PRICE, BOX_SAFE_PULLS, BOX_SPIN_SECONDS, BOX_OFFER_SECONDS, MAX_ACTIVE_ZOMBIES, PAP_PRICE, PAP_REPACK_PRICE, PERKS, PERK_LIMIT, POINTS,
+  BOX_MOVE_SECONDS, BOX_PRICE, BOX_SAFE_PULLS, BOX_SPIN_SECONDS, BOX_OFFER_SECONDS, MAX_ACTIVE_ZOMBIES, PAP_PRICE, PAP_REPACK_PRICE, PERKS, PERK_LIMIT, POINTS,
   ROUND_BREAK_SECONDS, WALL_BUYS, awardHit, awardKill, createBox, createRoundState, createZPlayer, goDown, isSpecialRound, perkMods,
   pickNewBoxLocation, pickZombieType, pullBox, roundBonus, roundSpec, rollBox, stepBox, stepRounds, takeBoxOffer, tryBuyPerk, tryOpenDoor,
   tryPap, wallBuyPrice, zombieCountForRound, zombieHpMultForRound,
@@ -31,8 +31,8 @@ describe('rounds', () => {
   });
   it('picks types by fractions', () => {
     const s = roundSpec(12);
-    expect(pickZombieType(s, () => 0)).toBe('armored');
-    expect(pickZombieType(s, () => 0.99)).toBe('shambler');
+    expect(pickZombieType(s, () => 0)).toBe('brute');
+    expect(pickZombieType(roundSpec(7), () => 0.99)).toBe('shambler');
     expect(pickZombieType(roundSpec(1), () => 0)).toBe('shambler');
   });
   it('director: break -> active -> spawns capped -> ends when all dead', () => {
@@ -71,9 +71,9 @@ describe('points', () => {
 
 describe('wall-buys', () => {
   it('weapon price when unowned, ammo price when owned, upgraded ammo when packed', () => {
-    expect(wallBuyPrice(WALL_BUYS.shotgun, null)).toEqual({ action: 'weapon', price: 1500 });
-    expect(wallBuyPrice(WALL_BUYS.shotgun, 0)).toEqual({ action: 'ammo', price: 750 });
-    expect(wallBuyPrice(WALL_BUYS.shotgun, 1).price).toBe(4500);
+    expect(wallBuyPrice(WALL_BUYS.sg_hullbreaker, null)).toEqual({ action: 'weapon', price: 1500 });
+    expect(wallBuyPrice(WALL_BUYS.sg_hullbreaker, 0)).toEqual({ action: 'ammo', price: 750 });
+    expect(wallBuyPrice(WALL_BUYS.sg_hullbreaker, 1).price).toBe(4500);
   });
 });
 
@@ -81,8 +81,9 @@ describe('mystery box', () => {
   it('never offers an owned weapon while alternatives exist', () => {
     const b = createBox();
     for (let i = 0; i < 50; i++) {
-      const r = rollBox(b, ['rifle', 'pistol'], Math.random);
-      expect(r).toEqual({ kind: 'weapon', weapon: 'shotgun' });
+      const pool = [{ weapon: 'ar_tern' as const, weight: 1 }, { weapon: 'sg_tidal' as const, weight: 1 }, { weapon: 'pi_basalt' as const, weight: 1 }];
+      const r = rollBox(b, ['ar_tern', 'pi_basalt'], Math.random, pool);
+      expect(r).toEqual({ kind: 'weapon', weapon: 'sg_tidal' });
     }
   });
   it('cannot move during the safe pulls, then moth refunds and relocates', () => {
@@ -100,7 +101,7 @@ describe('mystery box', () => {
     expect(r.ok && r.roll?.kind).toBe('moth');
     expect(p.points).toBe(before); // refunded
     expect(stepBox(b, BOX_SPIN_SECONDS, 3, () => 0)).toBe('moth');
-    expect(stepBox(b, 3, 3, () => 0)).toBe('arrived');
+    expect(stepBox(b, BOX_MOVE_SECONDS, 3, () => 0)).toBe('arrived');
     expect(b.location).toBe(1);
     expect(b.pullsHere).toBe(0);
   });

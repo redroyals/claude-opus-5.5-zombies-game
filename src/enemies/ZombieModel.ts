@@ -58,11 +58,15 @@ export class ZombieModels {
     this.eliteEyeMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff2a1a).multiplyScalar(4) });
     this.helmetMat = new THREE.MeshStandardMaterial({ color: 0x3b4034, roughness: 0.55, metalness: 0.5, map: tex.grime });
     this.eliteHelmetMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2c, roughness: 0.4, metalness: 0.75, map: tex.grime, emissive: 0x300800, emissiveIntensity: 0.6 });
-    this.variants = { shambler: [], runner: [], armored: [], elite: [] };
+    this.variants = { shambler: [], runner: [], armored: [], elite: [], brute: [], crawler: [], fast: [], boss: [] };
     for (let i = 0; i < 6; i++) this.variants.shambler.push(this.build('shambler', i));
     for (let i = 0; i < 4; i++) this.variants.runner.push(this.build('runner', i));
     for (let i = 0; i < 3; i++) this.variants.armored.push(this.build('armored', i));
     this.variants.elite.push(this.build('elite', 0));
+    for (let i = 0; i < 2; i++) this.variants.brute.push(this.build('brute', i));
+    for (let i = 0; i < 3; i++) this.variants.crawler.push(this.build('crawler', i));
+    for (let i = 0; i < 2; i++) this.variants.fast.push(this.build('fast', i));
+    this.variants.boss.push(this.build('boss', 0));
   }
 
   private palette(type: ZombieType): Palette {
@@ -72,6 +76,9 @@ export class ZombieModels {
     const skins = [0x8a9a86, 0x9aa090, 0x7a8474, 0xa0a494, 0x86887a];
     if (type === 'armored') return { shirt: new THREE.Color(0x4a5238), pants: new THREE.Color(0x3a4030), skin: new THREE.Color(r.pick(skins)), shoes: new THREE.Color(0x1a1a18) };
     if (type === 'elite') return { shirt: new THREE.Color(0x2a2c2a), pants: new THREE.Color(0x222420), skin: new THREE.Color(0x6a7a62), shoes: new THREE.Color(0x121212) };
+    if (type === 'boss') return { shirt: new THREE.Color(0x3a1c18), pants: new THREE.Color(0x201a18), skin: new THREE.Color(0x7a6a5a), shoes: new THREE.Color(0x121212) };
+    if (type === 'brute') return { shirt: new THREE.Color(0x3c3a30), pants: new THREE.Color(0x2a2a24), skin: new THREE.Color(r.pick(skins)).multiplyScalar(0.9), shoes: new THREE.Color(0x141414) };
+    if (type === 'fast') return { shirt: new THREE.Color(0x1e1e22), pants: new THREE.Color(0x18181c), skin: new THREE.Color(0xb0b4a8), shoes: new THREE.Color(0x101010) };
     // Hazmat worker variant for some shamblers
     if (type === 'shambler' && r.chance(0.2)) return { shirt: new THREE.Color(0xb89a2a), pants: new THREE.Color(0xa88a24), skin: new THREE.Color(r.pick(skins)), shoes: new THREE.Color(0x1a1a18) };
     return { shirt: new THREE.Color(r.pick(shirts)), pants: new THREE.Color(r.pick(pants)), skin: new THREE.Color(r.pick(skins)), shoes: new THREE.Color(0x1c1a18) };
@@ -84,8 +91,9 @@ export class ZombieModels {
     const body: THREE.BufferGeometry[] = [];
     const eyes: THREE.BufferGeometry[] = [];
     const blood = new THREE.Color(0x4a0e0a);
-    const bulky = type === 'armored' || type === 'elite';
-    const thin = type === 'runner';
+    const bulky = type === 'armored' || type === 'elite' || type === 'brute' || type === 'boss';
+    const eliteLike = type === 'elite' || type === 'boss';
+    const thin = type === 'runner' || type === 'fast';
     const shoulderW = bulky ? 1.18 : thin ? 0.92 : 1 + r.range(-0.05, 0.08);
     const bellyW = type === 'shambler' && r.chance(0.3) ? 1.18 : 1;
     const sleeveless = thin || r.chance(0.25);
@@ -163,7 +171,7 @@ export class ZombieModels {
     }
     // Armour for armored / elite
     if (bulky) {
-      const plate = type === 'elite' ? new THREE.Color(0x2a2c2e) : new THREE.Color(0x4d5440);
+      const plate = eliteLike ? new THREE.Color(0x2a2c2e) : type === 'brute' ? new THREE.Color(0x5a4a3a) : new THREE.Color(0x4d5440);
       body.push(part(new THREE.BoxGeometry(0.46 * shoulderW, 0.32, 0.29), BONE.chest, plate, 0, 1.3, 0.005, { grime: 0.35 }));
       body.push(part(new THREE.BoxGeometry(0.36, 0.14, 0.26), BONE.spine, plate.clone().multiplyScalar(0.85), 0, 1.1, 0.0));
       for (const s of [1, -1]) {
@@ -175,7 +183,7 @@ export class ZombieModels {
       // Pouches / webbing
       body.push(part(new THREE.BoxGeometry(0.1, 0.08, 0.06), BONE.spine, new THREE.Color(0x3a3a2a), 0.12, 1.06, 0.14));
       body.push(part(new THREE.BoxGeometry(0.1, 0.08, 0.06), BONE.spine, new THREE.Color(0x3a3a2a), -0.12, 1.06, 0.14));
-      if (type === 'elite') {
+      if (eliteLike) {
         // Heavy collar + back tank with glowing contamination
         body.push(part(new THREE.CylinderGeometry(0.2, 0.26, 0.12, 10), BONE.chest, plate, 0, 1.5, -0.01));
         body.push(part(new THREE.CylinderGeometry(0.09, 0.09, 0.4, 10), BONE.chest, new THREE.Color(0x3a3a3a), 0, 1.3, -0.2));
@@ -207,7 +215,7 @@ export class ZombieModels {
       bones[i] = b;
       if (p >= 0) bones[p].add(b);
     }
-    const eye = v.type === 'elite' ? this.eliteEyeMat : this.eyeMat;
+    const eye = v.type === 'elite' || v.type === 'boss' || v.type === 'fast' ? this.eliteEyeMat : this.eyeMat;
     const mesh = new THREE.SkinnedMesh(v.geo, [this.bodyMat, eye]);
     mesh.add(bones[BONE.hips]);
     mesh.updateMatrixWorld(true);
@@ -218,11 +226,12 @@ export class ZombieModels {
     mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 2.2);
     let helmet: THREE.Mesh | null = null;
     if (v.helmet) {
-      helmet = new THREE.Mesh(v.helmet, v.type === 'elite' ? this.eliteHelmetMat : this.helmetMat);
+      const el = v.type === 'elite' || v.type === 'boss';
+      helmet = new THREE.Mesh(v.helmet, el ? this.eliteHelmetMat : this.helmetMat);
       helmet.position.set(0, 0.095, 0.005);
       helmet.castShadow = true;
       bones[BONE.head].add(helmet);
-      if (v.type === 'elite') {
+      if (el) {
         const visor = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.025, 0.02), this.eliteEyeMat);
         visor.position.set(0, -0.02, 0.14);
         helmet.add(visor);

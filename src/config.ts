@@ -1,8 +1,16 @@
 // Central balancing and tuning values. Gameplay code reads from here rather than hard-coding numbers.
 
 export type RegionId = 'low' | 'medium' | 'high';
-export type ZombieType = 'shambler' | 'runner' | 'armored' | 'elite';
-export type WeaponId = 'rifle' | 'pistol' | 'shotgun';
+export type ZombieType = 'shambler' | 'runner' | 'armored' | 'elite' | 'brute' | 'crawler' | 'fast' | 'boss';
+/** Extraction-mode weapons (kept stable) plus the Zombies roster. Zombies ids match the GLB file names in public/models/weapons/. */
+export type WeaponId = 'rifle' | 'pistol' | 'shotgun'
+  | 'ar_kestrel' | 'ar_corvid' | 'ar_moraine' | 'ar_tern' | 'smg_wren' | 'smg_fennec' | 'smg_skiff' | 'sg_hullbreaker' | 'sg_tidal'
+  | 'lmg_bastion' | 'dmr_sentry' | 'sr_longwatch' | 'pi_warden' | 'pi_basalt' | 'pi_magnus' | 'ln_lotus'
+  | 'ww_arc' | 'ww_singularity' | 'ww_cryo';
+/** Procedural viewmodel / audio archetype a weapon borrows when no GLB exists. */
+export type WeaponArch = 'rifle' | 'pistol' | 'shotgun';
+export type WeaponClass = 'ar' | 'smg' | 'shotgun' | 'lmg' | 'dmr' | 'sniper' | 'pistol' | 'launcher' | 'wonder';
+export type WeaponSpecial = 'explosive' | 'arc' | 'singularity' | 'cryo';
 
 export const SIM_DT = 1 / 60;
 export const MAX_FRAME_DT = 0.1;
@@ -86,9 +94,19 @@ export interface WeaponDef {
   adsZoom: number; // FOV multiplier while aiming
   switchTime: number;
   cost: number;
+  /** Procedural fallback archetype (viewmodel + sound). Defaults to the id for the extraction guns. */
+  arch?: WeaponArch;
+  cls?: WeaponClass;
+  special?: WeaponSpecial;
+  /** GLB model id (public/models/weapons/<modelId>.glb). Extraction guns alias the zombies ids. */
+  modelId?: string;
+  /** Tint of the procedural body so classes read differently without a GLB. */
+  tint?: number;
+  /** Procedural length scale (smg short, lmg/sniper long). */
+  lengthScale?: number;
 }
 
-export const WEAPONS: Record<WeaponId, WeaponDef> = {
+export const WEAPONS = {
   rifle: {
     id: 'rifle',
     name: 'KR-7 KESTREL',
@@ -171,7 +189,50 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     switchTime: 0.5,
     cost: 1500,
   },
+} as Record<WeaponId, WeaponDef>;
+
+// ---------------------------------------------------------------------------------------------
+// Zombies roster (original names). Stats are tuned for round-based play, not extraction.
+// ---------------------------------------------------------------------------------------------
+type Base = Omit<WeaponDef, 'id' | 'name' | 'shortName'>;
+const AR: Base = { ...WEAPONS.rifle, arch: 'rifle', cls: 'ar', cost: 0 };
+const PI: Base = { ...WEAPONS.pistol, arch: 'pistol', cls: 'pistol', cost: 0 };
+const SG: Base = { ...WEAPONS.shotgun, arch: 'shotgun', cls: 'shotgun', cost: 0 };
+function zw(id: WeaponId, name: string, shortName: string, base: Base, o: Partial<WeaponDef>): WeaponDef {
+  return { ...base, ...o, id, name, shortName, modelId: id };
+}
+
+
+export const ZOMBIE_WEAPONS: Record<string, WeaponDef> = {
+  ar_kestrel: zw('ar_kestrel', 'KR-7 KESTREL', 'KESTREL', AR, {}),
+  ar_corvid: zw('ar_corvid', 'CV-4 CORVID', 'CORVID', AR, { damage: 40, rpm: 560, magSize: 25, reserveMax: 200, startReserve: 150, recoilPitch: 0.7, tint: 0x3a3226 }),
+  ar_moraine: zw('ar_moraine', 'MR-9 MORAINE', 'MORAINE', AR, { damage: 46, rpm: 520, magSize: 30, reserveMax: 240, startReserve: 180, recoilPitch: 0.85, recoilYaw: 0.4, tint: 0x2e3a2c, lengthScale: 1.08 }),
+  ar_tern: zw('ar_tern', 'TN-2 TERN', 'TERN', AR, { damage: 29, rpm: 820, magSize: 35, reserveMax: 280, startReserve: 210, recoilPitch: 0.45, tint: 0x40444c }),
+  smg_wren: zw('smg_wren', 'W-9 WREN', 'WREN', AR, { cls: 'smg', damage: 24, rpm: 900, magSize: 32, reserveMax: 256, startReserve: 192, hipSpread: 1.9, rangeNear: 12, rangeFar: 35, reloadTime: 1.8, adsTime: 0.17, tint: 0x2a2a30, lengthScale: 0.7 }),
+  smg_fennec: zw('smg_fennec', 'FX-45 FENNEC', 'FENNEC', AR, { cls: 'smg', damage: 20, rpm: 1100, magSize: 25, reserveMax: 250, startReserve: 175, hipSpread: 1.7, rangeNear: 10, rangeFar: 30, reloadTime: 1.6, recoilPitch: 0.35, tint: 0x8a7a5a, lengthScale: 0.65 }),
+  smg_skiff: zw('smg_skiff', 'SK-5 SKIFF', 'SKIFF', AR, { cls: 'smg', damage: 27, rpm: 760, magSize: 40, reserveMax: 280, startReserve: 200, hipSpread: 2, rangeNear: 14, rangeFar: 38, reloadTime: 2.0, tint: 0x3c4450, lengthScale: 0.75 }),
+  sg_hullbreaker: zw('sg_hullbreaker', 'HB-12 HULLBREAKER', 'HULLBREAKER', SG, {}),
+  sg_tidal: zw('sg_tidal', 'TD-8 TIDAL', 'TIDAL', SG, { damage: 18, rpm: 210, magSize: 8, reserveMax: 64, startReserve: 40, pellets: 8, recoilPitch: 3.2, tint: 0x2c3a44 }),
+  lmg_bastion: zw('lmg_bastion', 'BX-100 BASTION', 'BASTION', AR, { cls: 'lmg', damage: 38, rpm: 640, magSize: 100, reserveMax: 400, startReserve: 300, reloadTime: 4.8, hipSpread: 3.4, adsTime: 0.34, switchTime: 0.8, recoilPitch: 0.6, tint: 0x3a3c30, lengthScale: 1.22 }),
+  dmr_sentry: zw('dmr_sentry', 'SN-14 SENTRY', 'SENTRY', AR, { cls: 'dmr', auto: false, damage: 95, headMult: 2.6, rpm: 330, magSize: 15, reserveMax: 120, startReserve: 90, rangeNear: 60, rangeFar: 120, minDamageMult: 0.8, recoilPitch: 1.8, adsZoom: 0.55, tint: 0x4a4436, lengthScale: 1.15 }),
+  sr_longwatch: zw('sr_longwatch', 'LW-50 LONGWATCH', 'LONGWATCH', AR, { cls: 'sniper', auto: false, damage: 320, headMult: 3, rpm: 48, magSize: 5, reserveMax: 40, startReserve: 30, reloadTime: 3.2, hipSpread: 6, adsSpread: 0.05, rangeNear: 100, rangeFar: 200, minDamageMult: 0.9, recoilPitch: 5, adsTime: 0.38, adsZoom: 0.35, tint: 0x3a4232, lengthScale: 1.3 }),
+  pi_warden: zw('pi_warden', 'P-19 WARDEN', 'WARDEN', PI, {}),
+  pi_basalt: zw('pi_basalt', 'BS-1 BASALT', 'BASALT', PI, { damage: 115, headMult: 2.5, rpm: 170, magSize: 6, reserveMax: 48, startReserve: 36, reloadTime: 2.4, recoilPitch: 4, tint: 0x5a5048 }),
+  pi_magnus: zw('pi_magnus', 'MG-2 MAGNUS', 'MAGNUS', PI, { auto: true, damage: 30, rpm: 720, magSize: 20, reserveMax: 160, startReserve: 120, hipSpread: 2.2, recoilPitch: 0.9, tint: 0x26282c }),
+  ln_lotus: zw('ln_lotus', 'LT-6 LOTUS', 'LOTUS', AR, { cls: 'launcher', special: 'explosive', auto: false, damage: 420, headMult: 1, rpm: 55, magSize: 1, reserveMax: 16, startReserve: 12, reloadTime: 2.6, hipSpread: 0.6, adsSpread: 0.2, rangeNear: 999, rangeFar: 1000, minDamageMult: 1, recoilPitch: 4, adsZoom: 0.8, tint: 0x3c4a2a, lengthScale: 1.05 }),
+  ww_arc: zw('ww_arc', 'ARC LANCE', 'ARC LANCE', AR, { cls: 'wonder', special: 'arc', auto: false, damage: 900, headMult: 1, rpm: 110, magSize: 6, reserveMax: 30, startReserve: 30, reloadTime: 2.4, hipSpread: 0.4, adsSpread: 0.2, rangeNear: 60, rangeFar: 80, minDamageMult: 0.8, recoilPitch: 1.6, tint: 0x1a3a6a, lengthScale: 0.95 }),
+  ww_singularity: zw('ww_singularity', 'VOID ANCHOR', 'VOID ANCHOR', AR, { cls: 'wonder', special: 'singularity', auto: false, damage: 250, headMult: 1, rpm: 50, magSize: 3, reserveMax: 12, startReserve: 12, reloadTime: 3.0, hipSpread: 0.4, adsSpread: 0.2, rangeNear: 999, rangeFar: 1000, minDamageMult: 1, recoilPitch: 3, tint: 0x3a1a5a }),
+  ww_cryo: zw('ww_cryo', 'RIME PROJECTOR', 'RIME', AR, { cls: 'wonder', special: 'cryo', auto: true, damage: 60, headMult: 1, rpm: 600, magSize: 40, reserveMax: 200, startReserve: 200, hipSpread: 3, adsSpread: 2, rangeNear: 14, rangeFar: 18, minDamageMult: 0.2, recoilPitch: 0.2, tint: 0x5a8aa8, lengthScale: 0.9 }),
 };
+Object.assign(WEAPONS, ZOMBIE_WEAPONS);
+WEAPONS.rifle.modelId = 'ar_kestrel';
+WEAPONS.pistol.modelId = 'pi_warden';
+WEAPONS.shotgun.modelId = 'sg_hullbreaker';
+
+/** Procedural archetype for a weapon id. */
+export function weaponArch(id: WeaponId): WeaponArch {
+  return WEAPONS[id].arch ?? (id as WeaponArch);
+}
 
 /** Upgrade tiers: index 0 = base. */
 export const UPGRADE_TIERS = [
@@ -199,6 +260,11 @@ export const ZOMBIES: Record<ZombieType, ZombieDef> = {
   runner: { hp: 85, speed: [4.3, 5.1], damage: 14, attackRange: 1.4, windup: 0.34, attackCooldown: 0.95, reward: 55, scale: 0.97, helmetHp: 0, bodyArmorMult: 1, staggerThreshold: 50 },
   armored: { hp: 300, speed: [1.8, 2.2], damage: 30, attackRange: 1.55, windup: 0.6, attackCooldown: 1.4, reward: 130, scale: 1.08, helmetHp: 140, bodyArmorMult: 0.55, staggerThreshold: 140 },
   elite: { hp: 3400, speed: [2.7, 2.9], damage: 42, attackRange: 2.3, windup: 0.8, attackCooldown: 1.7, reward: 0, scale: 1.4, helmetHp: 400, bodyArmorMult: 0.7, staggerThreshold: 99999 },
+  // Zombies-mode roster
+  brute: { hp: 420, speed: [1.6, 1.9], damage: 38, attackRange: 1.7, windup: 0.7, attackCooldown: 1.5, reward: 0, scale: 1.22, helmetHp: 120, bodyArmorMult: 0.6, staggerThreshold: 200 },
+  crawler: { hp: 90, speed: [0.8, 1.1], damage: 12, attackRange: 1.2, windup: 0.45, attackCooldown: 1.1, reward: 0, scale: 1, helmetHp: 0, bodyArmorMult: 1, staggerThreshold: 80 },
+  fast: { hp: 70, speed: [5.6, 6.3], damage: 10, attackRange: 1.35, windup: 0.25, attackCooldown: 0.8, reward: 0, scale: 0.92, helmetHp: 0, bodyArmorMult: 1, staggerThreshold: 60 },
+  boss: { hp: 6000, speed: [2.4, 2.6], damage: 55, attackRange: 2.4, windup: 0.85, attackCooldown: 1.8, reward: 0, scale: 1.5, helmetHp: 600, bodyArmorMult: 0.75, staggerThreshold: 99999 },
 };
 
 export interface RegionDef {
@@ -210,7 +276,7 @@ export interface RegionDef {
   rewardMult: number;
   maxAlive: number;
   spawnInterval: number;
-  weights: Record<Exclude<ZombieType, 'elite'>, number>;
+  weights: Record<'shambler' | 'runner' | 'armored', number>;
   initialPopulation: number;
   color: string;
 }

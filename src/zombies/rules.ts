@@ -1,7 +1,7 @@
 // Pure round-based Zombies rules: rounds, points, wall-buys, mystery box, pack-a-punch, perks.
 // No three.js / DOM. Ported (and retuned) from the UNDEAD SIEGE VR rules in sikhi.io.
 // Everything here is deterministic given an rng, so the same code can run on a server (online) or locally (offline).
-import type { WeaponId, ZombieType } from '../config';
+import type { WeaponId } from '../config';
 
 // ------------------------------------------------------------------------------------------
 // Rounds
@@ -28,12 +28,27 @@ export function runnerFractionForRound(n: number): number {
   return Math.min(0.85, (n - 2) * 0.1);
 }
 
-/** Armored brutes appear from round 8, capped. */
+/** Armored brutes appear from round 6, capped. */
 export function armoredFractionForRound(n: number): number {
-  return n < 8 ? 0 : Math.min(0.2, (n - 7) * 0.025);
+  return n < 6 ? 0 : Math.min(0.18, (n - 5) * 0.02);
 }
 
-/** Every 5th round from 5 is a "hound" style special round: fewer, fast, fragile. */
+/** Crawlers (spawned legless) trickle in from round 4. More are made mid-fight by leg damage. */
+export function crawlerFractionForRound(n: number): number {
+  return n < 4 ? 0 : Math.min(0.08, (n - 3) * 0.01);
+}
+
+/** A boss ("the Warden") joins every 8th round (8, 16, 24 ...). Not on special rounds. */
+export const BOSS_ROUND_EVERY = 8;
+export function isBossRound(n: number): boolean {
+  return n >= BOSS_ROUND_EVERY && n % BOSS_ROUND_EVERY === 0 && !isSpecialRound(n);
+}
+/** Boss HP scales with the round; brutal but finite. */
+export function bossHpForRound(n: number): number {
+  return 4000 + n * 350;
+}
+
+/** Every 5th round from 5 is a "hound" style special round: fewer, fast, fragile ("the Scuttlers"). */
 export function isSpecialRound(n: number): boolean {
   return n >= 5 && n % 5 === 0;
 }
@@ -50,6 +65,8 @@ export interface RoundSpec {
   hpMult: number;
   runnerFrac: number;
   armoredFrac: number;
+  crawlerFrac: number;
+  boss: boolean;
   interval: number;
 }
 
@@ -62,15 +79,29 @@ export function roundSpec(n: number, players = 1): RoundSpec {
     hpMult: special ? zombieHpMultForRound(n) * 0.45 : zombieHpMultForRound(n),
     runnerFrac: special ? 1 : runnerFractionForRound(n),
     armoredFrac: special ? 0 : armoredFractionForRound(n),
+    crawlerFrac: special ? 0 : crawlerFractionForRound(n),
+    boss: isBossRound(n),
     interval: special ? 0.6 : spawnIntervalForRound(n),
   };
 }
 
-export function pickZombieType(spec: RoundSpec, rnd: () => number): Exclude<ZombieType, 'elite'> {
+export type ZRoundType = 'shambler' | 'runner' | 'brute' | 'crawler' | 'fast';
+
+/** Type for one regular spawn in the round. Special rounds are all 'fast'. The boss is spawned separately. */
+export function pickZombieType(spec: RoundSpec, rnd: () => number): ZRoundType {
+  if (spec.special) return 'fast';
   const r = rnd();
-  if (r < spec.armoredFrac) return 'armored';
-  if (r < spec.armoredFrac + spec.runnerFrac) return 'runner';
+  if (r < spec.armoredFrac) return 'brute';
+  if (r < spec.armoredFrac + spec.crawlerFrac) return 'crawler';
+  if (r < spec.armoredFrac + spec.crawlerFrac + spec.runnerFrac) return 'runner';
   return 'shambler';
+}
+
+/** Chance that a heavy leg hit turns a walker into a crawler instead of killing/staggering it. */
+export function crawlerFromLegHit(type: string, legDamage: number, maxHp: number, rnd: () => number): boolean {
+  if (type !== 'shambler' && type !== 'runner') return false;
+  if (legDamage < maxHp * 0.35) return false;
+  return rnd() < 0.3;
 }
 
 export type RoundPhase = 'break' | 'active';
@@ -88,7 +119,7 @@ export function createRoundState(players = 1): RoundState {
   return { round: 0, phase: 'break', timer: 5, spec: roundSpec(1, players), toSpawn: 0, killed: 0 };
 }
 
-export interface RoundEvents { started?: number; ended?: number; spawn: number }
+export interface RoundEvents { started?: number; ended?: number; spawn: number; boss?: boolean }
 
 /** Advance the round director. `alive` = zombies currently alive. Returns how many to spawn this step. */
 export function stepRounds(s: RoundState, dt: number, alive: number, players = 1): RoundEvents {
@@ -103,6 +134,7 @@ export function stepRounds(s: RoundState, dt: number, alive: number, players = 1
       s.phase = 'active';
       s.timer = 1.5;
       ev.started = s.round;
+      if (s.spec.boss) ev.boss = true;
     }
     return ev;
   }
@@ -165,11 +197,19 @@ export function trySpend(p: ZPlayer, price: number): SpendResult {
 // ------------------------------------------------------------------------------------------
 export interface WallBuyDef { weapon: WeaponId; price: number; ammoPrice: number; upgradedAmmoPrice: number }
 
-export const WALL_BUYS: Record<'pistol' | 'shotgun' | 'rifle', WallBuyDef> = {
-  pistol: { weapon: 'pistol', price: 500, ammoPrice: 250, upgradedAmmoPrice: 4500 },
-  shotgun: { weapon: 'shotgun', price: 1500, ammoPrice: 750, upgradedAmmoPrice: 4500 },
-  rifle: { weapon: 'rifle', price: 1200, ammoPrice: 600, upgradedAmmoPrice: 4500 },
-};
+/** Classic wall-buys (chalk outlines). Ammo is half price; reforged ammo is flat 4500. Box-only guns are never here. */
+function wb(weapon: WeaponId, price: number): WallBuyDef { return { weapon, price, ammoPrice: Math.round(price / 2), upgradedAmmoPrice: 4500 }; }
+export const WALL_BUYS = {
+  pi_warden: wb('pi_warden', 500),
+  smg_wren: wb('smg_wren', 1000),
+  ar_kestrel: wb('ar_kestrel', 1200),
+  sg_hullbreaker: wb('sg_hullbreaker', 1500),
+  smg_skiff: wb('smg_skiff', 1300),
+  ar_corvid: wb('ar_corvid', 1400),
+  dmr_sentry: wb('dmr_sentry', 1600),
+  pi_magnus: wb('pi_magnus', 900),
+} satisfies Record<string, WallBuyDef>;
+export type WallBuyKey = keyof typeof WALL_BUYS;
 
 /** What a wall-buy costs given what the player holds. `ownedTier` = null when not owned. */
 export function wallBuyPrice(def: WallBuyDef, ownedTier: number | null): { action: 'weapon' | 'ammo'; price: number } {
@@ -186,12 +226,32 @@ export const BOX_OFFER_SECONDS = 12;
 /** Guaranteed pulls before the box may move; chance per pull after that. */
 export const BOX_SAFE_PULLS = 4;
 export const BOX_MOVE_CHANCE = 0.18;
+/** Moth departure: box rises, hovers, vanishes, then lands elsewhere. */
+export const BOX_MOVE_SECONDS = 5;
 
-export const BOX_POOL: { weapon: WeaponId; weight: number }[] = [
-  { weapon: 'shotgun', weight: 3 },
-  { weapon: 'rifle', weight: 3 },
-  { weapon: 'pistol', weight: 1 },
+export interface BoxEntry { weapon: WeaponId; weight: number }
+/** The Cache pool. Wonder weapons are rare and box-only; wall weapons are excluded (BO rule of thumb). */
+export const BOX_POOL: BoxEntry[] = [
+  { weapon: 'ar_moraine', weight: 4 }, { weapon: 'ar_tern', weight: 4 }, { weapon: 'smg_fennec', weight: 4 },
+  { weapon: 'sg_tidal', weight: 4 }, { weapon: 'lmg_bastion', weight: 3 }, { weapon: 'sr_longwatch', weight: 3 },
+  { weapon: 'pi_basalt', weight: 3 }, { weapon: 'ln_lotus', weight: 3 }, { weapon: 'ar_kestrel', weight: 2 },
+  { weapon: 'ww_arc', weight: 1 }, { weapon: 'ww_singularity', weight: 1 }, { weapon: 'ww_cryo', weight: 1 },
 ];
+export const WONDER_WEAPONS: WeaponId[] = ['ww_arc', 'ww_singularity', 'ww_cryo'];
+export function isBoxOnly(id: WeaponId): boolean {
+  return BOX_POOL.some((e) => e.weapon === id) && !Object.values(WALL_BUYS).some((w) => w.weapon === id);
+}
+
+/** Weapons shown flicking past during the spin: a deterministic reel from the pool (never the final twice in a row). */
+export function boxReel(rnd: () => number, count: number, pool: BoxEntry[] = BOX_POOL): WeaponId[] {
+  const out: WeaponId[] = [];
+  for (let i = 0; i < count; i++) {
+    let w = pool[Math.floor(rnd() * pool.length)].weapon;
+    if (out.length && out[out.length - 1] === w) w = pool[(pool.findIndex((e) => e.weapon === w) + 1) % pool.length].weapon;
+    out.push(w);
+  }
+  return out;
+}
 
 export interface BoxState {
   location: number; // index into the map's box spots
@@ -209,10 +269,12 @@ export function createBox(location = 0): BoxState {
 export type BoxRoll = { kind: 'weapon'; weapon: WeaponId } | { kind: 'moth' };
 
 /** Roll a box pull. Never offers a weapon the player already holds. */
-export function rollBox(box: BoxState, owned: WeaponId[], rnd: () => number): BoxRoll {
-  if (box.pullsHere >= BOX_SAFE_PULLS && rnd() < BOX_MOVE_CHANCE) return { kind: 'moth' };
-  let pool = BOX_POOL.filter((e) => !owned.includes(e.weapon));
-  if (pool.length === 0) pool = BOX_POOL; // everything owned: allow a duplicate (refills ammo)
+export function rollBox(box: BoxState, owned: WeaponId[], rnd: () => number, basePool: BoxEntry[] = BOX_POOL, spotCount = 2): BoxRoll {
+  if (spotCount > 1 && box.pullsHere >= BOX_SAFE_PULLS && rnd() < BOX_MOVE_CHANCE) return { kind: 'moth' };
+  // Only one wonder weapon at a time (the classic limit).
+  const holdsWonder = owned.some((w) => WONDER_WEAPONS.includes(w));
+  let pool = basePool.filter((e) => !owned.includes(e.weapon) && !(holdsWonder && WONDER_WEAPONS.includes(e.weapon)));
+  if (pool.length === 0) pool = basePool; // everything owned: allow a duplicate (refills ammo)
   const total = pool.reduce((a, e) => a + e.weight, 0);
   let r = rnd() * total;
   for (const e of pool) {
@@ -223,12 +285,12 @@ export function rollBox(box: BoxState, owned: WeaponId[], rnd: () => number): Bo
 }
 
 /** Pay and start a spin. The roll is decided up-front (server-authoritative friendly). */
-export function pullBox(box: BoxState, p: ZPlayer, owned: WeaponId[], rnd: () => number, playerIndex = 0): SpendResult & { roll?: BoxRoll } {
+export function pullBox(box: BoxState, p: ZPlayer, owned: WeaponId[], rnd: () => number, playerIndex = 0, spotCount = 2): SpendResult & { roll?: BoxRoll } {
   if (box.phase !== 'idle') return { ok: false, reason: 'busy', price: BOX_PRICE };
   const s = trySpend(p, BOX_PRICE);
   if (!s.ok) return s;
   p.boxPulls++;
-  const roll = rollBox(box, owned, rnd);
+  const roll = rollBox(box, owned, rnd, BOX_POOL, spotCount);
   box.pullsHere++;
   box.phase = 'spinning';
   box.t = 0;
@@ -254,7 +316,7 @@ export function stepBox(box: BoxState, dt: number, spotCount: number, rnd: () =>
     box.phase = 'idle'; box.offer = null; box.t = 0;
     return 'expired';
   }
-  if (box.phase === 'moving' && box.t >= 3) {
+  if (box.phase === 'moving' && box.t >= BOX_MOVE_SECONDS) {
     box.location = pickNewBoxLocation(box.location, spotCount, rnd);
     box.pullsHere = 0; box.phase = 'idle'; box.t = 0; box.offer = null;
     return 'arrived';
@@ -282,6 +344,35 @@ export function takeBoxOffer(box: BoxState, playerIndex = 0): WeaponId | null {
 export const PAP_PRICE = 5000;
 export const PAP_REPACK_PRICE = 2500;
 export const PAP_SECONDS = 3.5;
+
+/** Reforged names (original). Tier 2 ("repack") appends a mark. */
+export const PAP_NAMES: Partial<Record<WeaponId, string>> = {
+  ar_kestrel: 'SKYRENDER', ar_corvid: 'MURDER OF CROWS', ar_moraine: 'GLACIAL TILL', ar_tern: 'ARCTIC TERNADO',
+  smg_wren: 'WRENCH OF RUIN', smg_fennec: 'DESERT GHOST', smg_skiff: 'DREADNOUGHT', sg_hullbreaker: 'KEELHAULER',
+  sg_tidal: 'RIPTIDE', lmg_bastion: 'CITADEL', dmr_sentry: 'OVERWATCH', sr_longwatch: 'NEVERSLEEP',
+  pi_warden: 'JAILER\'S MERCY', pi_basalt: 'OBSIDIAN OATH', pi_magnus: 'MAGNUS OPUS', ln_lotus: 'BLOOMING HELL',
+  ww_arc: 'STORMBRINGER', ww_singularity: 'EVENT HORIZON', ww_cryo: 'ABSOLUTE ZERO',
+  rifle: 'SKYRENDER', pistol: 'JAILER\'S MERCY', shotgun: 'KEELHAULER',
+};
+
+/** Display name of a weapon at a Reforger tier. */
+export function papName(id: WeaponId, baseName: string, tier: number): string {
+  if (tier <= 0) return baseName;
+  const n = PAP_NAMES[id] ?? `${baseName} REFORGED`;
+  return tier >= 2 ? `${n} II` : n;
+}
+
+/** Wonder weapons get special reforge bonuses on top of the normal tier multipliers. */
+export interface WonderBonus { chains: number; radius: number; freeze: number }
+export function wonderBonus(id: WeaponId, tier: number): WonderBonus {
+  const t = Math.max(0, tier);
+  switch (id) {
+    case 'ww_arc': return { chains: 5 + t * 4, radius: 7 + t * 2, freeze: 0 };
+    case 'ww_singularity': return { chains: 0, radius: 6 + t * 2.5, freeze: 0 };
+    case 'ww_cryo': return { chains: 0, radius: 2.5 + t, freeze: 2.5 + t * 1.5 };
+    default: return { chains: 0, radius: 0, freeze: 0 };
+  }
+}
 
 export function papPrice(tier: number, maxTier: number): number | null {
   if (tier >= maxTier) return null;

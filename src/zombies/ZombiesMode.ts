@@ -42,7 +42,7 @@ const PERK_SPOTS: Record<PerkId, P2> = {
 };
 const PAP_SPOT: P2 = { x: 9.3, z: 88 };
 const POWER_SPOT: P2 = { x: -6, z: 80 };
-const WALL_SPOTS: Record<keyof typeof WALL_BUYS, P2> = { pistol: { x: -4, z: 97 }, shotgun: { x: 14, z: 76 }, rifle: { x: -16, z: 78 } };
+const WALL_SPOTS: Partial<Record<keyof typeof WALL_BUYS, P2>> = { pi_warden: { x: -4, z: 97 }, sg_hullbreaker: { x: 14, z: 76 }, ar_kestrel: { x: -16, z: 78 } };
 
 const REASON: Record<string, string> = { funds: 'NOT ENOUGH POINTS', owned: 'ALREADY OWNED', max: 'MAXED', limit: 'PERK LIMIT (4)', busy: 'BUSY', power: 'REQUIRES POWER' };
 
@@ -69,7 +69,7 @@ export class ZombiesMode {
     this.papMesh = this.buildMachine(PAP_SPOT, 0x9040ff, ['REFORGER', '5000 / 2500'], 2.4);
     const pw = this.buildMachine(POWER_SPOT, 0x404040, ['POWER', 'THROW SWITCH'], 1.6);
     this.powerLight = pw.userData.panel as THREE.Mesh;
-    for (const k of Object.keys(WALL_SPOTS) as (keyof typeof WALL_BUYS)[]) this.buildWallBuy(WALL_SPOTS[k], k);
+    for (const k of Object.keys(WALL_SPOTS) as (keyof typeof WALL_BUYS)[]) this.buildWallBuy(WALL_SPOTS[k]!, k);
     this.offerMesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.18, 0.12), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x60f0ff).multiplyScalar(2) }));
     this.offerMesh.visible = false;
     this.group.add(this.offerMesh);
@@ -167,7 +167,7 @@ export class ZombiesMode {
     if (near(PAP_SPOT, 2.6)) return { kind: 'pap' };
     if (near(POWER_SPOT)) return { kind: 'power' };
     for (const id of Object.keys(PERK_SPOTS) as PerkId[]) if (near(PERK_SPOTS[id])) return { kind: 'perk', id };
-    for (const k of Object.keys(WALL_SPOTS) as (keyof typeof WALL_BUYS)[]) if (near(WALL_SPOTS[k], 1.8)) return { kind: 'wall', key: k };
+    for (const k of Object.keys(WALL_SPOTS) as (keyof typeof WALL_BUYS)[]) if (near(WALL_SPOTS[k]!, 1.8)) return { kind: 'wall', key: k };
     return null;
   }
 
