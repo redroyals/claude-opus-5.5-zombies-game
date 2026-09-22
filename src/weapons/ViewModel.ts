@@ -1,7 +1,8 @@
 // First-person weapon + gloved hands, rendered in an overlay scene so it never clips into walls.
 // All animation is procedural: bob, sway, ADS alignment, recoil springs, reloads, switching, plates.
 import * as THREE from 'three';
-import type { WeaponId } from '../config';
+import { WEAPONS, weaponArch, type WeaponDef, type WeaponId } from '../config';
+import { models, findNode } from '../render/ModelRegistry';
 import type { TextureLib } from '../render/textures';
 import type { ReloadPhase } from './WeaponState';
 
@@ -23,7 +24,15 @@ interface WeaponModel {
   accents: THREE.MeshStandardMaterial;
   body: THREE.MeshStandardMaterial;
   shell?: THREE.Object3D;
+  /** Emissive parts that pulse (wonder weapons). */
+  glow?: THREE.MeshStandardMaterial;
+  /** GLB replacing the procedural gun body (hands stay procedural). */
+  glb?: THREE.Object3D;
+  tier?: number;
 }
+
+/** Optional per-weapon placement data from public/models/weapons/frames.json (all in viewmodel metres, gun forward = -Z). */
+interface FrameData { scale?: number; position?: number[]; rotation?: number[]; muzzle?: number[]; sight?: number[]; length?: number }
 
 export interface ViewState {
   id: WeaponId;
@@ -78,6 +87,11 @@ export class ViewModel {
   private wood: THREE.MeshStandardMaterial;
   private tex: TextureLib;
   private tmp = new THREE.Vector3();
+  private knife: THREE.Group;
+  private knifeT = 0;
+  private camoTex: THREE.CanvasTexture;
+  private time = 0;
+  private frames: Record<string, FrameData> = {};
 
   constructor(tex: TextureLib) {
     this.tex = tex;
@@ -103,17 +117,138 @@ export class ViewModel {
     this.polymer = new THREE.MeshStandardMaterial({ color: 0x34373a, roughness: 0.7, metalness: 0.1, map: tex.grime });
     this.wood = new THREE.MeshStandardMaterial({ color: 0x8a5a36, roughness: 0.6, map: tex.wood.map });
 
-    this.models.set('rifle', this.buildRifle());
-    this.models.set('pistol', this.buildPistol());
-    this.models.set('shotgun', this.buildShotgun());
-    for (const m of this.models.values()) { m.root.visible = false; this.rig.add(m.root); }
+    this.camoTex = this.buildCamo();
+    for (const id of ['rifle', 'pistol', 'shotgun'] as WeaponId[]) this.ensure(id);
+    this.knife = this.buildKnife();
+    this.camera.add(this.knife);
+    void models.json<Record<string, FrameData>>('weapons/frames.json').then((f) => { if (f) this.frames = f; });
 
     this.plate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.025), new THREE.MeshStandardMaterial({ color: 0x3d4238, roughness: 0.6, metalness: 0.4, map: tex.grime }));
     this.plate.visible = false;
     this.camera.add(this.plate);
-    this.setTier('rifle', 0); this.setTier('pistol', 0); this.setTier('shotgun', 0);
     this.traverseNoCull();
   }
+
+  /** Build (once) the viewmodel for any weapon id: procedural from its archetype, upgraded to a GLB if one exists. */
+  private ensure(id: WeaponId): WeaponModel {
+    let m = this.models.get(id);
+    if (m) return m;
+    const def = WEAPONS[id];
+    const arch = weaponArch(id);
+    m = arch === 'pistol' ? this.buildPistol() : arch === 'shotgun' ? this.buildShotgun() : this.buildRifle(def);
+    m.id = id;
+    if (def.tint !== undefined) m.body.color.setHex(def.tint);
+    m.root.visible = false;
+    this.rig.add(m.root);
+    m.root.traverse((o) => { o.frustumCulled = false; });
+    this.setTier(id, 0);
+    const mid = def.modelId ?? id;
+    const model = m;
+    models.whenAvailable(`weapons/${mid}.glb`, (lm) => this.attachGlb(model, models.instance(lm), mid));
+    return m;
+  }
+
+  /** Replace the procedural gun body with a GLB, keeping procedural gloved hands and animation anchors. */
+  private attachGlb(m: WeaponModel, obj: THREE.Object3D, mid: string): void {
+    const f = this.frames[mid] ?? {};
+    const holder = new THREE.Group();
+    holder.add(obj);
+    // Default fit: longest axis along Z matched to the procedural length, centred on the receiver.
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = box.getSize(new THREE.Vector3());
+    const procLen = f.length ?? (m.id && weaponArch(m.id) === 'pistol' ? 0.22 : weaponArch(m.id) === 'shotgun' ? 1.1 : 0.95 * (WEAPONS[m.id].lengthScale ?? 1));
+    const longest = Math.max(size.x, size.z, 1e-4);
+    if (size.x > size.z) obj.rotation.y = Math.PI / 2; // authored along X: turn to -Z
+    const sc = f.scale ?? procLen / longest;
+    obj.scale.multiplyScalar(sc);
+    obj.updateMatrixWorld(true);
+    const b2 = new THREE.Box3().setFromObject(obj);
+    const c = b2.getCenter(new THREE.Vector3());
+    obj.position.sub(c);
+    obj.position.z += weaponArch(m.id) === 'pistol' ? -0.05 : -0.2;
+    obj.position.y += weaponArch(m.id) === 'pistol' ? 0.02 : 0.02;
+    if (f.position) holder.position.fromArray(f.position);
+    if (f.rotation) holder.rotation.set(f.rotation[0] ?? 0, f.rotation[1] ?? 0, f.rotation[2] ?? 0);
+    // Hide procedural gun meshes but keep the gloved hands (which may be nested under the pump, etc.).
+    m.root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      let p: THREE.Object3D | null = o;
+      while (p && p !== m.root) { if (p.userData.hand) return; p = p.parent; }
+      mesh.visible = false;
+    });
+    m.root.add(holder);
+    holder.traverse((o) => {
+      o.frustumCulled = false;
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) { mesh.castShadow = false; mesh.receiveShadow = false; }
+    });
+    const mz = findNode(obj, 'muzzle');
+    if (f.muzzle) m.muzzle.position.fromArray(f.muzzle);
+    else if (mz) { mz.updateMatrixWorld(true); m.muzzle.position.copy(m.root.worldToLocal(mz.getWorldPosition(new THREE.Vector3()))); }
+    else { const bb = new THREE.Box3().setFromObject(holder); m.muzzle.position.set(0, (bb.max.y + bb.min.y) / 2 + 0.02, m.root.worldToLocal(new THREE.Vector3(0, 0, bb.min.z)).z); }
+    if (f.sight) m.sight.fromArray(f.sight);
+    m.glb = holder;
+    if (m.tier) this.setTier(m.id, m.tier);
+  }
+
+  private buildCamo(): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#101018';
+    g.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 70; i++) {
+      const hue = 260 + Math.random() * 80;
+      g.fillStyle = `hsla(${hue % 360}, 90%, ${35 + Math.random() * 35}%, 0.8)`;
+      g.beginPath();
+      g.ellipse(Math.random() * 128, Math.random() * 128, 4 + Math.random() * 14, 3 + Math.random() * 8, Math.random() * 3, 0, Math.PI * 2);
+      g.fill();
+    }
+    for (let i = 0; i < 25; i++) {
+      g.strokeStyle = 'rgba(120,220,255,0.7)';
+      g.lineWidth = 1;
+      g.beginPath();
+      let x = Math.random() * 128, y = Math.random() * 128;
+      g.moveTo(x, y);
+      for (let k = 0; k < 5; k++) { x += (Math.random() - 0.5) * 30; y += (Math.random() - 0.5) * 30; g.lineTo(x, y); }
+      g.stroke();
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(2, 2);
+    return t;
+  }
+
+  private buildKnife(): THREE.Group {
+    const g = new THREE.Group();
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.035, 0.2), new THREE.MeshStandardMaterial({ color: 0xb8bcc0, metalness: 0.9, roughness: 0.25 }));
+    blade.position.z = -0.14;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 4), blade.material);
+    tip.rotation.x = -Math.PI / 2;
+    tip.position.z = -0.26;
+    tip.scale.set(0.35, 1, 1);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.07, 0.012), this.metal);
+    guard.position.z = -0.035;
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.1, 8), this.polymer);
+    grip.rotation.x = Math.PI / 2;
+    grip.position.z = 0.02;
+    g.add(blade, tip, guard, grip);
+    const hand = this.hand(g, new THREE.Vector3(0, -0.01, 0.02), new THREE.Vector3(0.1, -0.2, 0.36), 1, 'pistol');
+    hand.userData.hand = true;
+    g.visible = false;
+    g.traverse((o) => { o.frustumCulled = false; });
+    return g;
+  }
+
+  /** Melee: play the knife slash for `dur` seconds. */
+  melee(dur = 0.45): void {
+    this.knifeT = dur;
+    this.knife.userData.dur = dur;
+  }
+
+  get meleeActive(): boolean { return this.knifeT > 0; }
 
   private traverseNoCull(): void {
     this.scene.traverse((o) => { o.frustumCulled = false; });
@@ -146,6 +281,7 @@ export class ViewModel {
   /** Gloved hand gripping around the given point, with forearm extending toward `elbow`. */
   private hand(parent: THREE.Object3D, at: THREE.Vector3, elbow: THREE.Vector3, side: 1 | -1, grip: 'vertical' | 'under' | 'pistol'): THREE.Group {
     const g = new THREE.Group();
+    g.userData.hand = true;
     g.position.copy(at);
     parent.add(g);
     // Palm
@@ -211,9 +347,13 @@ export class ViewModel {
     };
   }
 
-  private buildRifle(): WeaponModel {
+  private buildRifle(def: WeaponDef = WEAPONS.rifle): WeaponModel {
     const root = new THREE.Group();
     const { accents, body } = this.tierMats();
+    const L = def.lengthScale ?? 1;
+    const cls = def.cls ?? 'ar';
+    const fz = (z: number) => (z < -0.2 ? -0.2 + (z + 0.2) * L : z); // stretch everything ahead of the receiver
+    const scoped = cls === 'sniper' || cls === 'dmr';
     // Receiver & upper
     this.box(root, body, 0.058, 0.07, 0.3, 0, 0.02, -0.07);
     this.box(root, body, 0.052, 0.035, 0.34, 0, 0.068, -0.09);
@@ -222,16 +362,16 @@ export class ViewModel {
     this.box(root, this.metal, 0.004, 0.022, 0.05, 0.03, 0.045, -0.04); // ejection port
     this.box(root, this.metal, 0.02, 0.012, 0.03, 0.03, 0.07, 0.05); // charging handle
     // Handguard with vents
-    this.box(root, this.polymer, 0.064, 0.066, 0.3, 0, 0.035, -0.4);
+    this.box(root, this.polymer, 0.064, 0.066, 0.3 * L, 0, 0.035, fz(-0.4));
     for (let i = 0; i < 5; i++) {
-      this.box(root, accents, 0.066, 0.012, 0.035, 0, 0.035, -0.3 - i * 0.05);
+      this.box(root, accents, 0.066, 0.012, 0.035, 0, 0.035, fz(-0.3 - i * 0.05));
     }
-    this.box(root, this.metal, 0.028, 0.01, 0.28, 0, 0.073, -0.4);
+    this.box(root, this.metal, 0.028, 0.01, 0.28 * L, 0, 0.073, fz(-0.4));
     // Barrel + muzzle device
-    this.cyl(root, this.metal, 0.012, 0.2, 0, 0.035, -0.62);
-    this.cyl(root, this.metal, 0.02, 0.075, 0, 0.035, -0.745, 8);
-    for (let i = 0; i < 3; i++) this.box(root, this.polymer, 0.042, 0.004, 0.008, 0, 0.035, -0.73 - i * 0.015);
-    const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.035, -0.8); root.add(muzzle);
+    this.cyl(root, this.metal, 0.012, 0.2 * L, 0, 0.035, fz(-0.62));
+    this.cyl(root, this.metal, 0.02, 0.075, 0, 0.035, fz(-0.745), 8);
+    for (let i = 0; i < 3; i++) this.box(root, this.polymer, 0.042, 0.004, 0.008, 0, 0.035, fz(-0.73 - i * 0.015));
+    const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.035, fz(-0.8)); root.add(muzzle);
     // Magazine (curved: two segments)
     const mag = new THREE.Group(); mag.position.set(0, -0.02, -0.12); root.add(mag);
     this.box(mag, this.polymer, 0.032, 0.1, 0.07, 0, -0.05, 0, 0.12);
@@ -245,35 +385,38 @@ export class ViewModel {
     this.box(root, this.polymer, 0.04, 0.05, 0.16, 0, 0.03, 0.16);
     this.box(root, this.polymer, 0.046, 0.075, 0.1, 0, 0.018, 0.27);
     this.box(root, this.gloveMat, 0.05, 0.115, 0.025, 0, 0.01, 0.33);
-    // Red dot optic
-    this.box(root, this.metal, 0.03, 0.018, 0.05, 0, 0.105, -0.07);
+    // Red dot optic (scoped classes get a long scope from classExtras instead)
+    const optic = new THREE.Group(); root.add(optic); optic.visible = !scoped;
+    this.box(optic, this.metal, 0.03, 0.018, 0.05, 0, 0.105, -0.07);
     // Open-ended housing so the shooter can see through it when aiming.
     const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.06, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x2a2d30, roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }));
     housing.rotation.x = Math.PI / 2;
     housing.position.set(0, 0.13, -0.07);
-    root.add(housing);
+    optic.add(housing);
     for (const z of [-0.1, -0.04]) {
       const ring = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.003, 6, 20), this.metal);
       ring.position.set(0, 0.13, z);
-      root.add(ring);
+      optic.add(ring);
     }
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.018, 20), new THREE.MeshStandardMaterial({ color: 0x5a8a7a, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.12, depthWrite: false }));
     lens.position.set(0, 0.13, -0.1);
-    root.add(lens);
+    optic.add(lens);
     const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0011, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 0.3, 0.2) }));
     dot.position.set(0, 0.13, -0.104);
-    root.add(dot);
+    optic.add(dot);
     // Vertical foregrip
-    this.box(root, this.polymer, 0.03, 0.075, 0.035, 0, -0.03, -0.42);
+    if (cls !== 'lmg') this.box(root, this.polymer, 0.03, 0.075, 0.035, 0, -0.03, fz(-0.42));
     // Charging-handle "mover" used for reload rack
     const mover = this.box(root, this.metal, 0.024, 0.012, 0.02, -0.03, 0.07, 0.04);
     // Hands
     this.hand(root, new THREE.Vector3(0.0, -0.045, 0.045), new THREE.Vector3(0.14, -0.2, 0.38), 1, 'pistol');
-    const left = this.hand(root, new THREE.Vector3(0.0, -0.035, -0.42), new THREE.Vector3(-0.17, -0.22, -0.08), -1, 'vertical');
+    const left = this.hand(root, new THREE.Vector3(0.0, -0.035, fz(-0.42)), new THREE.Vector3(-0.17, -0.22, -0.08), -1, 'vertical');
+    const glow = this.classExtras(root, def, fz, mag, muzzle);
+    const sightY = scoped ? 0.155 : 0.13;
     return {
-      id: 'rifle', root, mag, magHome: mag.position.clone(), mover, moverHome: mover.position.clone(), muzzle,
-      sight: new THREE.Vector3(0, 0.13, -0.03), adsDist: 0.3, hip: new THREE.Vector3(0.15, -0.2, -0.36),
-      leftHand: left, leftHome: left.position.clone(), leftHomeRot: left.rotation.clone(), flash: this.flashSprite(muzzle), accents, body,
+      id: def.id, root, mag, magHome: mag.position.clone(), mover, moverHome: mover.position.clone(), muzzle,
+      sight: new THREE.Vector3(0, sightY, -0.03), adsDist: scoped ? 0.22 : 0.3, hip: new THREE.Vector3(0.15, -0.2, -0.36),
+      leftHand: left, leftHome: left.position.clone(), leftHomeRot: left.rotation.clone(), flash: this.flashSprite(muzzle), accents, body, glow,
     };
   }
 
@@ -346,20 +489,125 @@ export class ViewModel {
     };
   }
 
+
+  /** Class/wonder-weapon silhouette details on top of the rifle archetype. Returns a pulsing emissive material if any. */
+  private classExtras(root: THREE.Group, def: WeaponDef, fz: (z: number) => number, mag: THREE.Group, muzzle: THREE.Object3D): THREE.MeshStandardMaterial | undefined {
+    const cls = def.cls ?? 'ar';
+    if (cls === 'smg') {
+      mag.scale.set(0.9, 0.75, 0.9);
+    }
+    if (cls === 'lmg') {
+      this.box(mag, this.polymer, 0.09, 0.11, 0.11, -0.02, -0.06, 0.0); // box magazine
+      this.box(root, this.metal, 0.015, 0.2, 0.015, 0.03, -0.08, fz(-0.6), 0.5, 0, 0.3); // bipod legs (folded)
+      this.box(root, this.metal, 0.015, 0.2, 0.015, -0.03, -0.08, fz(-0.6), 0.5, 0, -0.3);
+    }
+    if (cls === 'sniper' || cls === 'dmr') {
+      const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.024, 0.26, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0x1c1e20, roughness: 0.4, metalness: 0.6, side: THREE.DoubleSide }));
+      scope.rotation.x = Math.PI / 2;
+      scope.position.set(0, 0.155, -0.07);
+      root.add(scope);
+      for (const z of [-0.2, 0.06]) this.cyl(root, this.metal, 0.028, 0.03, 0, 0.155, z, 16);
+      this.box(root, this.metal, 0.02, 0.03, 0.03, 0, 0.125, -0.12);
+      this.box(root, this.metal, 0.02, 0.03, 0.03, 0, 0.125, 0.0);
+      const reticle = new THREE.Mesh(new THREE.RingGeometry(0.0006, 0.0012, 12), new THREE.MeshBasicMaterial({ color: 0x101010 }));
+      reticle.position.set(0, 0.155, -0.19);
+      root.add(reticle);
+      const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.03, 0.0005), new THREE.MeshBasicMaterial({ color: 0x101010 }));
+      bar.position.copy(reticle.position);
+      const bar2 = bar.clone(); bar2.rotation.z = Math.PI / 2;
+      root.add(bar, bar2);
+    }
+    if (cls === 'launcher') {
+      mag.visible = false;
+      this.cyl(root, this.olive(), 0.045, 0.62 * (def.lengthScale ?? 1), 0, 0.09, fz(-0.3), 14);
+      this.cyl(root, this.metal, 0.05, 0.04, 0, 0.09, fz(-0.62), 14);
+      const warhead = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0x5a6a3a, roughness: 0.6 }));
+      warhead.rotation.x = -Math.PI / 2;
+      warhead.position.set(0, 0.09, fz(-0.68));
+      root.add(warhead);
+      muzzle.position.set(0, 0.09, fz(-0.72));
+    }
+    if (cls === 'wonder') {
+      const col = def.special === 'arc' ? 0x40a0ff : def.special === 'singularity' ? 0xa040ff : 0x80e0ff;
+      const glow = new THREE.MeshStandardMaterial({ color: 0x101018, emissive: col, emissiveIntensity: 2.5, roughness: 0.3, metalness: 0.5 });
+      if (def.special === 'arc') {
+        for (let i = 0; i < 5; i++) {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 6, 16), glow);
+          ring.position.set(0, 0.035, fz(-0.36 - i * 0.07));
+          root.add(ring);
+        }
+        this.cyl(root, glow, 0.008, 0.4, 0, 0.035, fz(-0.52), 8);
+      } else if (def.special === 'singularity') {
+        const orb = new THREE.Mesh(new THREE.SphereGeometry(0.045, 20, 14), glow);
+        orb.position.set(0, 0.05, fz(-0.62));
+        root.add(orb);
+        for (let i = 0; i < 4; i++) {
+          const prong = this.box(root, this.metal, 0.008, 0.008, 0.14, Math.cos(i * Math.PI / 2) * 0.05, 0.05 + Math.sin(i * Math.PI / 2) * 0.05, fz(-0.6));
+          prong.rotation.set(0, 0, i * Math.PI / 2);
+        }
+        muzzle.position.set(0, 0.05, fz(-0.7));
+      } else {
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 14), glow);
+        tank.position.set(0, -0.06, -0.2);
+        root.add(tank);
+        this.cyl(root, this.metal, 0.03, 0.12, 0, 0.035, fz(-0.72), 10, 0.045);
+      }
+      return glow;
+    }
+    return undefined;
+  }
+
+  private oliveMat: THREE.MeshStandardMaterial | null = null;
+  private olive(): THREE.MeshStandardMaterial {
+    return (this.oliveMat ??= new THREE.MeshStandardMaterial({ color: 0x4a5236, roughness: 0.75, map: this.tex.grime }));
+  }
   // --------------------------------------------------------------------------------------------
   setWeapon(id: WeaponId | null): void {
+    if (id) this.ensure(id);
     for (const m of this.models.values()) m.root.visible = false;
     this.current = id ? this.models.get(id)! : null;
     if (this.current) this.current.root.visible = true;
   }
 
+  /** Reforged guns get an animated camo with emissive veins (procedural body and GLB alike). */
   setTier(id: WeaponId, tier: number): void {
-    const m = this.models.get(id)!;
+    const m = this.ensure(id);
+    m.tier = tier;
     const c = TIER_COLORS[Math.min(2, tier)];
     m.accents.color.setHex(c.accent);
     m.accents.emissive.setHex(c.emissive);
     m.accents.emissiveIntensity = c.ei;
-    m.body.color.setHex(c.body);
+    const tint = WEAPONS[id].tint;
+    if (tier > 0) {
+      m.body.color.setHex(0xffffff);
+      m.body.map = this.camoTex;
+      m.body.emissiveMap = this.camoTex;
+      m.body.emissive.setHex(c.emissive);
+      m.body.emissiveIntensity = 0.55;
+    } else {
+      m.body.color.setHex(tint ?? c.body);
+      m.body.map = this.tex.grime;
+      m.body.emissiveMap = null;
+      m.body.emissive.setHex(0);
+      m.body.emissiveIntensity = 0;
+    }
+    m.body.needsUpdate = true;
+    if (m.glb) {
+      m.glb.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const orig = (mesh.userData.origMat ??= mesh.material) as THREE.Material;
+        if (tier <= 0) { mesh.material = orig; return; }
+        const src = orig as THREE.MeshStandardMaterial;
+        const mat = src.clone();
+        mat.emissive = new THREE.Color(c.emissive);
+        mat.emissiveMap = this.camoTex;
+        mat.emissiveIntensity = 0.9;
+        mat.color = new THREE.Color(0xb0a0d0);
+        mesh.material = mat;
+        (mesh.userData.camoMats ??= []).push(mat);
+      });
+    }
   }
 
   fire(strength: number): void {
@@ -369,7 +617,8 @@ export class ViewModel {
     const f = this.current.flash;
     f.visible = true;
     f.material.rotation = Math.random() * Math.PI * 2;
-    const s = (this.current.id === 'shotgun' ? 0.32 : this.current.id === 'pistol' ? 0.16 : 0.22) * (0.8 + Math.random() * 0.4);
+    const arch = weaponArch(this.current.id);
+    const s = (arch === 'shotgun' ? 0.32 : arch === 'pistol' ? 0.16 : 0.22) * (0.8 + Math.random() * 0.4);
     f.scale.set(s, s, 1);
     this.flashT = 0.045;
     this.flashLight.intensity = 3;
@@ -386,8 +635,26 @@ export class ViewModel {
   }
 
   update(dt: number, s: ViewState): void {
+    this.time += dt;
+    this.camoTex.offset.set(this.time * 0.05, this.time * 0.11);
     const m = this.current;
     if (!m) return;
+    if (m.glow) m.glow.emissiveIntensity = 2 + Math.sin(this.time * 7) * 0.8 + (s.sinceShot < 0.15 ? 3 : 0);
+    if (m.tier && m.tier > 0) m.body.emissiveIntensity = 0.45 + Math.sin(this.time * 3) * 0.25;
+    // Knife slash overrides the gun pose
+    if (this.knifeT > 0) {
+      this.knifeT = Math.max(0, this.knifeT - dt);
+      const dur = (this.knife.userData.dur as number) || 0.45;
+      const p = 1 - this.knifeT / dur;
+      this.knife.visible = true;
+      const sw = Math.sin(Math.min(1, p / 0.55) * Math.PI);
+      this.knife.position.set(0.22 - 0.3 * sw, -0.2 + 0.06 * sw, -0.3 - 0.12 * sw);
+      this.knife.rotation.set(-0.3 + 0.2 * sw, 0.4 + 0.9 * sw, -0.9 + 1.2 * sw);
+      m.root.visible = false;
+      if (this.knifeT <= 0) { this.knife.visible = false; m.root.visible = true; }
+      return;
+    }
+    m.root.visible = true;
     // Springs (critically-damped-ish)
     const k = 170, d = 20;
     this.kickV += (-k * this.kick - d * this.kickV) * dt;
@@ -464,7 +731,7 @@ export class ViewModel {
       if (p > 0.66 && p < 0.72) this.kickRotV -= 0.4 * dt * 60; // mag seat bump
       // Rack / slide release
       const rack = smooth(p, 0.72, 0.8) * (1 - smooth(p, 0.8, 0.86));
-      m.mover.position.z = m.moverHome.z + (m.id === 'pistol' ? 0.03 : 0.07) * rack;
+      m.mover.position.z = m.moverHome.z + (weaponArch(m.id) === 'pistol' ? 0.03 : 0.07) * rack;
     }
     // Shell-by-shell reload
     if (s.reloadPhase === 'shellStart' || s.reloadPhase === 'shellLoop' || s.reloadPhase === 'shellEnd') {
@@ -484,13 +751,13 @@ export class ViewModel {
       }
     }
     // Shotgun pump after firing
-    if (m.id === 'shotgun' && s.sinceShot < 0.7) {
+    if (weaponArch(m.id) === 'shotgun' && WEAPONS[m.id].rpm < 120 && s.sinceShot < 0.7) {
       const pump = smooth(s.sinceShot, 0.28, 0.42) * (1 - smooth(s.sinceShot, 0.46, 0.6));
       m.mover.position.z = m.moverHome.z + 0.09 * pump;
       rot.x -= pump * 0.05;
     }
     // Pistol slide blowback
-    if (m.id === 'pistol' && s.sinceShot < 0.1) {
+    if (weaponArch(m.id) === 'pistol' && s.sinceShot < 0.1) {
       m.mover.position.z = m.moverHome.z + 0.03 * (1 - s.sinceShot / 0.1);
     }
     // Weapon switch (lower / raise)

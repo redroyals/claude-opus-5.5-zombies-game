@@ -1,6 +1,6 @@
 // Procedurally synthesised, layered audio via WebAudio. Initialised on the first user gesture.
 // Positional sounds use cheap distance attenuation + stereo panning relative to the listener.
-import { PERF, type WeaponId } from '../config';
+import { PERF, WEAPONS, weaponArch, type WeaponId } from '../config';
 import type { Surface } from '../world/Collision';
 
 interface Listener { x: number; y: number; z: number; yaw: number }
@@ -153,12 +153,39 @@ export class AudioEngine {
     const t = this.ctx!.currentTime;
     const v = 0.94 + Math.random() * 0.12;
     const o = this.out(null, 0.9, 0.8)!;
-    if (id === 'rifle') {
-      this.noise(o, t, 0.09, { type: 'bandpass', freq: 2400 * v, q: 0.7, gain: 0.9 });
-      this.noise(o, t, 0.32, { type: 'lowpass', freq: 1400 * v, freqEnd: 300, gain: 0.55 });
-      this.tone(o, t, 0.11, { freq: 150 * v, freqEnd: 45, gain: 0.9 });
-      this.noise(o, t + 0.02, 0.5, { type: 'lowpass', freq: 500, freqEnd: 120, gain: 0.18, brown: true, attack: 0.02 });
-    } else if (id === 'pistol') {
+    const def = WEAPONS[id];
+    const arch = weaponArch(id);
+    if (def.special === 'arc' || def.special === 'singularity' || def.special === 'cryo') {
+      if (def.special === 'arc') {
+        this.noise(o, t, 0.5, { type: 'highpass', freq: 3000, gain: 0.7 });
+        this.tone(o, t, 0.35, { type: 'sawtooth', freq: 1800, freqEnd: 120, gain: 0.3 });
+        for (let i = 0; i < 6; i++) this.tone(o, t + i * 0.04, 0.03, { type: 'square', freq: 400 + Math.random() * 2400, gain: 0.12 });
+      } else if (def.special === 'singularity') {
+        this.tone(o, t, 0.9, { type: 'sine', freq: 90, freqEnd: 30, gain: 1 });
+        this.tone(o, t, 0.6, { type: 'sawtooth', freq: 600, freqEnd: 60, gain: 0.2 });
+        this.noise(o, t, 0.8, { type: 'lowpass', freq: 900, freqEnd: 60, gain: 0.5, brown: true });
+      } else {
+        this.noise(o, t, 0.16, { type: 'highpass', freq: 5000 * v, gain: 0.35 });
+        this.noise(o, t, 0.12, { type: 'bandpass', freq: 1400, q: 3, gain: 0.25 });
+      }
+      if (tier > 0) this.tone(o, t, 0.18, { type: 'sawtooth', freq: 1320, freqEnd: 520, gain: 0.05 });
+      return;
+    }
+    if (def.cls === 'launcher') {
+      this.noise(o, t, 0.5, { type: 'lowpass', freq: 1200, freqEnd: 200, gain: 0.8 });
+      this.tone(o, t, 0.3, { freq: 70, freqEnd: 30, gain: 0.9 });
+      this.noise(o, t, 0.9, { type: 'bandpass', freq: 600, q: 0.6, gain: 0.35, attack: 0.05 });
+      return;
+    }
+    const pitch = def.cls === 'smg' ? 1.25 : def.cls === 'lmg' ? 0.85 : def.cls === 'sniper' || def.cls === 'dmr' ? 0.7 : 1;
+    if (arch === 'rifle') {
+      const vv = v * pitch;
+      this.noise(o, t, 0.09, { type: 'bandpass', freq: 2400 * vv, q: 0.7, gain: 0.9 });
+      this.noise(o, t, 0.32 / pitch, { type: 'lowpass', freq: 1400 * vv, freqEnd: 300, gain: 0.55 });
+      this.tone(o, t, 0.11, { freq: 150 * vv, freqEnd: 45, gain: 0.9 });
+      this.noise(o, t + 0.02, 0.5 / pitch, { type: 'lowpass', freq: 500, freqEnd: 120, gain: 0.18, brown: true, attack: 0.02 });
+      if (def.cls === 'sniper') this.noise(o, t + 0.05, 1.2, { type: 'lowpass', freq: 400, freqEnd: 60, gain: 0.4, brown: true, attack: 0.04 });
+    } else if (arch === 'pistol') {
       this.noise(o, t, 0.06, { type: 'highpass', freq: 2200 * v, gain: 0.8 });
       this.noise(o, t, 0.22, { type: 'bandpass', freq: 1100 * v, q: 0.8, freqEnd: 400, gain: 0.5 });
       this.tone(o, t, 0.08, { freq: 220 * v, freqEnd: 70, gain: 0.6 });
@@ -169,8 +196,7 @@ export class AudioEngine {
       this.tone(o, t, 0.25, { freq: 95 * v, freqEnd: 32, gain: 1.1 });
       this.noise(o, t + 0.03, 0.9, { type: 'lowpass', freq: 400, freqEnd: 80, gain: 0.3, brown: true, attack: 0.03 });
       // Pump action
-      this.mech(t + 0.38, 900, 0.3);
-      this.mech(t + 0.52, 700, 0.35);
+      if (def.rpm < 120) { this.mech(t + 0.38, 900, 0.3); this.mech(t + 0.52, 700, 0.35); }
     }
     if (tier > 0) this.tone(o, t, 0.18, { type: 'sawtooth', freq: tier === 1 ? 880 : 1320, freqEnd: tier === 1 ? 440 : 520, gain: 0.05 });
   }

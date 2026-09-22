@@ -1,6 +1,6 @@
 // Runtime weapon handling: trigger logic, spread, ray/pellet resolution, recoil, switching and ADS.
 import * as THREE from 'three';
-import { PLAYER, WEAPONS, type WeaponId } from '../config';
+import { PLAYER, WEAPONS, weaponArch, type WeaponId } from '../config';
 import type { AudioEngine } from '../audio/Audio';
 import type { Input } from '../core/Input';
 import type { EnemyManager, DamageOutcome } from '../enemies/EnemyManager';
@@ -103,7 +103,7 @@ export class WeaponSystem {
       const cross = (t: number) => this.lastReloadP < t && p >= t;
       if (cross(0.18)) this.audio.reloadPart('magOut');
       if (cross(0.64)) this.audio.reloadPart('magIn');
-      if (cross(0.76)) this.audio.reloadPart(w.id === 'pistol' ? 'slide' : 'bolt');
+      if (cross(0.76)) this.audio.reloadPart(weaponArch(w.id) === 'pistol' ? 'slide' : 'bolt');
       this.lastReloadP = p;
     } else this.lastReloadP = 0;
 
@@ -172,7 +172,7 @@ export class WeaponSystem {
 
   private onReloadStart(w: WeaponState): void {
     this.lastReloadP = 0;
-    if (w.id === 'shotgun') this.audio.reloadPart('shell');
+    if (WEAPONS[w.id].shellReload) this.audio.reloadPart('shell');
   }
 
   private shoot(w: WeaponState, player: Player, world: CollisionWorld, enemies: EnemyManager, camPos: THREE.Vector3, camQuat: THREE.Quaternion,
@@ -197,7 +197,8 @@ export class WeaponSystem {
     // World-space muzzle position for tracers
     const mc = this.vm.muzzleCameraSpace(this.tmp);
     const muzzle = new THREE.Vector3(mc.x, mc.y, mc.z).applyQuaternion(this.camQ).add(camPos);
-    this.fx.muzzle(muzzle.x, muzzle.y, muzzle.z, w.id === 'shotgun' ? 1.5 : 1);
+    const arch = weaponArch(w.id);
+    this.fx.muzzle(muzzle.x, muzzle.y, muzzle.z, arch === 'shotgun' || def.cls === 'launcher' ? 1.5 : 1);
     const tracerCol = TRACER_COLORS[Math.min(2, w.tier)];
 
     // Accumulate damage per zombie so shotguns produce a single combined hit/kill result.
@@ -228,7 +229,7 @@ export class WeaponSystem {
         this.fx.impact(hx, hy, hz, wh.nx, wh.ny, wh.nz, wh.box ? wh.box.surface : 'concrete');
         if (i % 3 === 0) this.audio.impact(wh.box ? wh.box.surface : 'concrete', { x: hx, z: hz });
       }
-      if (w.id !== 'shotgun' || i % 3 === 0) {
+      if (def.pellets === 1 || i % 3 === 0) {
         const ex = camPos.x + dir.x * endDist, ey = camPos.y + dir.y * endDist, ez = camPos.z + dir.z * endDist;
         // Tracer starts a little ahead of the muzzle so it reads as a streak
         const sx = muzzle.x + (ex - muzzle.x) * 0.05, sy = muzzle.y + (ey - muzzle.y) * 0.05, sz = muzzle.z + (ez - muzzle.z) * 0.05;
@@ -252,7 +253,7 @@ export class WeaponSystem {
     const yaw = (Math.random() - 0.5) * 2 * def.recoilYaw * adsK;
     player.kickView((pitch * Math.PI) / 180, (yaw * Math.PI) / 180);
     player.applyRecoil(pitch, yaw);
-    this.vm.fire(w.id === 'shotgun' ? 1.6 : w.id === 'pistol' ? 0.9 : 0.7);
+    this.vm.fire(arch === 'shotgun' ? 1.6 : arch === 'pistol' ? 0.9 : def.cls === 'sniper' || def.cls === 'launcher' ? 1.8 : 0.7);
     this.audio.shot(w.id, w.tier);
     enemies.noise(camPos.x, camPos.z, 45);
     this.cb.onShot();
