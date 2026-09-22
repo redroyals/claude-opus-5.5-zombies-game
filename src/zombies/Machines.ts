@@ -3,17 +3,14 @@
 // Everything is procedural first and upgrades to GLBs from public/models/ when they exist.
 import * as THREE from 'three';
 import { WEAPONS, type WeaponId } from '../config';
-import { findNode, fitModel, models, type LoadedModel } from '../render/ModelRegistry';
+import { findNode, fitModel, models, placeModel, type LoadedModel } from '../render/ModelRegistry';
 import { BOX_MOVE_SECONDS, BOX_OFFER_SECONDS, BOX_SPIN_SECONDS, PERKS, WALL_BUYS, type BoxState, type PerkId, type WallBuyKey } from './rules';
 import { POWERUP_INFO, pickupVisible, type PowerUpKind } from './powerups';
 import type { Spot } from './mapdata';
 
 /** Try `zombies/<name>` then `<name>` under public/models/. */
 function watchModel(name: string, cb: (m: LoadedModel) => void): void {
-  let done = false;
-  const once = (m: LoadedModel) => { if (!done) { done = true; cb(m); } };
-  models.whenAvailable(`zombies/${name}`, once);
-  models.whenAvailable(name, once);
+  models.whenNamed(name, cb);
 }
 
 function glowTex(): THREE.Texture {
@@ -169,7 +166,7 @@ export class CacheView {
     watchModel('mystery_box.glb', (m) => {
       for (const v of this.views) {
         const inst = models.instance(m);
-        fitModel(inst, 1.35, { axis: 'max' });
+        placeModel(inst, 1.0);
         const lid = findNode(inst, 'lid');
         v.body.clear();
         v.body.add(inst);
@@ -365,7 +362,7 @@ export class ReforgerView {
     this.root.add(this.light);
     watchModel('reforger.glb', (m) => {
       const inst = models.instance(m);
-      fitModel(inst, 3.2, { axis: 'y' });
+      placeModel(inst, 1.75);
       for (const c of [...this.root.children]) if (c !== this.light && c !== sign) c.visible = false;
       this.root.add(inst);
       this.glb = inst;
@@ -481,7 +478,7 @@ export class PerkViews {
       this.views.push(view);
       watchModel(`perk_${id}.glb`, (m) => {
         const inst = models.instance(m);
-        fitModel(inst, 2.4, { axis: 'y' });
+        placeModel(inst, 2.1);
         for (const c of [...root.children]) if (c !== light && c !== sign) c.visible = false;
         root.add(inst);
       });
@@ -542,7 +539,7 @@ export class PowerSwitchView {
     this.lever = pivot;
     watchModel('power_switch.glb', (m) => {
       const inst = models.instance(m);
-      fitModel(inst, 2.0, { axis: 'y' });
+      placeModel(inst, 2.1);
       for (const c of [...this.root.children]) if (c !== lampM) c.visible = false;
       this.root.add(inst);
       this.lever = findNode(inst, 'lever') ?? new THREE.Object3D();

@@ -262,6 +262,13 @@ export class ViewModel {
     hand.userData.hand = true;
     g.visible = false;
     g.traverse((o) => { o.frustumCulled = false; });
+    models.whenAvailable('weapons/sp_knife.glb', (lm) => {
+      const inst = models.instance(lm);
+      for (const c of [blade, tip, guard, grip]) c.visible = false;
+      inst.position.set(0, 0, 0.02);
+      inst.traverse((o) => { o.frustumCulled = false; });
+      g.add(inst);
+    });
     return g;
   }
 

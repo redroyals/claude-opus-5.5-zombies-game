@@ -93,6 +93,25 @@ class Registry {
   }
 
   /**
+   * Candidate paths for a bare file name: the manifest's path if it lists the file, otherwise the conventional
+   * `zombies/<name>` and `<name>` locations (only those are polled, so a missing manifest never breaks anything).
+   */
+  async resolve(name: string): Promise<string[]> {
+    const m = await this.json<{ assets?: { path?: string }[] }>('manifest.json');
+    const hit = m?.assets?.find((a) => a.path?.endsWith('/' + name));
+    if (hit?.path) return [hit.path.replace(/^\/?models\//, '')];
+    return [`zombies/${name}`, name];
+  }
+
+  /** whenAvailable for a bare file name, resolved via the manifest (first match wins, callback fires once). */
+  whenNamed(name: string, cb: (m: LoadedModel) => void): void {
+    let done = false;
+    void this.resolve(name).then((paths) => {
+      for (const p of paths) this.whenAvailable(p, (m) => { if (!done) { done = true; cb(m); } });
+    });
+  }
+
+  /**
    * Calls `cb` once the model exists: immediately if it is already there, otherwise after polling
    * with backoff (15 s → 60 s). This is how procedural placeholders upgrade to GLBs mid-session.
    */
@@ -145,4 +164,20 @@ export function findNode(root: THREE.Object3D, name: string): THREE.Object3D | n
     else if (!loose && o.name.toLowerCase().startsWith(n)) loose = o;
   });
   return exact ?? loose;
+}
+
+/**
+ * Authored models are metric with their base at y=0 (see public/models/manifest.json). Keep their native size
+ * when it is plausible; only rescale (to `height`) when the file is clearly in other units.
+ */
+export function placeModel(obj: THREE.Object3D, height: number): void {
+  obj.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(obj);
+  const h = b.max.y - b.min.y;
+  if (h > height * 0.4 && h < height * 2.2) {
+    const c = b.getCenter(new THREE.Vector3());
+    obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b.min.y;
+    return;
+  }
+  fitModel(obj, height, { axis: 'y' });
 }

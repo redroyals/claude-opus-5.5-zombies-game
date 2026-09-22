@@ -68,13 +68,10 @@ export class EnemyManager {
     this.arena = { world: level.world, nav: level.nav };
     // Skinned GLB zombies upgrade the procedural ones when (if) the files appear.
     for (const name of new Set(Object.values(GLB_FOR))) {
-      for (const path of [`zombies/${name}.glb`, `${name}.glb`]) {
-        models.whenAvailable(path, (m) => {
-          if (this.glbModels.has(name)) return;
-          if (!m.skinned && m.animations.length === 0) { console.info('[models] static zombie model ignored (needs a skin/clips):', path); return; }
-          this.glbModels.set(name, m);
-        });
-      }
+      models.whenNamed(`${name}.glb`, (m) => {
+        if (!m.skinned && m.animations.length === 0) { console.info('[models] static zombie model ignored (needs a skin/clips):', name); return; }
+        this.glbModels.set(name, m);
+      });
     }
   }
 
@@ -93,11 +90,13 @@ export class EnemyManager {
     if (z.glb) { this.group.remove(z.glb.root); z.glb = null; }
     if (!m) { z.mesh.visible = true; return; }
     const inst = models.instance(m);
-    const box = new THREE.Box3().setFromObject(inst);
-    const h = Math.max(0.01, box.max.y - box.min.y);
+    // Skinned bind-pose bounds are unreliable: measure the top of the head bone instead (feet are at y=0).
+    inst.updateMatrixWorld(true);
+    const top = findNode(inst, 'head_end') ?? findNode(inst, 'headtop') ?? findNode(inst, 'head');
+    let h = top ? top.getWorldPosition(new THREE.Vector3()).y + (top.name.toLowerCase().includes('end') ? 0.05 : 0.2) : 0;
+    if (!(h > 0.2)) { const box = new THREE.Box3().setFromObject(inst); h = Math.max(0.01, box.max.y - box.min.y); }
     const holder = new THREE.Group();
-    inst.scale.multiplyScalar((z.type === 'crawler' ? 0.7 : 1.75) / h);
-    inst.position.y -= box.min.y * inst.scale.y;
+    inst.scale.multiplyScalar(1.78 / h);
     holder.add(inst);
     holder.scale.setScalar(z.scale);
     holder.userData.model = name;

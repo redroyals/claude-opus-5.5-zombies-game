@@ -72,6 +72,8 @@ export class ZHud {
   show(on: boolean): void {
     this.root.classList.toggle('on', on);
     document.getElementById('hud')!.classList.toggle('zmode', on);
+    const bn = document.querySelector('#boss .boss-name');
+    if (bn) bn.textContent = on ? 'THE WARDEN · RELAY GUARDIAN' : 'WARDEN-9 · ELITE INFECTED';
     if (!on) this.lastRound = -1;
   }
 

@@ -3,6 +3,7 @@
 // removable colliders; barricaded windows block movement but not bullets.
 import * as THREE from 'three';
 import { StaticBatch, worldBox, worldQuad } from '../render/geom';
+import { models } from '../render/ModelRegistry';
 import type { Materials } from '../render/materials';
 import { signTexture } from '../render/textures';
 import { CollisionWorld, type Box } from '../world/Collision';
@@ -276,6 +277,22 @@ export class ZombiesMap {
       signB.rotation.y = Math.PI;
       signB.position.z = -0.1;
       mesh.add(sign, signB);
+      if (g.debris) {
+        // Authored debris pile replaces the procedural crates when available.
+        models.whenNamed('kit_debris.glb', (lm) => {
+          const inst = models.instance(lm);
+          for (const c of mesh.children) if (c !== sign && c !== signB) c.visible = false;
+          inst.scale.setScalar(len / 3.056);
+          mesh.add(inst);
+        });
+      } else {
+        models.whenNamed('kit_door.glb', (lm) => {
+          const inst = models.instance(lm);
+          for (const c of mesh.children) if (c !== sign && c !== signB) c.visible = false;
+          inst.scale.set(len / 4, h / 3.3, 1);
+          mesh.add(inst);
+        });
+      }
       if (g.axis === 'x') mesh.position.set(mid, g.y0, g.at);
       else { mesh.position.set(g.at, g.y0, mid); mesh.rotation.y = Math.PI / 2; }
       this.root.add(mesh);

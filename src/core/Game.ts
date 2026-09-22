@@ -1209,6 +1209,8 @@ export class Game {
       zGive: (id: WeaponId) => { (this.zm as unknown as { giveWeapon(i: WeaponId): void }).giveWeapon(id); },
       zRound: (n: number) => { const r = this.zm.rounds; r.round = n - 1; r.phase = 'break'; r.timer = 0.01; },
       zUse: (it: ZInteraction) => this.zm.use(it),
+      zMoth: () => { const b = this.zm.box; b.phase = 'moving'; b.t = 0; b.offer = null; },
+      zTier: (t: number) => { const w = this.weapons.active; if (w) { w.tier = t; this.weapons.syncModel(); } },
       zDrop: (k: 'max_ammo' | 'insta_kill' | 'double_points' | 'nuke' | 'carpenter') => { const p = this.player.pos; (this.zm as unknown as { dropPowerUp(k: string, x: number, y: number, z: number): void }).dropPowerUp(k, p.x, p.y, p.z - 2.5); },
       zSpawn: (type: 'shambler' | 'runner' | 'brute' | 'crawler' | 'fast' | 'boss', x: number, z: number) => this.enemies.spawn(type, 'low', x, z, 'chase'),
       godMode: (on: boolean) => { this.godMode = on; },
