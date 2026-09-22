@@ -14,11 +14,16 @@
 - Down/bleed-out state, spectate; results screen per round
 - Replace placeholder machines with approved Meshy art (optimized GLBs)
 
-## M3 — Netcode foundation (~3 weeks)
-- Extract sim into a transport-agnostic `Room` (inputs in, snapshots out); `LocalTransport` for offline
-- Cloudflare Worker + Durable Object room; room codes, `?room=` links, quick-play matchmaker DO
-- Prediction/reconciliation, interpolation, lag-compensated hit validation, server-side zombies AI
-- Online co-op Zombies (2–4)
+## M3 — Online PvP foundation (branch `mp-core`) — see docs/MULTIPLAYER.md
+- [x] Shared deterministic 30 Hz movement (tactical sprint, slide, mantle), binary delta protocol, lag compensation
+- [x] Cloudflare Worker: Matchmaker DO shards + MatchRoom DOs (hibernation WS), quick play + private room codes / `?room=` links
+- [x] Authoritative MatchSim: TDM/FFA/Dom/KC, perks with mechanical effects, lethals/tacticals, killstreaks, radar, anti-cheat buckets
+- [x] Progression: levels 1-100 + 10 prestiges, data-driven unlock table, weapon levels 1-30, 9-slot gunsmith (5 max), camo mastery ladders
+- [x] D1 persistence (one batch per match), server-side dollar ledger (no real money), sikhi.io SSO + guests
+- [x] Client: lobby, create-a-class, progression/armory/shop, prediction/reconciliation/interpolation, procedural camo shaders, HUD
+- [ ] Deploy (play.sikhi.io) — owner steps in MULTIPLAYER.md
+- [ ] Real maps art pass, weapon GLBs from `mp-assets`, animated operators, audio, bots for low population
+- Online Zombies co-op: dropped from scope for now (multiplayer PvP only).
 
 ## M4 — PvP (~3 weeks)
 - Operator third-person models (rigged Meshy operator + animation set), hitboxes

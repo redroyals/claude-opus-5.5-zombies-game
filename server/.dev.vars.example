@@ -1,0 +1,3 @@
+SSO_SHARED_SECRET=<openssl rand -hex 32>
+GAME_SESSION_SECRET=<openssl rand -hex 32>
+DEV_AUTH=1
