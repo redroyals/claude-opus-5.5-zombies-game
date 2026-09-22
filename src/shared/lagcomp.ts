@@ -43,7 +43,7 @@ export function rayPlayer(ox: number, oy: number, oz: number, dx: number, dy: nu
   let best: { t: number; zone: Zone } | null = null;
   const th = raySphere(ox, oy, oz, dx, dy, dz, p.x, headY, p.z, headR);
   if (th >= 0) best = { t: th, zone: 'head' };
-  const tb = rayCapsule(ox, oy, oz, dx, dy, dz, p.x, p.y + p.h * 0.45, p.z, p.x, headY - headR - 0.02, p.z, bodyR);
+  const tb = rayCapsule(ox, oy, oz, dx, dy, dz, p.x, p.y + p.h * 0.45, p.z, p.x, headY - headR - bodyR + 0.06, p.z, bodyR);
   if (tb >= 0 && (!best || tb < best.t)) best = { t: tb, zone: 'body' };
   const tl = rayCapsule(ox, oy, oz, dx, dy, dz, p.x, p.y + 0.1, p.z, p.x, p.y + p.h * 0.45, p.z, bodyR * 0.8);
   if (tl >= 0 && (!best || tl < best.t)) best = { t: tl, zone: 'limb' };
