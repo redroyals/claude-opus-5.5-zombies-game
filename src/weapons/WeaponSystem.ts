@@ -16,9 +16,12 @@ import {
 
 export interface HitFeedback { kind: 'body' | 'head' | 'kill' | 'armor'; }
 
+export interface SpecialHit { z: Zombie | null; x: number; y: number; zz: number }
 export interface WeaponCallbacks {
   onHit(fb: HitFeedback): void;
   onShot(): void;
+  /** Launcher / wonder-weapon effect at the first pellet's impact point. */
+  onSpecial?(kind: NonNullable<(typeof WEAPONS)[WeaponId]['special']>, w: WeaponState, hit: SpecialHit): void;
 }
 
 const TRACER_COLORS = [new THREE.Color(1.0, 0.75, 0.4), new THREE.Color(0.4, 0.8, 1.6), new THREE.Color(1.6, 0.5, 0.2)];
@@ -82,7 +85,7 @@ export class WeaponSystem {
     this.audio.weaponSwitch();
   }
 
-  update(dt: number, input: Input, player: Player, blocked: { plating: boolean; menu: boolean }, world: CollisionWorld, enemies: EnemyManager,
+  update(dt: number, input: Input, player: Player, blocked: { plating: boolean; menu: boolean; noFire?: boolean }, world: CollisionWorld, enemies: EnemyManager,
     camPos: THREE.Vector3, camQuat: THREE.Quaternion): void {
     const w = this.active;
     this.sinceShot += dt;
@@ -147,7 +150,7 @@ export class WeaponSystem {
     }
 
     // Trigger
-    const busy = blocked.plating || blocked.menu || this.switchDir !== 0 || this.throwT > 0;
+    const busy = blocked.plating || blocked.menu || blocked.noFire || this.switchDir !== 0 || this.throwT > 0 || this.vm.meleeActive;
     let wantFire = false;
     if (def.auto) wantFire = input.canFire;
     else {
@@ -203,6 +206,7 @@ export class WeaponSystem {
 
     // Accumulate damage per zombie so shotguns produce a single combined hit/kill result.
     const acc = new Map<Zombie, { dmg: number; head: boolean; x: number; y: number; z: number; dx: number; dz: number }>();
+    let first: SpecialHit | null = null;
     for (let i = 0; i < def.pellets; i++) {
       // Uniform random direction within the spread cone
       const r = spread * Math.sqrt(Math.random());
@@ -216,6 +220,10 @@ export class WeaponSystem {
       const worldDist = wh ? wh.dist : maxRange;
       const zh = enemies.raycast(camPos.x, camPos.y, camPos.z, dir.x, dir.y, dir.z, worldDist);
       let endDist = worldDist;
+      if (i === 0) {
+        const d = zh ? zh.dist : Math.max(0.5, worldDist - 0.2);
+        first = { z: zh ? zh.z : null, x: camPos.x + dir.x * d, y: camPos.y + dir.y * d, zz: camPos.z + dir.z * d };
+      }
       if (zh) {
         endDist = zh.dist;
         let dmg = damageAtRange(w.id, baseDamage, zh.dist);
@@ -246,6 +254,7 @@ export class WeaponSystem {
       if (best === null || rank[kind] > rank[best]) best = kind;
     }
     if (best) this.cb.onHit({ kind: best });
+    if (def.special && first && this.cb.onSpecial) this.cb.onSpecial(def.special, w, first);
     // Recoil: kick the view, track the recoverable portion
     const adsK = 1 - ads * 0.45;
     const crouchK = player.crouched ? 0.8 : 1;

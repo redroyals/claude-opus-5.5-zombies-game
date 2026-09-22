@@ -32,7 +32,7 @@ interface WeaponModel {
 }
 
 /** Optional per-weapon placement data from public/models/weapons/frames.json (all in viewmodel metres, gun forward = -Z). */
-interface FrameData { scale?: number; position?: number[]; rotation?: number[]; muzzle?: number[]; sight?: number[]; length?: number }
+interface FrameData { scale?: number; position?: number[]; rotation?: number[]; muzzle?: number[]; sight?: number[]; length?: number; mounts?: Record<string, number[]> }
 
 export interface ViewState {
   id: WeaponId;
@@ -95,7 +95,7 @@ export class ViewModel {
 
   constructor(tex: TextureLib) {
     this.tex = tex;
-    this.camera = new THREE.PerspectiveCamera(52, 1, 0.01, 10);
+    this.camera = new THREE.PerspectiveCamera(58, 1, 0.01, 10);
     this.scene.add(this.camera);
     this.camera.add(this.rig);
     // Lighting that roughly matches the blue-hour world.
@@ -121,7 +121,7 @@ export class ViewModel {
     for (const id of ['rifle', 'pistol', 'shotgun'] as WeaponId[]) this.ensure(id);
     this.knife = this.buildKnife();
     this.camera.add(this.knife);
-    void models.json<Record<string, FrameData>>('weapons/frames.json').then((f) => { if (f) this.frames = f; });
+    void models.json<{ weapons?: Record<string, FrameData> }>('weapons/frames.json').then((f) => { if (f?.weapons) this.frames = f.weapons; });
 
     this.plate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.025), new THREE.MeshStandardMaterial({ color: 0x3d4238, roughness: 0.6, metalness: 0.4, map: tex.grime }));
     this.plate.visible = false;
@@ -137,6 +137,7 @@ export class ViewModel {
     const arch = weaponArch(id);
     m = arch === 'pistol' ? this.buildPistol() : arch === 'shotgun' ? this.buildShotgun() : this.buildRifle(def);
     m.id = id;
+    this.models.set(id, m);
     if (def.tint !== undefined) m.body.color.setHex(def.tint);
     m.root.visible = false;
     this.rig.add(m.root);
@@ -148,25 +149,33 @@ export class ViewModel {
     return m;
   }
 
-  /** Replace the procedural gun body with a GLB, keeping procedural gloved hands and animation anchors. */
+  /**
+   * Replace the procedural gun body with a GLB, keeping procedural gloved hands and animation anchors.
+   * Convention (public/models/weapons/frames.json): metres, barrel along -Z, origin = grip hand point, with
+   * mount_muzzle / mount_optic / mount_under / mount_mag empties. Unknown GLBs fall back to a bbox fit.
+   */
   private attachGlb(m: WeaponModel, obj: THREE.Object3D, mid: string): void {
     const f = this.frames[mid] ?? {};
     const holder = new THREE.Group();
     holder.add(obj);
-    // Default fit: longest axis along Z matched to the procedural length, centred on the receiver.
-    const box = new THREE.Box3().setFromObject(obj);
-    const size = box.getSize(new THREE.Vector3());
-    const procLen = f.length ?? (m.id && weaponArch(m.id) === 'pistol' ? 0.22 : weaponArch(m.id) === 'shotgun' ? 1.1 : 0.95 * (WEAPONS[m.id].lengthScale ?? 1));
-    const longest = Math.max(size.x, size.z, 1e-4);
-    if (size.x > size.z) obj.rotation.y = Math.PI / 2; // authored along X: turn to -Z
-    const sc = f.scale ?? procLen / longest;
-    obj.scale.multiplyScalar(sc);
-    obj.updateMatrixWorld(true);
-    const b2 = new THREE.Box3().setFromObject(obj);
-    const c = b2.getCenter(new THREE.Vector3());
-    obj.position.sub(c);
-    obj.position.z += weaponArch(m.id) === 'pistol' ? -0.05 : -0.2;
-    obj.position.y += weaponArch(m.id) === 'pistol' ? 0.02 : 0.02;
+    const grip = findNode(obj, 'socket_grip');
+    const arch = weaponArch(m.id);
+    // Right-hand grip point on the procedural rig (the glove wraps around this).
+    const gripAt = arch === 'pistol' ? new THREE.Vector3(0, -0.035, 0.03) : arch === 'shotgun' ? new THREE.Vector3(0, -0.02, 0.085) : new THREE.Vector3(0, -0.025, 0.045);
+    if (grip || f.length) {
+      holder.position.copy(gripAt);
+      if (f.scale) obj.scale.setScalar(f.scale);
+    } else {
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = box.getSize(new THREE.Vector3());
+      if (size.x > size.z) obj.rotation.y = Math.PI / 2;
+      const procLen = arch === 'pistol' ? 0.22 : arch === 'shotgun' ? 1.1 : 0.95 * (WEAPONS[m.id].lengthScale ?? 1);
+      obj.scale.multiplyScalar(f.scale ?? procLen / Math.max(size.x, size.z, 1e-4));
+      obj.updateMatrixWorld(true);
+      const c = new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3());
+      obj.position.sub(c);
+      obj.position.z += arch === 'pistol' ? -0.05 : -0.2;
+    }
     if (f.position) holder.position.fromArray(f.position);
     if (f.rotation) holder.rotation.set(f.rotation[0] ?? 0, f.rotation[1] ?? 0, f.rotation[2] ?? 0);
     // Hide procedural gun meshes but keep the gloved hands (which may be nested under the pump, etc.).
@@ -183,11 +192,25 @@ export class ViewModel {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) { mesh.castShadow = false; mesh.receiveShadow = false; }
     });
-    const mz = findNode(obj, 'muzzle');
+    m.root.updateMatrixWorld(true);
+    const local = (n: THREE.Object3D) => m.root.worldToLocal(n.getWorldPosition(new THREE.Vector3()));
+    const mz = findNode(obj, 'mount_muzzle') ?? findNode(obj, 'muzzle');
     if (f.muzzle) m.muzzle.position.fromArray(f.muzzle);
-    else if (mz) { mz.updateMatrixWorld(true); m.muzzle.position.copy(m.root.worldToLocal(mz.getWorldPosition(new THREE.Vector3()))); }
-    else { const bb = new THREE.Box3().setFromObject(holder); m.muzzle.position.set(0, (bb.max.y + bb.min.y) / 2 + 0.02, m.root.worldToLocal(new THREE.Vector3(0, 0, bb.min.z)).z); }
+    else if (mz) m.muzzle.position.copy(local(mz));
+    else { const bb = new THREE.Box3().setFromObject(holder); m.muzzle.position.set(0, (bb.max.y + bb.min.y) / 2, m.root.worldToLocal(new THREE.Vector3(0, 0, bb.min.z)).z); }
+    // Iron-sight line: just above the top rail so ADS looks down the gun.
+    const optic = findNode(obj, 'mount_optic');
     if (f.sight) m.sight.fromArray(f.sight);
+    else if (optic) { const o = local(optic); m.sight.set(0, o.y + (arch === 'pistol' ? 0.012 : 0.025), o.z + 0.1); }
+    // Support hand under the handguard / on the pump.
+    const under = findNode(obj, 'mount_under');
+    if (under && arch === 'rifle') {
+      const u = local(under);
+      m.leftHand.position.set(0, u.y - 0.06, u.z + 0.06);
+      m.leftHome.copy(m.leftHand.position);
+    }
+    const mag = findNode(obj, 'mount_mag');
+    if (mag) { const g = local(mag); m.magHome.set(g.x, g.y + 0.02, g.z); m.mag.position.copy(m.magHome); }
     m.glb = holder;
     if (m.tier) this.setTier(m.id, m.tier);
   }
@@ -415,7 +438,7 @@ export class ViewModel {
     const sightY = scoped ? 0.155 : 0.13;
     return {
       id: def.id, root, mag, magHome: mag.position.clone(), mover, moverHome: mover.position.clone(), muzzle,
-      sight: new THREE.Vector3(0, sightY, -0.03), adsDist: scoped ? 0.22 : 0.3, hip: new THREE.Vector3(0.15, -0.2, -0.36),
+      sight: new THREE.Vector3(0, sightY, -0.03), adsDist: scoped ? 0.22 : 0.3, hip: new THREE.Vector3(0.13, -0.165, -0.44),
       leftHand: left, leftHome: left.position.clone(), leftHomeRot: left.rotation.clone(), flash: this.flashSprite(muzzle), accents, body, glow,
     };
   }
@@ -442,7 +465,7 @@ export class ViewModel {
     const left = this.hand(root, new THREE.Vector3(-0.022, -0.065, 0.02), new THREE.Vector3(-0.15, -0.24, 0.3), -1, 'under');
     return {
       id: 'pistol', root, mag, magHome: mag.position.clone(), mover: slide, moverHome: slide.position.clone(), muzzle,
-      sight: new THREE.Vector3(0, 0.058, 0.03), adsDist: 0.44, hip: new THREE.Vector3(0.12, -0.15, -0.34),
+      sight: new THREE.Vector3(0, 0.058, 0.03), adsDist: 0.44, hip: new THREE.Vector3(0.11, -0.13, -0.47),
       leftHand: left, leftHome: left.position.clone(), leftHomeRot: left.rotation.clone(), flash: this.flashSprite(muzzle), accents, body,
     };
   }
@@ -484,7 +507,7 @@ export class ViewModel {
     shell.visible = false;
     return {
       id: 'shotgun', root, mag, magHome: mag.position.clone(), mover: pump, moverHome: pump.position.clone(), muzzle,
-      sight: new THREE.Vector3(0, 0.078, 0.0), adsDist: 0.26, hip: new THREE.Vector3(0.15, -0.2, -0.34),
+      sight: new THREE.Vector3(0, 0.078, 0.0), adsDist: 0.26, hip: new THREE.Vector3(0.13, -0.165, -0.42),
       leftHand: left, leftHome: left.position.clone(), leftHomeRot: left.rotation.clone(), flash: this.flashSprite(muzzle), accents, body, shell,
     };
   }

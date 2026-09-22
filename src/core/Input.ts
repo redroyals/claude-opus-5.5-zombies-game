@@ -3,12 +3,12 @@
 
 export type Action =
   | 'forward' | 'back' | 'left' | 'right' | 'sprint' | 'jump' | 'crouch' | 'reload' | 'interact'
-  | 'weapon1' | 'weapon2' | 'grenade' | 'plate' | 'map' | 'buy3' | 'buy4' | 'buy5' | 'buy6' | 'buy7';
+  | 'weapon1' | 'weapon2' | 'grenade' | 'plate' | 'map' | 'buy3' | 'buy4' | 'buy5' | 'buy6' | 'buy7' | 'melee';
 
 const KEYMAP: Record<string, Action> = {
   KeyW: 'forward', ArrowUp: 'forward', KeyS: 'back', ArrowDown: 'back', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right',
   ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', KeyC: 'crouch', ControlLeft: 'crouch', KeyR: 'reload', KeyE: 'interact', KeyF: 'interact',
-  Digit1: 'weapon1', Digit2: 'weapon2', KeyG: 'grenade', KeyQ: 'plate', KeyM: 'map', Tab: 'map',
+  Digit1: 'weapon1', Digit2: 'weapon2', KeyV: 'melee', KeyG: 'grenade', KeyQ: 'plate', KeyM: 'map', Tab: 'map',
   Digit3: 'buy3', Digit4: 'buy4', Digit5: 'buy5', Digit6: 'buy6', Digit7: 'buy7',
 };
 

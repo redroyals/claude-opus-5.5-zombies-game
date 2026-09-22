@@ -554,6 +554,150 @@ export class AudioEngine {
     this.heli = null;
   }
 
+
+  // ------------------------------------------------------------------------------------------
+  // Zombies: jingles, stings, power-up announcer, barricades, ambience
+  // ------------------------------------------------------------------------------------------
+  private jingleT = 0;
+  private zAmbT = 6;
+
+  /** Music-box arpeggio for the Cache spin (non-positional so it reads over the horde). */
+  boxJingle(pos: { x: number; z: number }): void {
+    if (!this.ok(true)) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(pos, 0.5, 4.2, 8);
+    if (!o) return;
+    const notes = [659, 784, 988, 784, 659, 523, 587, 659, 784, 659, 587, 523, 494, 523, 659, 784];
+    notes.forEach((f, i) => {
+      this.tone(o, t + i * 0.24, 0.5, { type: 'triangle', freq: f, gain: 0.18 });
+      this.tone(o, t + i * 0.24, 0.3, { type: 'sine', freq: f * 2, gain: 0.05 });
+    });
+  }
+
+  /** Short diegetic perk jingle near a lit machine; each perk has its own motif. */
+  perkJingle(pos: { x: number; z: number }, index: number): void {
+    if (!this.ok()) return;
+    this.jingleT -= 1;
+    const t = this.ctx!.currentTime;
+    const o = this.out(pos, 0.45, 5, 5);
+    if (!o) return;
+    const motifs = [[392, 494, 587, 784, 587, 494], [523, 659, 523, 784, 698, 659], [330, 392, 330, 294, 262, 330], [440, 554, 659, 880, 659, 554]];
+    const m = motifs[index % motifs.length];
+    m.forEach((f, i) => {
+      this.tone(o, t + i * 0.28, 0.35, { type: 'square', freq: f, gain: 0.05 });
+      this.tone(o, t + i * 0.28, 0.5, { type: 'triangle', freq: f / 2, gain: 0.08 });
+    });
+  }
+
+  /** Round change: a low brass-like swell and a bell toll (start), or a rising resolve (end). */
+  roundSting(start: boolean): void {
+    if (!this.ok(true)) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(null, 0.7, 6)!;
+    if (start) {
+      for (const [f, d] of [[55, 0], [82.4, 0.05], [110, 0.1]] as const) {
+        this.tone(o, t + d, 3.2, { type: 'sawtooth', freq: f, freqEnd: f * 0.98, gain: 0.16, attack: 0.5 });
+      }
+      for (let i = 0; i < 3; i++) {
+        this.tone(o, t + 0.4 + i * 1.1, 2.2, { type: 'sine', freq: 196, gain: 0.3 });
+        this.tone(o, t + 0.4 + i * 1.1, 1.8, { type: 'sine', freq: 196 * 2.76, gain: 0.08 });
+      }
+      this.noise(o, t, 3, { type: 'lowpass', freq: 300, gain: 0.2, brown: true, attack: 0.6 });
+    } else {
+      [220, 262, 330, 440].forEach((f, i) => this.tone(o, t + i * 0.18, 1.6, { type: 'triangle', freq: f, gain: 0.14, attack: 0.05 }));
+      this.tone(o, t + 0.7, 2.2, { type: 'sine', freq: 880, gain: 0.08, attack: 0.2 });
+    }
+  }
+
+  /** Announcer-style stinger: formant "voice" chord + whoosh (no samples, no real words). */
+  powerupVoice(kind: 'max_ammo' | 'insta_kill' | 'double_points' | 'nuke' | 'carpenter'): void {
+    if (!this.ok(true)) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const o = this.out(null, 0.8, 2.2)!;
+    const syll = { max_ammo: [2, 110], insta_kill: [3, 95], double_points: [3, 120], nuke: [1, 70], carpenter: [3, 105] }[kind];
+    const vowels = [[700, 1200], [400, 2000], [600, 1000], [300, 2300]];
+    for (let i = 0; i < syll[0]; i++) {
+      const st = t + i * 0.28;
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(syll[1] * (1 + (i % 2) * 0.12), st);
+      osc.frequency.linearRampToValueAtTime(syll[1] * 0.85, st + 0.26);
+      const v = vowels[(i + kind.length) % vowels.length];
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.9, st + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.26);
+      for (const f of v) {
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 8;
+        osc.connect(bp); bp.connect(g);
+      }
+      g.connect(o);
+      osc.start(st); osc.stop(st + 0.3);
+    }
+    this.noise(o, t, 0.6, { type: 'bandpass', freq: 600, freqEnd: 3000, q: 1.5, gain: 0.3, attack: 0.1 });
+    if (kind === 'nuke') { this.tone(o, t + 0.3, 1.5, { freq: 60, freqEnd: 25, gain: 1 }); this.noise(o, t + 0.3, 1.6, { type: 'lowpass', freq: 1200, freqEnd: 80, gain: 0.9, brown: true }); }
+  }
+
+  powerupSpawn(pos: { x: number; z: number }): void {
+    if (!this.ok()) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(pos, 0.5, 1.2, 6);
+    if (!o) return;
+    [1046, 1318, 1568].forEach((f, i) => this.tone(o, t + i * 0.07, 0.6, { type: 'sine', freq: f, gain: 0.12 }));
+  }
+
+  plank(kind: 'tear' | 'repair', pos: { x: number; z: number }): void {
+    if (!this.ok()) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(pos, kind === 'tear' ? 0.7 : 0.5, 0.6, 6);
+    if (!o) return;
+    if (kind === 'tear') {
+      this.noise(o, t, 0.25, { type: 'bandpass', freq: 700, q: 2, gain: 0.8 });
+      this.tone(o, t, 0.2, { type: 'sawtooth', freq: 180, freqEnd: 90, gain: 0.3 });
+      this.noise(o, t + 0.15, 0.3, { type: 'lowpass', freq: 500, gain: 0.4 });
+    } else {
+      this.mech(t, 1400, 0.35);
+      this.mech(t + 0.12, 1500, 0.35);
+      this.noise(o, t, 0.15, { type: 'bandpass', freq: 900, q: 1.5, gain: 0.4 });
+    }
+  }
+
+  doorOpen(debris: boolean): void {
+    if (!this.ok(true)) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(null, 0.6, 1.8)!;
+    if (debris) { this.noise(o, t, 1.2, { type: 'lowpass', freq: 900, freqEnd: 120, gain: 0.8, brown: true }); for (let i = 0; i < 5; i++) this.mech(t + i * 0.12, 300 + i * 80, 0.3); }
+    else { this.tone(o, t, 1.2, { type: 'sawtooth', freq: 80, freqEnd: 140, gain: 0.15 }); this.noise(o, t, 1.2, { type: 'bandpass', freq: 400, freqEnd: 1600, q: 3, gain: 0.35 }); this.mech(t + 1.1, 600, 0.5); }
+  }
+
+  powerOn(): void {
+    if (!this.ok(true)) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(null, 0.8, 4)!;
+    this.mech(t, 500, 0.8);
+    this.tone(o, t + 0.1, 3.5, { type: 'sawtooth', freq: 30, freqEnd: 120, gain: 0.25, attack: 0.8 });
+    this.noise(o, t + 0.1, 3, { type: 'bandpass', freq: 200, freqEnd: 2400, q: 4, gain: 0.3, attack: 1 });
+    for (let i = 0; i < 6; i++) this.mech(t + 1.5 + i * 0.15, 900 + i * 120, 0.25);
+  }
+
+  chime(): void {
+    if (!this.ok(true)) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(null, 0.5, 3)!;
+    [784, 988, 1175, 1568].forEach((f, i) => this.tone(o, t + i * 0.15, 1.8, { type: 'sine', freq: f, gain: 0.12 }));
+  }
+
+  /** Zombies ambience: distant horde groans and a slow heartbeat-like pulse. */
+  updateZombieAmbience(dt: number, horde: number): void {
+    if (!this.ok()) return;
+    this.zAmbT -= dt;
+    if (this.zAmbT > 0) return;
+    this.zAmbT = 3 + Math.random() * (horde > 5 ? 3 : 8);
+    const a = Math.random() * Math.PI * 2;
+    this.zombieVoice({ x: this.listener.x + Math.cos(a) * 22, z: this.listener.z + Math.sin(a) * 22 }, Math.random() < 0.2 ? 'scream' : 'groan', 0.7 + Math.random() * 0.4);
+  }
+
   stopAll(): void {
     this.stopHeli();
   }
