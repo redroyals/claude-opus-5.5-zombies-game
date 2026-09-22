@@ -18,8 +18,9 @@ for (const d of ['lobby_dock', 'lobby_hall', 'dock_hall', 'dock_vault', 'hall_po
 await ds('timeScale', +(process.env.TS ?? 2));
 p.on('crash', () => console.log('PAGE CRASHED'));
 const seen = new Set();
+if (process.env.JUMP) await ds('zRound', +process.env.JUMP);
 let bossSeen = false;
-for (let i = 0; i < 400 && (await ds('zm')).round < 9; i++) {
+for (let i = 0; i < 400 && (await ds('zm')).round < +(process.env.UNTIL ?? 9); i++) {
   await p.waitForTimeout(300);
   const z = await ds('zm');
   if (i % 10 === 0) console.log('i', i, z.round, z.phase, z.alive);
