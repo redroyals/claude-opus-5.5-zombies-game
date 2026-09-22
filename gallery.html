@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MP asset gallery</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #15171b; color: #ddd; font: 13px system-ui, sans-serif; overflow: hidden; }
+    #side { position: fixed; top: 0; left: 0; bottom: 0; width: 250px; overflow-y: auto; background: #0c0d10; border-right: 1px solid #333; z-index: 2; padding: 6px; box-sizing: border-box; }
+    #side h3 { margin: 10px 4px 4px; color: #e0a020; font-size: 12px; text-transform: uppercase; cursor: pointer; }
+    #side button { display: block; width: 100%; text-align: left; background: none; color: #ccc; border: 0; padding: 3px 6px; cursor: pointer; }
+    #side button.on { background: #2a2d33; color: #fff; }
+    #info { position: fixed; bottom: 10px; left: 260px; background: #000a; padding: 8px 10px; border-radius: 4px; z-index: 2; white-space: pre; }
+    .lbl { position: fixed; color: #fff; font: 11px monospace; background: #0008; padding: 1px 3px; pointer-events: none; transform: translate(-50%, 0); z-index: 1; }
+    body.shot #side, body.shot #info { display: none; }
+  </style>
+</head>
+<body>
+  <div id="side"></div>
+  <div id="info">click a category title for a contact sheet · drag to orbit</div>
+  <script type="module" src="/src/gallery.ts"></script>
+</body>
+</html>
