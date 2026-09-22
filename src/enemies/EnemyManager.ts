@@ -5,8 +5,27 @@ import type { AudioEngine } from '../audio/Audio';
 import type { Effects } from '../fx/Effects';
 import type { Level } from '../world/Level';
 import { Zombie } from './Zombie';
-import { ZombieModels } from './ZombieModel';
+import { BONE, ZombieModels } from './ZombieModel';
 import type { TextureLib } from '../render/textures';
+import type { CollisionWorld } from '../world/Collision';
+import type { NavGrid } from '../world/NavGrid';
+import { models, findNode, type LoadedModel } from '../render/ModelRegistry';
+import { crawlerFromLegHit } from '../zombies/rules';
+import { TEAR_SECONDS } from '../zombies/zones';
+
+/** Zombies-mode barricade hooks: zombies spawned outside walk to a window, tear planks, then climb in. */
+export interface BarricadeHost {
+  planks(w: number): number;
+  tear(w: number, z: Zombie): void;
+  win(w: number): { outside: { x: number; z: number }; inside: { x: number; z: number }; floor: number };
+}
+
+/** The level a manager operates in (extraction district or a Zombies map). */
+export interface Arena { world: CollisionWorld; nav: NavGrid }
+
+const GLB_FOR: Partial<Record<ZombieType, string>> = {
+  shambler: 'z_shambler', runner: 'z_runner', brute: 'z_brute', armored: 'z_brute', crawler: 'z_crawler', fast: 'z_fast', boss: 'z_boss', elite: 'z_boss',
+};
 
 export interface ZombieHit { z: Zombie; dist: number; head: boolean; x: number; y: number; z_: number }
 
@@ -33,11 +52,67 @@ export class EnemyManager {
   private time = 0;
   private dir = { x: 0, z: 0 };
   elite: Zombie | null = null;
+  boss: Zombie | null = null;
   eliteAggro = false;
   alertLevel = 0;
+  /** Zombies-mode switches. */
+  instaKill = false;
+  allowCrawlers = false;
+  barricades: BarricadeHost | null = null;
+  private arena: Arena;
+  private glbModels = new Map<string, LoadedModel>();
+  private rnd = Math.random;
 
-  constructor(tex: TextureLib, private level: Level, private fx: Effects, private audio: AudioEngine, private events: EnemyEvents) {
+  constructor(tex: TextureLib, level: Level, private fx: Effects, private audio: AudioEngine, private events: EnemyEvents) {
     this.models = new ZombieModels(tex);
+    this.arena = { world: level.world, nav: level.nav };
+    // Skinned GLB zombies upgrade the procedural ones when (if) the files appear.
+    for (const name of new Set(Object.values(GLB_FOR))) {
+      for (const path of [`zombies/${name}.glb`, `${name}.glb`]) {
+        models.whenAvailable(path, (m) => {
+          if (this.glbModels.has(name)) return;
+          if (!m.skinned && m.animations.length === 0) { console.info('[models] static zombie model ignored (needs a skin/clips):', path); return; }
+          this.glbModels.set(name, m);
+        });
+      }
+    }
+  }
+
+  setArena(a: Arena): void {
+    this.arena = a;
+    this.lastFlowCell = -1;
+    this.flowT = 0;
+  }
+
+  private get level(): Arena { return this.arena; }
+
+  private attachGlb(z: Zombie): void {
+    const name = GLB_FOR[z.type];
+    const m = name ? this.glbModels.get(name) : undefined;
+    if (z.glb && z.glb.root.userData.model === name) return;
+    if (z.glb) { this.group.remove(z.glb.root); z.glb = null; }
+    if (!m) { z.mesh.visible = true; return; }
+    const inst = models.instance(m);
+    const box = new THREE.Box3().setFromObject(inst);
+    const h = Math.max(0.01, box.max.y - box.min.y);
+    const holder = new THREE.Group();
+    inst.scale.multiplyScalar((z.type === 'crawler' ? 0.7 : 1.75) / h);
+    inst.position.y -= box.min.y * inst.scale.y;
+    holder.add(inst);
+    holder.scale.setScalar(z.scale);
+    holder.userData.model = name;
+    const mixer = new THREE.AnimationMixer(inst);
+    const actions: Record<string, THREE.AnimationAction> = {};
+    for (const clip of m.animations) {
+      const n = clip.name.toLowerCase();
+      const key = /crawl/.test(n) ? 'crawl' : /death|die|dying/.test(n) ? 'death' : /attack|hit|swipe|bite/.test(n) ? 'attack' : /run|sprint/.test(n) ? 'run' : /walk/.test(n) ? 'walk' : /idle/.test(n) ? 'idle' : null;
+      if (key && !actions[key]) actions[key] = mixer.clipAction(clip);
+    }
+    if (Object.keys(actions).length === 0 && m.animations[0]) actions.walk = mixer.clipAction(m.animations[0]);
+    inst.traverse((o) => { o.frustumCulled = false; });
+    const head = findNode(inst, 'head') ?? findNode(inst, 'mixamorig:head') ?? findNode(inst, 'Head');
+    z.glb = { root: holder, mixer, actions, current: '', head };
+    this.group.add(holder);
   }
 
   get aliveCount(): number {
@@ -56,6 +131,7 @@ export class EnemyManager {
     for (const z of this.zombies) this.release(z);
     this.zombies.length = 0;
     this.elite = null;
+    this.boss = null;
     this.eliteAggro = false;
     this.lastFlowCell = -1;
     this.flowT = 0;
@@ -83,6 +159,7 @@ export class EnemyManager {
     z.alive = false;
     z.mesh.visible = false;
     this.group.remove(z.mesh);
+    if (z.glb) z.glb.root.visible = false;
     let list = this.pool.get(z.variant.key);
     if (!list) this.pool.set(z.variant.key, (list = []));
     list.push(z);
@@ -93,8 +170,10 @@ export class EnemyManager {
     const y = this.level.world.groundHeight(x, z, 0.3, 3);
     zb.spawn(type, region, x, z, y, this.seedCounter++ * 0.6180339 + Math.random());
     if (state === 'chase') zb.setState('chase');
+    this.attachGlb(zb);
     this.zombies.push(zb);
     if (type === 'elite') this.elite = zb;
+    if (type === 'boss') this.boss = zb;
     return zb;
   }
 
@@ -144,6 +223,7 @@ export class EnemyManager {
       }
       this.think(z, dt, p);
       if (z.state === 'chase' || z.state === 'attack') alertCount++;
+      if (z.entry >= 0 && z.entryPhase !== 'approach') continue; // positioned by the barricade logic
       this.moveZombie(z, dt, world);
     }
     this.alertLevel = alertCount;
@@ -152,6 +232,12 @@ export class EnemyManager {
   private think(z: Zombie, dt: number, p: PlayerTarget): void {
     z.stateT += dt;
     z.attackCD = Math.max(0, z.attackCD - dt);
+    if (z.frozenT > 0) {
+      z.frozenT -= dt;
+      z.vel.x = z.vel.z = 0;
+      return;
+    }
+    if (z.entry >= 0 && this.barricades) { this.thinkEntry(z, dt, p); return; }
     const dx = p.x - z.pos.x, dz = p.z - z.pos.z;
     const dist = Math.hypot(dx, dz);
     const world = this.level.world;
@@ -269,6 +355,64 @@ export class EnemyManager {
     z.vel.z += (tvz - z.vel.z) * acc;
   }
 
+
+  /** Outside → window → tear planks → climb through → normal pursuit. */
+  private thinkEntry(z: Zombie, dt: number, p: PlayerTarget): void {
+    const b = this.barricades!;
+    const w = b.win(z.entry);
+    z.voiceT -= dt;
+    if (z.voiceT <= 0) {
+      z.voiceT = 2.5 + Math.random() * 5;
+      if (Math.hypot(p.x - z.pos.x, p.z - z.pos.z) < 30) this.audio.zombieVoice(z.pos, 'groan', z.type === 'fast' ? 1.4 : 1);
+    }
+    if (z.entryPhase === 'approach') {
+      const dx = w.outside.x - z.pos.x, dz = w.outside.z - z.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.4) {
+        z.entryPhase = 'tear';
+        z.entryT = TEAR_SECONDS * (0.6 + Math.random() * 0.5);
+        z.vel.x = z.vel.z = 0;
+        z.yaw = Math.atan2(w.inside.x - w.outside.x, w.inside.z - w.outside.z);
+        return;
+      }
+      const sp = Math.min(z.speed, 2.2 + (z.type === 'fast' ? 2 : 0));
+      z.yaw = Math.atan2(dx, dz);
+      z.vel.x = (dx / d) * sp;
+      z.vel.z = (dz / d) * sp;
+      return;
+    }
+    if (z.entryPhase === 'tear') {
+      z.yaw = Math.atan2(w.inside.x - w.outside.x, w.inside.z - w.outside.z);
+      if (b.planks(z.entry) <= 0) {
+        z.entryPhase = 'climb';
+        z.entryT = 0;
+        z.climbFrom = { ...z.pos };
+        return;
+      }
+      z.entryT -= dt * (z.type === 'boss' || z.type === 'brute' ? 3 : z.type === 'fast' ? 1.8 : 1);
+      if (z.entryT <= 0) {
+        z.entryT = TEAR_SECONDS * (0.8 + Math.random() * 0.4);
+        b.tear(z.entry, z);
+        if (Math.random() < 0.5) this.audio.zombieVoice(z.pos, 'attack', 0.9);
+      }
+      return;
+    }
+    // climb
+    z.entryT += dt;
+    const t = Math.min(1, z.entryT / (z.type === 'fast' ? 0.5 : 0.9));
+    const fx = z.climbFrom.x + (w.inside.x - z.climbFrom.x) * t;
+    const fz = z.climbFrom.z + (w.inside.z - z.climbFrom.z) * t;
+    z.pos.x = fx; z.pos.z = fz;
+    z.pos.y = w.floor + Math.sin(t * Math.PI) * 0.9;
+    if (t >= 1) {
+      z.entry = -1;
+      z.pos.y = this.level.world.groundHeight(z.pos.x, z.pos.z, 0.3, w.floor + 1);
+      z.vy = 0;
+      z.setState('chase');
+      z.lastX = z.pos.x; z.lastZ = z.pos.z;
+    }
+  }
+
   private resolveAttack(z: Zombie, p: PlayerTarget): void {
     if (!p.alive) return;
     const world = this.level.world;
@@ -370,6 +514,21 @@ export class EnemyManager {
     const out: DamageOutcome = { killed: false, head, armor: false, dealt: 0 };
     if (!z.alive) return out;
     let dmg = amount;
+    if (z.frozenT > 0) {
+      // Frozen zombies shatter from any hit.
+      this.fx.sparkBurst(z.pos.x, z.pos.y + 1, z.pos.z, 30, [0.6, 0.9, 1.6]);
+      this.audio.impact('glass', { x: z.pos.x, z: z.pos.z });
+      z.hp = 0;
+      out.dealt = amount;
+      out.killed = true;
+      this.kill(z, dirX, dirZ, head);
+      return out;
+    }
+    if (this.instaKill && !z.elite) {
+      z.helmetHp = 0;
+      amount = Math.max(amount, z.hp * 4 + 1);
+      dmg = amount;
+    }
     if (head) {
       if (z.helmetHp > 0) {
         // Helmet absorbs most of the damage until it breaks
@@ -398,9 +557,19 @@ export class EnemyManager {
     }
     z.flinchV += Math.min(6, dmg / 25) * (z.elite ? 0.3 : 1);
     z.staggerDir = Math.random() < 0.5 ? -1 : 1;
+    z.hitReactT = z.elite ? 0.08 : 0.25;
     if (z.hp <= 0) {
+      if (head && !out.armor && !z.elite) this.popHead(z, dirX, dirZ);
       this.kill(z, dirX, dirZ, head && !out.armor);
       out.killed = true;
+    } else if (this.allowCrawlers && !head && !z.legless && hy < z.pos.y + 0.75 * z.scale && crawlerFromLegHit(z.type, dmg, z.maxHp, this.rnd)) {
+      // Legs blown off: drops to the floor and keeps coming.
+      z.legless = true;
+      z.bones[BONE.thighL].scale.setScalar(0.001);
+      z.bones[BONE.thighR].scale.setScalar(0.001);
+      z.speed = 0.9;
+      this.fx.bloodHit(hx, z.pos.y + 0.4, hz, dirX, dirZ, true);
+      this.fx.bloodPool(z.pos.x, z.pos.z, 0.8);
     } else if (dmg >= z.def.staggerThreshold && z.state !== 'attack') {
       z.setState('stagger');
     } else if (dmg >= z.def.staggerThreshold && z.state === 'attack' && z.type !== 'armored' && !z.elite) {
@@ -412,6 +581,16 @@ export class EnemyManager {
   /** Headshot multiplier is weapon-specific; the weapon system scales damage before calling. */
   private headMultFor(): number {
     return 1;
+  }
+
+  /** Headshot kill: the head bursts. */
+  private popHead(z: Zombie, dirX: number, dirZ: number): void {
+    z.headless = true;
+    z.bones[BONE.head].scale.setScalar(0.001);
+    const h = z.headPos;
+    for (let i = 0; i < 3; i++) this.fx.bloodHit(h.x, h.y, h.z, dirX + (Math.random() - 0.5), dirZ + (Math.random() - 0.5), true);
+    this.fx.sparkBurst(h.x, h.y, h.z, 24, [0.7, 0.05, 0.03]);
+    this.audio.impact('flesh', { x: h.x, z: h.z });
   }
 
   private kill(z: Zombie, dirX: number, dirZ: number, head: boolean): void {

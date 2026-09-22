@@ -56,13 +56,38 @@ export class Zombie {
   reward = 0;
   grounded = true;
   lastDamageFromPlayer = false;
+  // Zombies-mode extras
+  /** Barricade window this zombie is entering through (-1 = already inside / free roaming). */
+  entry = -1;
+  entryPhase: 'approach' | 'tear' | 'climb' = 'approach';
+  entryT = 0;
+  climbFrom = { x: 0, y: 0, z: 0 };
+  frozenT = 0;
+  headless = false;
+  legless = false;
+  hitReactT = 0;
+  /** Skinned GLB instance (when a model exists); the procedural mesh is hidden then. */
+  glb: { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>; current: string; head: THREE.Object3D | null } | null = null;
 
   spawn(type: ZombieType, region: RegionId, x: number, z: number, y: number, rngSeed: number): void {
     this.type = type;
     this.def = ZOMBIES[type];
     this.region = region;
     const reg = REGIONS[region];
-    this.elite = type === 'elite';
+    this.elite = type === 'elite' || type === 'boss';
+    this.entry = -1;
+    this.entryPhase = 'approach';
+    this.entryT = 0;
+    this.frozenT = 0;
+    this.headless = false;
+    this.legless = type === 'crawler';
+    this.hitReactT = 0;
+    if (this.bones) {
+      this.bones[BONE.head].scale.setScalar(1);
+      const ls = this.legless ? 0.001 : 1;
+      this.bones[BONE.thighL].scale.setScalar(ls);
+      this.bones[BONE.thighR].scale.setScalar(ls);
+    }
     this.maxHp = this.def.hp * (this.elite ? 1 : reg.hpMult);
     this.hp = this.maxHp;
     this.helmetHp = this.def.helmetHp * (this.elite ? 1 : reg.hpMult);
@@ -115,13 +140,49 @@ export class Zombie {
     return (this.elite ? 0.45 : 0.28) * Math.min(1.2, this.scale);
   }
 
-  /** Procedural animation. Runs at render rate with the frame delta. */
+  /** Render-rate animation: procedural skeleton always (it drives hitboxes), plus the skinned GLB when present. */
   animate(dt: number, time: number): void {
+    this.animateBody(dt, time);
+    if (this.glb) this.animateGlb(dt);
+  }
+
+  private animateGlb(dt: number): void {
+    const g = this.glb!;
+    this.mesh.visible = false;
+    g.root.visible = this.active;
+    g.root.position.copy(this.mesh.position);
+    g.root.rotation.set(0, this.yaw, 0);
+    if (this.state === 'dead') g.root.position.y = this.pos.y - (this.deathT > 7 ? (this.deathT - 7) * 0.35 : 0);
+    const speed = Math.hypot(this.vel.x, this.vel.z);
+    let want = 'idle';
+    if (this.state === 'dead') want = 'death';
+    else if (this.legless) want = 'crawl';
+    else if (this.state === 'attack' || (this.entry >= 0 && this.entryPhase === 'tear')) want = 'attack';
+    else if (speed > 3) want = 'run';
+    else if (speed > 0.2) want = 'walk';
+    const pick = g.actions[want] ? want : want === 'run' && g.actions.walk ? 'walk' : want === 'crawl' && g.actions.walk ? 'walk' : g.actions.walk ? 'walk' : Object.keys(g.actions)[0];
+    if (pick && pick !== g.current) {
+      const next = g.actions[pick];
+      next.reset();
+      next.setLoop(pick === 'death' ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
+      next.clampWhenFinished = pick === 'death';
+      if (g.current && g.actions[g.current]) g.actions[g.current].crossFadeTo(next, 0.2, false);
+      next.play();
+      g.current = pick;
+    }
+    const a = g.actions[g.current];
+    if (a && (g.current === 'walk' || g.current === 'run')) a.timeScale = Math.max(0.5, speed / (g.current === 'run' ? 4 : 1.4));
+    g.mixer.update(this.frozenT > 0 ? 0 : dt);
+    if (g.head) g.head.scale.setScalar(this.headless ? 0.001 : 1);
+  }
+
+  /** Procedural animation. Runs at render rate with the frame delta. */
+  private animateBody(dt: number, time: number): void {
     const b = this.bones;
     const s = this.seed;
     const moveSpeed = Math.hypot(this.vel.x, this.vel.z);
-    const runner = this.type === 'runner';
-    const heavy = this.type === 'armored' || this.elite;
+    const runner = this.type === 'runner' || this.type === 'fast';
+    const heavy = this.type === 'armored' || this.type === 'brute' || this.elite;
     // Gait frequency tied to actual ground speed so feet don't skate.
     const stride = runner ? 2.0 : heavy ? 1.35 : 1.1;
     this.phase += (moveSpeed / stride) * Math.PI * dt + dt * 0.3;
@@ -136,6 +197,30 @@ export class Zombie {
 
     if (this.state === 'dead') {
       this.animateDeath(dt);
+      return;
+    }
+    if (this.frozenT > 0) {
+      // Frozen solid mid-stride: hold the pose, slight shiver.
+      this.mesh.position.set(this.pos.x + Math.sin(time * 60) * 0.004, this.pos.y, this.pos.z);
+      this.mesh.rotation.set(0, this.yaw, 0);
+      return;
+    }
+    if (this.legless) {
+      // Crawler: torso dragged along the floor by the arms, head craned up at the player.
+      const crawl = time * (2 + moveSpeed * 3) + s;
+      b[BONE.hips].position.y = 0.22;
+      b[BONE.hips].rotation.x = 1.35;
+      b[BONE.spine].rotation.x = 0.1 + this.flinch * -0.4;
+      b[BONE.head].rotation.x = -1.1;
+      b[BONE.jaw].rotation.x = 0.25 + Math.max(0, Math.sin(time * 3 + s)) * 0.3;
+      b[BONE.armL].rotation.x = -2.2 + Math.sin(crawl) * 0.7;
+      b[BONE.armR].rotation.x = -2.2 - Math.sin(crawl) * 0.7;
+      b[BONE.foreL].rotation.x = -0.3 - Math.max(0, Math.cos(crawl)) * 0.6;
+      b[BONE.foreR].rotation.x = -0.3 - Math.max(0, -Math.cos(crawl)) * 0.6;
+      b[BONE.armL].rotation.z = 0.35; b[BONE.armR].rotation.z = -0.35;
+      if (this.state === 'attack') { b[BONE.armL].rotation.x = -2.9; b[BONE.armR].rotation.x = -2.7; }
+      this.mesh.position.set(this.pos.x, this.pos.y, this.pos.z);
+      this.mesh.rotation.set(0, this.yaw, 0);
       return;
     }
     const limp = this.gait === 1 ? 0.45 : 1;
@@ -216,6 +301,30 @@ export class Zombie {
     } else if (this.state === 'stagger') {
       b[BONE.spine].rotation.x = -0.5 * Math.max(0, 1 - this.stateT / 0.45);
       b[BONE.armL].rotation.x = -0.4; b[BONE.armR].rotation.x = 0.1;
+    }
+    if (this.entry >= 0 && this.entryPhase === 'tear') {
+      // Ripping boards off: alternating two-handed clawing at the window.
+      const k = time * 7 + s;
+      b[BONE.armL].rotation.x = -1.7 + Math.sin(k) * 0.6;
+      b[BONE.armR].rotation.x = -1.7 - Math.sin(k) * 0.6;
+      b[BONE.foreL].rotation.x = -0.6 + Math.cos(k) * 0.4;
+      b[BONE.foreR].rotation.x = -0.6 - Math.cos(k) * 0.4;
+      b[BONE.spine].rotation.x = 0.35;
+      b[BONE.jaw].rotation.x = 0.5;
+    } else if (this.entry >= 0 && this.entryPhase === 'climb') {
+      const t = Math.min(1, this.entryT / 0.9);
+      b[BONE.spine].rotation.x = 0.9 * Math.sin(t * Math.PI);
+      b[BONE.thighL].rotation.x = -1.2 * Math.sin(t * Math.PI);
+      b[BONE.thighR].rotation.x = -0.6 * Math.sin(t * Math.PI);
+      b[BONE.armL].rotation.x = -2.2; b[BONE.armR].rotation.x = -2.0;
+    }
+    // Hit reaction: a sharp flinch of the torso/head on top of whatever the body is doing.
+    if (this.hitReactT > 0) {
+      this.hitReactT = Math.max(0, this.hitReactT - dt);
+      const k = this.hitReactT / 0.25;
+      b[BONE.chest].rotation.x -= 0.5 * k;
+      b[BONE.head].rotation.x -= 0.4 * k;
+      b[BONE.chest].rotation.y += 0.3 * k * this.staggerDir;
     }
     this.mesh.position.set(this.pos.x, this.pos.y, this.pos.z);
     this.mesh.rotation.set(0, this.yaw, 0);
