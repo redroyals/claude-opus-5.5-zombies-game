@@ -60,7 +60,7 @@ export interface SimPlayer {
   flags: { droppedInputs: number; badFire: number };
 }
 
-export interface SimOptions { mode: ModeId; map: string; seed?: number }
+export interface SimOptions { mode: ModeId; map: string; seed?: number; scoreLimit?: number; timeLimitSec?: number }
 
 interface Projectile { id: number; kind: string; owner: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; fuse: number; stuck: boolean }
 interface Equipment { id: number; kind: string; owner: number; team: number; x: number; y: number; z: number; yaw: number; armed: number }
@@ -99,6 +99,7 @@ export class MatchSim {
   projectiles: Projectile[] = [];
   equipment = new Map<number, Equipment>();
   timeLeft: number;
+  scoreLimit: number;
   ended = false;
   private nextObjId = 1;
   private rngState: number;
@@ -112,7 +113,8 @@ export class MatchSim {
     this.mode = opts.mode;
     this.map = MAP_BY_ID[opts.map] ?? MAP_BY_ID.kowloon;
     this.world = new BoxWorld(this.map.boxes);
-    this.timeLeft = MODES[this.mode].timeLimitSec;
+    this.timeLeft = opts.timeLimitSec ?? MODES[this.mode].timeLimitSec;
+    this.scoreLimit = opts.scoreLimit ?? MODES[this.mode].scoreLimit;
     this.rngState = (opts.seed ?? 12345) >>> 0;
   }
 
@@ -611,7 +613,7 @@ export class MatchSim {
   }
 
   private checkEnd() {
-    const limit = MODES[this.mode].scoreLimit;
+    const limit = this.scoreLimit;
     let reason = '';
     if (this.timeLeft <= 0) reason = 'time';
     if (this.teams && Math.max(...this.teamScore) >= limit) reason = 'score';

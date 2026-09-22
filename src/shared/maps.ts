@@ -145,5 +145,19 @@ function rio(): MapDef {
   };
 }
 
+/** Flat firing range: practice + automated tests. Not in public rotation. */
+function range(): MapDef {
+  const b = builder();
+  perimeter(b.add, 30, 6);
+  b.add([-8, 0, -2, -6, 1.1, 2], 4);
+  b.add([6, 0, -2, 8, 1.1, 2], 4);
+  return {
+    id: 'range', name: 'Firing Range', city: 'Training', bounds: [-30, -1, -30, 30, 20, 30], ...b, sky: 0x9fb0c0, fog: 0x9fb0c0,
+    spawns: [{ x: 0, y: 0, z: 10, yaw: 0, team: 0 }, { x: 0, y: 0, z: -10, yaw: Math.PI, team: 1 }],
+    flags: [{ x: -15, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 15, y: 0, z: 0 }],
+  };
+}
+
+/** Public rotation. */
 export const MAPS: MapDef[] = [kowloon(), lisbon(), rio()];
-export const MAP_BY_ID: Record<string, MapDef> = Object.fromEntries(MAPS.map((m) => [m.id, m]));
+export const MAP_BY_ID: Record<string, MapDef> = Object.fromEntries([...MAPS, range()].map((m) => [m.id, m]));

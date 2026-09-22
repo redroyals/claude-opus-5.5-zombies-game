@@ -1,0 +1,40 @@
+# Dead Signal multiplayer backend. LOCAL DEV ONLY in this branch — nothing here has been deployed.
+# Deploy steps: see docs/MULTIPLAYER.md ("Deploying").
+name = "dead-signal-mp"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# Static client (vite build of the repo root) served on the same origin: play.sikhi.io
+[assets]
+directory = "../dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/ws/*"]
+
+[[durable_objects.bindings]]
+name = "MATCHMAKER"
+class_name = "Matchmaker"
+
+[[durable_objects.bindings]]
+name = "MATCH_ROOM"
+class_name = "MatchRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Matchmaker", "MatchRoom"]
+
+[[d1_databases]]
+binding = "GAME_DB"
+database_name = "dead-signal-mp"
+database_id = "00000000-0000-0000-0000-000000000000" # placeholder; set after `wrangler d1 create`
+migrations_dir = "migrations"
+
+[vars]
+# Where players sign in (sikhi.io own-auth SSO handoff). The issuer must allow our origin as a return URL.
+SSO_ISSUER_URL = "https://sikhi.io/api/sso/issue"
+MM_SHARDS = "1"
+ROOM_CAP_MAX = "18"
+# DEV_AUTH = "1" is set only in .dev.vars (never in production)
+
+# Secrets (wrangler secret put …; for local dev put them in server/.dev.vars):
+#   SSO_SHARED_SECRET    — same 32-byte hex secret sikhi.io uses to sign SSO handoff tokens
+#   GAME_SESSION_SECRET  — 32-byte hex, signs this game's own session tokens
