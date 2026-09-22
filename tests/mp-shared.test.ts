@@ -178,3 +178,70 @@ describe('modes', () => {
 });
 
 function norm(x: number, y: number, z: number) { const l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; }
+
+import { MatchSim, dirFrom } from '../server/src/sim';
+describe('match sim', () => {
+  const idle = (seq: number, yaw = 0, pitch = 0, buttons = 0) => ({ seq, fwd: 0, strafe: 0, yaw, pitch, buttons });
+  function duel() {
+    const sim = new MatchSim({ mode: 'tdm', map: 'kowloon', seed: 1 });
+    const a = sim.addPlayer({ name: 'A', userId: null })!, b = sim.addPlayer({ name: 'B', userId: null })!;
+    // Place them on open ground 10 m apart; A faces B.
+    a.move.x = 0; a.move.z = 5; a.move.y = 0; b.move.x = 0; b.move.z = -5; b.move.y = 0;
+    for (let i = 0; i < 3; i++) sim.step();
+    return { sim, a, b };
+  }
+  it('lag-compensated shot kills and scores; fire rate is enforced', () => {
+    const { sim, a, b } = duel();
+    expect(a.team).not.toBe(b.team);
+    let seq = 1;
+    const eyeA = 1.75 - 0.12, chestB = 1.2;
+    const pitch = Math.atan2(chestB - eyeA, 10);
+    for (let t = 0; t < 60 && b.alive; t++) {
+      sim.enqueue(a.id, sim.tick, [idle(seq++, 0, pitch, BTN.fire | BTN.ads)]);
+      sim.step();
+    }
+    expect(b.alive).toBe(false);
+    expect(sim.teamScore[a.team]).toBe(1);
+    expect(a.stats.kills).toBe(1);
+    const evs = sim.drainEvents();
+    expect(evs.some((e) => e.t === 'kill' && e.killer === a.id && e.victim === b.id)).toBe(true);
+    // Shots fired should not exceed rpm budget
+    const fired = 30 - a.guns[0].ammo;
+    expect(fired).toBeLessThanOrEqual(Math.ceil((seq * (1 / 30)) / (60 / 700)) + 1);
+  });
+  it('rejects input flooding (speed hack) via token bucket', () => {
+    const { sim, a } = duel();
+    const z0 = a.move.z;
+    let seq = 1;
+    for (let t = 0; t < 30; t++) { sim.enqueue(a.id, sim.tick, Array.from({ length: 8 }, () => ({ seq: seq++, fwd: 127, strafe: 0, yaw: 0, pitch: 0, buttons: BTN.sprint }))); sim.step(); }
+    // 30 ticks = 1 s; even with 8x inputs, distance must stay near sprint speed * 1 s (+ bucket burst)
+    expect(z0 - a.move.z).toBeLessThan(7.1 * (30 + 6) / 30 + 0.5);
+    expect(a.flags.droppedInputs).toBeGreaterThan(0);
+  });
+  it('shots at where the target was (within rewind window) hit', () => {
+    const { sim, a, b } = duel();
+    // B strafes; A aims at B's position from 4 ticks ago and reports that viewTick.
+    let seq = 1;
+    for (let t = 0; t < 10; t++) { sim.enqueue(b.id, sim.tick, [{ seq: seq++, fwd: 0, strafe: 127, yaw: Math.PI, pitch: 0, buttons: 0 }]); sim.step(); }
+    const past = b.hist.at(sim.tick - 4)!;
+    const d = dirFrom(0, 0);
+    void d;
+    const yaw = Math.atan2(-(past.x - a.move.x), -(past.z - a.move.z));
+    const pitch = Math.atan2(1.2 - 1.63, Math.hypot(past.x - a.move.x, past.z - a.move.z));
+    const hp = b.health;
+    sim.enqueue(a.id, sim.tick - 4, [idle(100, yaw, pitch, BTN.fire | BTN.ads)]);
+    sim.enqueue(b.id, sim.tick, [{ seq: seq++, fwd: 0, strafe: 127, yaw: Math.PI, pitch: 0, buttons: 0 }]);
+    sim.step();
+    expect(b.health).toBeLessThan(hp);
+  });
+  it('match ends at score limit with XP awarded', () => {
+    const sim = new MatchSim({ mode: 'ffa', map: 'rio' });
+    const a = sim.addPlayer({ name: 'A', userId: 'u1' })!, b = sim.addPlayer({ name: 'B', userId: null })!;
+    for (let i = 0; i < 30; i++) { sim.damage(b, 500, a, 'ar_kestrel', i % 2 === 0); b.alive = true; b.health = 100; }
+    sim.step();
+    expect(sim.ended).toBe(true);
+    const end = sim.drainEvents().find((e) => e.t === 'end');
+    expect(end && end.t === 'end' && end.winner).toBe(a.id);
+    expect(end && end.t === 'end' && end.xp[a.id]).toBeGreaterThan(3000);
+  });
+});
