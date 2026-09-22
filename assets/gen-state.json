@@ -1,0 +1,172 @@
+{
+ "perk_bulwark": {
+  "cat": "machines",
+  "method": "text",
+  "preview": "01a0cab4-aaa5-702f-8d50-b6facacd4f23",
+  "task": "01a0cab5-c267-71ca-aaf3-5f1f49f6e618",
+  "status": "ok",
+  "at": "2026-09-22T20:02:47.145Z"
+ },
+ "ww_arc": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0cab4-aaad-775b-a9a6-1cdf9beab1de",
+  "task": "01a0cab5-7dc1-7403-9c05-eaa50c702a30",
+  "status": "ok",
+  "at": "2026-09-22T20:02:30.017Z"
+ },
+ "z_shambler": {
+  "cat": "zombies",
+  "method": "text",
+  "preview": "01a0cab4-ab20-74de-9766-4fdd7662f44d",
+  "task": "01a0cab5-9fe5-719f-a711-df254547f17f",
+  "status": "ok",
+  "at": "2026-09-22T20:02:47.645Z",
+  "rig": "01a0cabf-7dd7-736f-827f-a29b58f493ba",
+  "animTask": "01a0cac0-374f-70f0-b04c-227e474f4f71",
+  "anim": "ok"
+ },
+ "ww_cryo": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0cab8-6c79-746f-995b-677e01922efc",
+  "task": "01a0cab9-6130-728a-a449-4fad675e3fa1",
+  "status": "ok",
+  "at": "2026-09-22T20:06:52.923Z"
+ },
+ "ww_singularity": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0cab8-6c78-734a-b704-e469bd27fd17",
+  "task": "01a0cab9-60e6-7780-a2eb-7e0f1b32daa6",
+  "status": "ok",
+  "at": "2026-09-22T20:06:44.813Z"
+ },
+ "perk_hammerfall": {
+  "cat": "machines",
+  "method": "text",
+  "preview": "01a0cab8-6cf2-776a-9d9a-82a29dab53da",
+  "task": "01a0cab9-a3c4-76ca-9bd7-517b51791a85",
+  "status": "ok",
+  "at": "2026-09-22T20:07:08.787Z"
+ },
+ "perk_quickhands": {
+  "cat": "machines",
+  "method": "text",
+  "preview": "01a0cab8-6cfb-74f8-99f2-d1de3e5b87aa",
+  "task": "01a0cab9-3fcf-74bb-a45f-8153a3310924",
+  "status": "ok",
+  "at": "2026-09-22T20:06:35.849Z"
+ },
+ "perk_lifeline": {
+  "cat": "machines",
+  "method": "text",
+  "preview": "01a0cab8-6d5f-71b5-b72b-1a700609a480",
+  "task": "01a0cab9-c722-773c-8f45-fd9da4613c87",
+  "status": "ok",
+  "at": "2026-09-22T20:07:08.854Z"
+ },
+ "reforger": {
+  "cat": "machines",
+  "method": "text",
+  "preview": "01a0cab8-6d69-72b8-9ad7-f167edf1edbe",
+  "task": "01a0cab9-8293-747c-9616-fa033f31681d",
+  "status": "ok",
+  "at": "2026-09-22T20:07:08.679Z"
+ },
+ "generator": {
+  "cat": "props",
+  "method": "text",
+  "preview": "01a0caba-356f-7584-8587-47fa3b0eb60f",
+  "task": "01a0cabb-8c69-7473-9fb8-ac241b8fa5af",
+  "status": "ok",
+  "at": "2026-09-22T20:08:56.714Z"
+ },
+ "filing_cabinets": {
+  "cat": "props",
+  "method": "text",
+  "preview": "01a0caba-7818-7362-b844-9bd6cadb9689",
+  "task": "01a0cabb-af6a-75b7-a422-af79e99bb511",
+  "status": "ok",
+  "at": "2026-09-22T20:09:13.928Z"
+ },
+ "lamp": {
+  "cat": "props",
+  "method": "text",
+  "preview": "01a0caba-b736-7171-8b83-453572f3c976",
+  "task": "01a0cabb-adcd-748c-9f6e-59f650ecfad8",
+  "status": "ok",
+  "at": "2026-09-22T20:08:57.465Z"
+ },
+ "z_runner": {
+  "cat": "zombies",
+  "method": "text",
+  "preview": "01a0caba-b611-72f7-a609-4b3639f57e86",
+  "task": "01a0cabb-ae3f-7445-9fee-64a6b7a10d0f",
+  "status": "ok",
+  "at": "2026-09-22T20:09:06.051Z",
+  "rig": "01a0cac0-e4c1-7526-8adb-d3cd70d37fa2",
+  "animTask": "01a0cac1-fe2e-7224-a8fd-42df97083dc7",
+  "anim": "ok"
+ },
+ "z_brute": {
+  "cat": "zombies",
+  "method": "text",
+  "preview": "01a0caba-b7fb-7142-84ca-f0211b1b027d",
+  "task": "01a0cabb-aed1-759f-999c-35abfd424ec1",
+  "status": "ok",
+  "at": "2026-09-22T20:08:56.423Z",
+  "rig": "01a0cac0-e4cc-7585-a1d9-29810252e930",
+  "animTask": "01a0cac2-830f-7350-b44e-778bfe1d7e06",
+  "anim": "ok"
+ },
+ "z_crawler": {
+  "cat": "zombies",
+  "method": "text",
+  "preview": "01a0cabb-d972-7237-ae07-62a825905918",
+  "task": "01a0cabc-cda2-723a-86f2-6443d75058d6",
+  "status": "ok",
+  "at": "2026-09-22T20:10:11.582Z",
+  "rig": "01a0cac0-e537-74ba-acee-42bcc032c092",
+  "animTask": "01a0cac1-975c-77c5-a9c1-c6a2dcf06df2",
+  "anim": "ok"
+ },
+ "z_fast": {
+  "cat": "zombies",
+  "method": "text",
+  "preview": "01a0cabc-5a8a-7225-a816-1311ae781bd7",
+  "task": "01a0cabd-54b6-726a-b8da-958688b5b74f",
+  "status": "ok",
+  "at": "2026-09-22T20:11:03.490Z",
+  "rig": "01a0cac0-e537-74bc-bb09-37b18dbbc1da",
+  "animTask": "01a0cac1-b5b3-70fa-a247-94604a4210f1",
+  "anim": "ok"
+ },
+ "z_boss": {
+  "cat": "zombies",
+  "method": "text",
+  "preview": "01a0cabc-5d53-755c-9da2-47b76d3facac",
+  "task": "01a0cabd-b9db-71b9-bf91-ceef95e75e83",
+  "status": "ok",
+  "at": "2026-09-22T20:11:21.376Z",
+  "rig": "01a0cac0-e5bc-71da-a397-5f131a412c1f",
+  "animTask": "01a0cac3-0a72-73f9-b56b-558cb18ee150",
+  "anim": "ok"
+ },
+ "lab_table_v1": {
+  "cat": "props",
+  "method": "text",
+  "preview": "01a0caba-5868-746f-9c62-463fd6e96ffe",
+  "task": "01a0cabb-2750-75b9-8319-7307cc2f0430",
+  "status": "ok",
+  "at": "2026-09-22T20:17:52.143Z"
+ },
+ "lab_table": {
+  "cat": "props",
+  "method": "text",
+  "preview": "01a0cac4-a3db-7131-909d-9889054723b2",
+  "task": "01a0cac5-787d-72e1-bdc5-0054375c116a",
+  "status": "ok",
+  "at": "2026-09-22T20:19:48.701Z"
+ }
+}

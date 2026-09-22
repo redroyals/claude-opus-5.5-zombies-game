@@ -1,0 +1,841 @@
+{
+ "convention": "metres, +Y up. Weapons: barrel -Z, origin at grip (see weapons/frames.json). Props/machines/kits: base y=0, centred XZ, front +Z. Zombies: skinned, feet y=0, face +Z.",
+ "assets": [
+  {
+   "id": "ar_corvid",
+   "path": "/models/weapons/ar_corvid.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.064,
+    0.284,
+    0.88
+   ],
+   "bytes": 348504,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Corvid-47"
+  },
+  {
+   "id": "ar_kestrel",
+   "path": "/models/weapons/ar_kestrel.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.077,
+    0.274,
+    0.84
+   ],
+   "bytes": 346248,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "KR-7 Kestrel"
+  },
+  {
+   "id": "ar_moraine",
+   "path": "/models/weapons/ar_moraine.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.085,
+    0.326,
+    0.98
+   ],
+   "bytes": 377172,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Moraine SCR"
+  },
+  {
+   "id": "ar_tern",
+   "path": "/models/weapons/ar_tern.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.074,
+    0.248,
+    0.72
+   ],
+   "bytes": 427984,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Tern Compact"
+  },
+  {
+   "id": "dmr_sentry",
+   "path": "/models/weapons/dmr_sentry.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.089,
+    0.304,
+    1.12
+   ],
+   "bytes": 319276,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Sentry 14"
+  },
+  {
+   "id": "lmg_bastion",
+   "path": "/models/weapons/lmg_bastion.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.125,
+    0.39,
+    1.04
+   ],
+   "bytes": 231992,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Bastion 249"
+  },
+  {
+   "id": "ln_lotus",
+   "path": "/models/weapons/ln_lotus.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.109,
+    0.276,
+    0.95
+   ],
+   "bytes": 300928,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Lotus RL"
+  },
+  {
+   "id": "pi_basalt",
+   "path": "/models/weapons/pi_basalt.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.027,
+    0.12,
+    0.27
+   ],
+   "bytes": 310496,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Basalt .50"
+  },
+  {
+   "id": "pi_magnus",
+   "path": "/models/weapons/pi_magnus.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.046,
+    0.179,
+    0.3
+   ],
+   "bytes": 355428,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Magnus .44"
+  },
+  {
+   "id": "pi_warden",
+   "path": "/models/weapons/pi_warden.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.034,
+    0.138,
+    0.19
+   ],
+   "bytes": 285828,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "P-19 Warden"
+  },
+  {
+   "id": "sg_hullbreaker",
+   "path": "/models/weapons/sg_hullbreaker.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.069,
+    0.216,
+    1
+   ],
+   "bytes": 244200,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "HB-12 Hullbreaker"
+  },
+  {
+   "id": "sg_tidal",
+   "path": "/models/weapons/sg_tidal.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.078,
+    0.31,
+    1.01
+   ],
+   "bytes": 250296,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Tidal Auto"
+  },
+  {
+   "id": "smg_fennec",
+   "path": "/models/weapons/smg_fennec.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.05,
+    0.184,
+    0.51
+   ],
+   "bytes": 293804,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Fennec PDW"
+  },
+  {
+   "id": "smg_skiff",
+   "path": "/models/weapons/smg_skiff.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.053,
+    0.242,
+    0.54
+   ],
+   "bytes": 246740,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Skiff MX"
+  },
+  {
+   "id": "smg_wren",
+   "path": "/models/weapons/smg_wren.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.072,
+    0.271,
+    0.66
+   ],
+   "bytes": 212896,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Wren 9"
+  },
+  {
+   "id": "sp_knife",
+   "path": "/models/weapons/sp_knife.glb",
+   "kind": "melee",
+   "size_m": [
+    0.045,
+    0.02,
+    0.3
+   ],
+   "bytes": 261904,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Combat Knife"
+  },
+  {
+   "id": "sr_longwatch",
+   "path": "/models/weapons/sr_longwatch.glb",
+   "kind": "weapon",
+   "size_m": [
+    0.105,
+    0.343,
+    1.12
+   ],
+   "bytes": 322376,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Longwatch .308"
+  },
+  {
+   "id": "ww_arc",
+   "path": "/models/weapons/ww_arc.glb",
+   "kind": "wonder_weapon",
+   "size_m": [
+    0.097,
+    0.245,
+    0.9
+   ],
+   "bytes": 500552,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Arc Projector"
+  },
+  {
+   "id": "ww_cryo",
+   "path": "/models/weapons/ww_cryo.glb",
+   "kind": "wonder_weapon",
+   "size_m": [
+    0.109,
+    0.357,
+    1
+   ],
+   "bytes": 561040,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Cryo Lance"
+  },
+  {
+   "id": "ww_singularity",
+   "path": "/models/weapons/ww_singularity.glb",
+   "kind": "wonder_weapon",
+   "size_m": [
+    0.197,
+    0.357,
+    0.95
+   ],
+   "bytes": 316864,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "mount_mag",
+    "mount_muzzle",
+    "mount_optic",
+    "mount_stock",
+    "mount_under",
+    "socket_grip"
+   ],
+   "name": "Singularity Launcher"
+  },
+  {
+   "id": "filing_cabinets",
+   "path": "/models/zombies/filing_cabinets.glb",
+   "kind": "prop",
+   "size_m": [
+    1.4,
+    1.089,
+    0.87
+   ],
+   "bytes": 331792,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "generator",
+   "path": "/models/zombies/generator.glb",
+   "kind": "prop",
+   "size_m": [
+    1.6,
+    1.239,
+    0.66
+   ],
+   "bytes": 363244,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "kit_barricade_window",
+   "path": "/models/zombies/kit_barricade_window.glb",
+   "kind": "kit",
+   "size_m": [
+    3,
+    3,
+    0.405
+   ],
+   "bytes": 7720,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "frame",
+    "plank_0",
+    "plank_1",
+    "plank_2",
+    "plank_3",
+    "plank_4",
+    "plank_5"
+   ]
+  },
+  {
+   "id": "kit_catwalk",
+   "path": "/models/zombies/kit_catwalk.glb",
+   "kind": "kit",
+   "size_m": [
+    1.44,
+    1.3,
+    4
+   ],
+   "bytes": 8932,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "kit_debris",
+   "path": "/models/zombies/kit_debris.glb",
+   "kind": "kit",
+   "size_m": [
+    3.056,
+    1.648,
+    1.369
+   ],
+   "bytes": 9964,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "kit_door",
+   "path": "/models/zombies/kit_door.glb",
+   "kind": "kit",
+   "size_m": [
+    4,
+    3.3,
+    0.32
+   ],
+   "bytes": 9752,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "door",
+    "frame"
+   ]
+  },
+  {
+   "id": "kit_floor",
+   "path": "/models/zombies/kit_floor.glb",
+   "kind": "kit",
+   "size_m": [
+    4,
+    0.205,
+    4
+   ],
+   "bytes": 3484,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "kit_stairs",
+   "path": "/models/zombies/kit_stairs.glb",
+   "kind": "kit",
+   "size_m": [
+    1.6,
+    3.95,
+    4.5
+   ],
+   "bytes": 9124,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "kit_wall",
+   "path": "/models/zombies/kit_wall.glb",
+   "kind": "kit",
+   "size_m": [
+    4,
+    3,
+    0.405
+   ],
+   "bytes": 5928,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "kit_wall_corner",
+   "path": "/models/zombies/kit_wall_corner.glb",
+   "kind": "kit",
+   "size_m": [
+    0.64,
+    3,
+    0.64
+   ],
+   "bytes": 2928,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "lab_table",
+   "path": "/models/zombies/lab_table.glb",
+   "kind": "prop",
+   "size_m": [
+    1.8,
+    1.1,
+    0.846
+   ],
+   "bytes": 391516,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "lamp",
+   "path": "/models/zombies/lamp.glb",
+   "kind": "prop",
+   "size_m": [
+    0.868,
+    1.8,
+    0.631
+   ],
+   "bytes": 351144,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "mystery_box",
+   "path": "/models/zombies/mystery_box.glb",
+   "kind": "machine",
+   "size_m": [
+    1.3,
+    1.009,
+    1.098
+   ],
+   "bytes": 448628,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "body",
+    "lid"
+   ]
+  },
+  {
+   "id": "perk_bulwark",
+   "path": "/models/zombies/perk_bulwark.glb",
+   "kind": "perk_machine",
+   "size_m": [
+    0.969,
+    2.2,
+    0.84
+   ],
+   "bytes": 645588,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "perk_hammerfall",
+   "path": "/models/zombies/perk_hammerfall.glb",
+   "kind": "perk_machine",
+   "size_m": [
+    1.953,
+    2.07,
+    2.1
+   ],
+   "bytes": 498668,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "perk_lifeline",
+   "path": "/models/zombies/perk_lifeline.glb",
+   "kind": "perk_machine",
+   "size_m": [
+    1.782,
+    2.1,
+    1.216
+   ],
+   "bytes": 489460,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "perk_quickhands",
+   "path": "/models/zombies/perk_quickhands.glb",
+   "kind": "perk_machine",
+   "size_m": [
+    0.574,
+    2,
+    0.514
+   ],
+   "bytes": 391948,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "power_switch",
+   "path": "/models/zombies/power_switch.glb",
+   "kind": "machine",
+   "size_m": [
+    1.2,
+    2.1,
+    0.38
+   ],
+   "bytes": 10668,
+   "animations": [],
+   "skinned": false,
+   "nodes": [
+    "lever",
+    "panel"
+   ]
+  },
+  {
+   "id": "reforger",
+   "path": "/models/zombies/reforger.glb",
+   "kind": "machine",
+   "size_m": [
+    2.3,
+    1.749,
+    0.984
+   ],
+   "bytes": 464664,
+   "animations": [],
+   "skinned": false,
+   "nodes": []
+  },
+  {
+   "id": "z_boss",
+   "path": "/models/zombies/z_boss.glb",
+   "kind": "zombie",
+   "size_m": {
+    "height": 2.8,
+    "note": "skinned: height from Meshy rig height_meters (bind-pose bounds not meaningful)"
+   },
+   "bytes": 1378848,
+   "animations": [
+    "walk",
+    "run",
+    "attack",
+    "death",
+    "scream"
+   ],
+   "skinned": true,
+   "nodes": []
+  },
+  {
+   "id": "z_brute",
+   "path": "/models/zombies/z_brute.glb",
+   "kind": "zombie",
+   "size_m": {
+    "height": 2.3,
+    "note": "skinned: height from Meshy rig height_meters (bind-pose bounds not meaningful)"
+   },
+   "bytes": 1319772,
+   "animations": [
+    "walk",
+    "run",
+    "attack",
+    "death",
+    "scream"
+   ],
+   "skinned": true,
+   "nodes": []
+  },
+  {
+   "id": "z_crawler",
+   "path": "/models/zombies/z_crawler.glb",
+   "kind": "zombie",
+   "size_m": {
+    "height": 1.7,
+    "note": "skinned: height from Meshy rig height_meters (bind-pose bounds not meaningful)"
+   },
+   "bytes": 1212700,
+   "animations": [
+    "walk",
+    "crawl",
+    "attack",
+    "death"
+   ],
+   "skinned": true,
+   "nodes": []
+  },
+  {
+   "id": "z_fast",
+   "path": "/models/zombies/z_fast.glb",
+   "kind": "zombie",
+   "size_m": {
+    "height": 1.75,
+    "note": "skinned: height from Meshy rig height_meters (bind-pose bounds not meaningful)"
+   },
+   "bytes": 1258328,
+   "animations": [
+    "walk",
+    "run",
+    "attack",
+    "death",
+    "scream"
+   ],
+   "skinned": true,
+   "nodes": []
+  },
+  {
+   "id": "z_runner",
+   "path": "/models/zombies/z_runner.glb",
+   "kind": "zombie",
+   "size_m": {
+    "height": 1.78,
+    "note": "skinned: height from Meshy rig height_meters (bind-pose bounds not meaningful)"
+   },
+   "bytes": 1079940,
+   "animations": [
+    "walk",
+    "run",
+    "attack",
+    "death",
+    "scream"
+   ],
+   "skinned": true,
+   "nodes": []
+  },
+  {
+   "id": "z_shambler",
+   "path": "/models/zombies/z_shambler.glb",
+   "kind": "zombie",
+   "size_m": {
+    "height": 1.8,
+    "note": "skinned: height from Meshy rig height_meters (bind-pose bounds not meaningful)"
+   },
+   "bytes": 1249160,
+   "animations": [
+    "walk",
+    "run",
+    "attack",
+    "death",
+    "scream"
+   ],
+   "skinned": true,
+   "nodes": []
+  }
+ ]
+}

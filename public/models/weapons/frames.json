@@ -1,0 +1,805 @@
+{
+ "convention": "Game space: metres, +Y up. Weapons: barrel along -Z, origin = grip hand point (socket_grip). mounts.* are offsets from the origin and also exist as named empty nodes in each GLB (mount_optic top rail, mount_muzzle muzzle centre, mount_under under-barrel, mount_mag magazine well bottom, mount_stock stock butt). Measured by tools/blender/postprocess.py: muzzle end = end with the smaller cross-section, grip = hanging spike right behind the magazine (bullpups: frontmost spike; pistols: deepest rear slice); manual corrections live in assets/weapons/frames.override.json (grip = fraction of length from the stock end, flip = swap ends). Attachments: origin = mount_base (bottom centre of the rail clamp), front along -Z, mount_front = front face. Standard rail: attachments snap mount_base onto a weapon mount_* node.",
+ "weapons": {
+  "smg_wren": {
+   "length": 0.66,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.003,
+     0.124,
+     -0.1733
+    ],
+    "mount_optic": [
+     0,
+     0.1492,
+     -0.0606
+    ],
+    "mount_under": [
+     0,
+     0.112,
+     -0.1126
+    ],
+    "mount_mag": [
+     0,
+     -0.0713,
+     -0.0312
+    ],
+    "mount_stock": [
+     0,
+     0.0542,
+     0.4868
+    ]
+   },
+   "tris": 6999
+  },
+  "sp_knife": {
+   "length": 0.3,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     -0.0012,
+     0.0002,
+     -0.255
+    ],
+    "mount_optic": [
+     0,
+     0.0099,
+     -0.0892
+    ],
+    "mount_under": [
+     0,
+     -0.0023,
+     -0.1657
+    ],
+    "mount_mag": [
+     0,
+     -0.0099,
+     -0.0459
+    ],
+    "mount_stock": [
+     0,
+     0,
+     0.045
+    ]
+   },
+   "tris": 7000
+  },
+  "ar_kestrel": {
+   "length": 0.84,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0004,
+     0.1137,
+     -0.4515
+    ],
+    "mount_optic": [
+     0,
+     0.1638,
+     -0.158
+    ],
+    "mount_under": [
+     0,
+     0.082,
+     -0.2935
+    ],
+    "mount_mag": [
+     0,
+     -0.0169,
+     -0.0813
+    ],
+    "mount_stock": [
+     0,
+     0.0548,
+     0.3885
+    ]
+   },
+   "tris": 7000
+  },
+  "ar_corvid": {
+   "length": 0.88,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0002,
+     0.084,
+     -0.539
+    ],
+    "mount_optic": [
+     0,
+     0.128,
+     -0.1887
+    ],
+    "mount_under": [
+     0,
+     0.0503,
+     -0.3504
+    ],
+    "mount_mag": [
+     0,
+     -0.1199,
+     -0.097
+    ],
+    "mount_stock": [
+     0,
+     0.0131,
+     0.341
+    ]
+   },
+   "tris": 6999
+  },
+  "ar_tern": {
+   "length": 0.72,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "bullpup",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0029,
+     0.0982,
+     -0.351
+    ],
+    "mount_optic": [
+     0,
+     0.1735,
+     -0.1229
+    ],
+    "mount_under": [
+     0,
+     0.0622,
+     -0.2282
+    ],
+    "mount_mag": [
+     0,
+     -0.0646,
+     -0.0632
+    ],
+    "mount_stock": [
+     0,
+     0.0496,
+     0.369
+    ]
+   },
+   "tris": 7000
+  },
+  "ar_moraine": {
+   "length": 0.98,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0,
+     0.048,
+     -0.5513
+    ],
+    "mount_optic": [
+     0,
+     0.1013,
+     -0.1929
+    ],
+    "mount_under": [
+     0,
+     -0.0148,
+     -0.3583
+    ],
+    "mount_mag": [
+     0,
+     -0.2002,
+     -0.0992
+    ],
+    "mount_stock": [
+     0,
+     -0.0371,
+     0.4288
+    ]
+   },
+   "tris": 6999
+  },
+  "smg_skiff": {
+   "length": 0.54,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0,
+     0.1037,
+     -0.1957
+    ],
+    "mount_optic": [
+     0,
+     0.1691,
+     -0.0685
+    ],
+    "mount_under": [
+     0,
+     0.0676,
+     -0.1272
+    ],
+    "mount_mag": [
+     0,
+     -0.0667,
+     -0.0352
+    ],
+    "mount_stock": [
+     0,
+     0.0484,
+     0.3442
+    ]
+   },
+   "tris": 6999
+  },
+  "smg_fennec": {
+   "length": 0.51,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "bullpup",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0001,
+     0.0456,
+     -0.4335
+    ],
+    "mount_optic": [
+     0,
+     0.0922,
+     -0.1517
+    ],
+    "mount_under": [
+     0,
+     -0.0578,
+     -0.2818
+    ],
+    "mount_mag": [
+     0,
+     -0.0809,
+     -0.078
+    ],
+    "mount_stock": [
+     0,
+     0,
+     0.0765
+    ]
+   },
+   "tris": 7000
+  },
+  "lmg_bastion": {
+   "length": 1.04,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     -0.0013,
+     0.1559,
+     -0.845
+    ],
+    "mount_optic": [
+     0,
+     0.2615,
+     -0.2958
+    ],
+    "mount_under": [
+     0,
+     0.1143,
+     -0.5493
+    ],
+    "mount_mag": [
+     0,
+     -0.1259,
+     -0.1521
+    ],
+    "mount_stock": [
+     0,
+     0.0671,
+     0.195
+    ]
+   },
+   "tris": 7000
+  },
+  "sg_hullbreaker": {
+   "length": 1,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0003,
+     0.0699,
+     -0.7625
+    ],
+    "mount_optic": [
+     0,
+     0.1178,
+     -0.2669
+    ],
+    "mount_under": [
+     0,
+     0.0084,
+     -0.4956
+    ],
+    "mount_mag": [
+     0,
+     0.004,
+     -0.1372
+    ],
+    "mount_stock": [
+     0,
+     0.0289,
+     0.2375
+    ]
+   },
+   "tris": 6999
+  },
+  "sg_tidal": {
+   "length": 1.01,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0003,
+     0.1234,
+     -0.6691
+    ],
+    "mount_optic": [
+     0,
+     0.2062,
+     -0.2342
+    ],
+    "mount_under": [
+     0,
+     0.0798,
+     -0.4349
+    ],
+    "mount_mag": [
+     0,
+     0.0276,
+     -0.1204
+    ],
+    "mount_stock": [
+     0,
+     0.062,
+     0.3409
+    ]
+   },
+   "tris": 7000
+  },
+  "dmr_sentry": {
+   "length": 1.12,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     -0.0026,
+     0.126,
+     -0.826
+    ],
+    "mount_optic": [
+     0,
+     0.1792,
+     -0.2891
+    ],
+    "mount_under": [
+     0,
+     0.0868,
+     -0.5369
+    ],
+    "mount_mag": [
+     0,
+     -0.1093,
+     -0.1487
+    ],
+    "mount_stock": [
+     0,
+     0.0426,
+     0.294
+    ]
+   },
+   "tris": 6999
+  },
+  "sr_longwatch": {
+   "length": 1.12,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     -0.0122,
+     0.0887,
+     -0.63
+    ],
+    "mount_optic": [
+     0,
+     0.2154,
+     -0.2205
+    ],
+    "mount_under": [
+     0,
+     0.0549,
+     -0.4095
+    ],
+    "mount_mag": [
+     0,
+     -0.0842,
+     -0.1134
+    ],
+    "mount_stock": [
+     0,
+     0.0441,
+     0.49
+    ]
+   },
+   "tris": 7000
+  },
+  "pi_warden": {
+   "length": 0.19,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "pistol-rear",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0,
+     0.0763,
+     -0.1401
+    ],
+    "mount_optic": [
+     0,
+     0.089,
+     -0.049
+    ],
+    "mount_under": [
+     0,
+     0.0493,
+     -0.0911
+    ],
+    "mount_mag": [
+     0,
+     0.0099,
+     -0.0252
+    ],
+    "mount_stock": [
+     0,
+     0.0276,
+     0.0499
+    ]
+   },
+   "tris": 6999
+  },
+  "pi_magnus": {
+   "length": 0.3,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "pistol-rear",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0001,
+     0.1052,
+     -0.2362
+    ],
+    "mount_optic": [
+     0,
+     0.1238,
+     -0.0827
+    ],
+    "mount_under": [
+     0,
+     0.0845,
+     -0.1536
+    ],
+    "mount_mag": [
+     0,
+     0.0153,
+     -0.0425
+    ],
+    "mount_stock": [
+     0,
+     0.0359,
+     0.0637
+    ]
+   },
+   "tris": 6999
+  },
+  "pi_basalt": {
+   "length": 0.27,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "pistol-rear",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0001,
+     0.0614,
+     -0.2194
+    ],
+    "mount_optic": [
+     0,
+     0.083,
+     -0.0768
+    ],
+    "mount_under": [
+     0,
+     0.034,
+     -0.1426
+    ],
+    "mount_mag": [
+     0,
+     0.0068,
+     -0.0395
+    ],
+    "mount_stock": [
+     0,
+     0.024,
+     0.0506
+    ]
+   },
+   "tris": 7000
+  },
+  "ln_lotus": {
+   "length": 0.95,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0012,
+     0.1046,
+     -0.5581
+    ],
+    "mount_optic": [
+     0,
+     0.1384,
+     -0.1953
+    ],
+    "mount_under": [
+     0,
+     0.0717,
+     -0.3628
+    ],
+    "mount_mag": [
+     0,
+     0.0452,
+     -0.1005
+    ],
+    "mount_stock": [
+     0,
+     0.0552,
+     0.3919
+    ]
+   },
+   "tris": 6999
+  },
+  "ww_arc": {
+   "length": 0.9,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0001,
+     0.0894,
+     -0.6862
+    ],
+    "mount_optic": [
+     0,
+     0.1675,
+     -0.2402
+    ],
+    "mount_under": [
+     0,
+     0.0374,
+     -0.4461
+    ],
+    "mount_mag": [
+     0,
+     0.0016,
+     -0.1235
+    ],
+    "mount_stock": [
+     0,
+     0.0451,
+     0.2138
+    ]
+   },
+   "tris": 6999
+  },
+  "ww_singularity": {
+   "length": 0.95,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     -0.0027,
+     0.0159,
+     -0.5581
+    ],
+    "mount_optic": [
+     0,
+     0.2191,
+     -0.1953
+    ],
+    "mount_under": [
+     0,
+     -0.0229,
+     -0.3628
+    ],
+    "mount_mag": [
+     0,
+     -0.0649,
+     -0.1005
+    ],
+    "mount_stock": [
+     0,
+     0.0408,
+     0.3919
+    ]
+   },
+   "tris": 7000
+  },
+  "ww_cryo": {
+   "length": 1,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     -0.0002,
+     0.0382,
+     -0.3125
+    ],
+    "mount_optic": [
+     0,
+     0.066,
+     -0.1094
+    ],
+    "mount_under": [
+     0,
+     0.0024,
+     -0.2031
+    ],
+    "mount_mag": [
+     0,
+     -0.0838,
+     -0.0563
+    ],
+    "mount_stock": [
+     0,
+     -0.0832,
+     0.6875
+    ]
+   },
+   "tris": 7000
+  }
+ }
+}
