@@ -1,0 +1,15 @@
+{
+  "name": "dead-signal-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply GAME_DB --local"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260921.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.136.1"
+  }
+}

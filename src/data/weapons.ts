@@ -72,7 +72,7 @@ const BASE: Record<WeaponClass, { stats: WeaponStats; slots: AttachmentSlot[]; p
 
 type Row = [id: string, cls: WeaponClass, name: string, inspiration: string, unlock: number, over?: Partial<WeaponStats>];
 
-// 45 weapons. Names are original; inspiration is a loose silhouette brief for the modelling agent.
+// 90 weapons (ids are frozen once published in docs/WEAPON_IDS.md). Names are original; inspiration is a loose silhouette brief for the modelling agent.
 const ROWS: Row[] = [
   // Assault rifles (8)
   ['ar_kestrel', 'ar', 'KR-7 Kestrel', 'M4-style carbine', 1],
@@ -128,6 +128,52 @@ const ROWS: Row[] = [
   ['sp_hatchet', 'special', 'Breach Hatchet', 'Tactical axe (melee)', 15, { rpm: 70, mobility: 1.05 }],
   ['sp_crossbow', 'special', 'Quarrel Crossbow', 'Compact crossbow', 23, { damage: 120, rangeNear: 40, rangeFar: 80, magSize: 1, reserve: 6, reloadTime: 1.6, adsTime: 0.28, adsZoom: 0.6, splash: 0 }],
   ['sp_riot', 'special', 'Aegis Shield', 'Ballistic riot shield', 39, { damage: 60, mobility: 0.85 }],
+  // --- Roster expansion (45 more) ---
+  ['ar_sable', 'ar', 'Sable 762', 'Galil-style rifle', 40, { damage: 35, rpm: 630 }],
+  ['ar_kite', 'ar', 'Kite TX', 'Tavor-style bullpup', 45, { rpm: 760, damage: 29, mobility: 0.95 }],
+  ['ar_brine', 'ar', 'Brine BR', 'FAL-style battle rifle', 52, { auto: false, damage: 48, rpm: 420, magSize: 20 }],
+  ['ar_osprey', 'ar', 'Osprey 55', 'SG-552-style carbine', 58, { rpm: 740, damage: 29 }],
+  ['ar_marlin', 'ar', 'Marlin 10', 'AR-10-style rifle', 64, { damage: 38, rpm: 560, magSize: 25 }],
+  ['ar_gale', 'ar', 'Gale ACR', 'ACR-style modular rifle', 70, { rpm: 690, recoil: [P(0.42, 0.12), P(0.45, -0.14)] }],
+  ['smg_pike', 'smg', 'Pike 40', 'MP40-style SMG', 38, { rpm: 550, damage: 31 }],
+  ['smg_thistle', 'smg', 'Thistle 61', 'Skorpion-style machine pistol', 47, { rpm: 1000, damage: 21, magSize: 20, mobility: 1.04 }],
+  ['smg_glint', 'smg', 'Glint MPX', 'MPX-style SMG', 55, { rpm: 850, damage: 25, adsTime: 0.16 }],
+  ['smg_rook', 'smg', 'Rook Helix', 'Bizon-style helical mag SMG', 62, { magSize: 64, rpm: 700, damage: 24 }],
+  ['smg_sten', 'smg', 'Wicket Mk2', 'Sten-style side-mag SMG', 74, { rpm: 560, damage: 30 }],
+  ['smg_spindle', 'smg', 'Spindle 10', 'MAC-10-style SMG', 80, { rpm: 1150, damage: 20, magSize: 30 }],
+  ['lmg_anvil', 'lmg', 'Anvil PK', 'PKM-style gpmg', 57, { damage: 36, rpm: 650 }],
+  ['lmg_millstone', 'lmg', 'Millstone Mk1', 'Bren-style top-mag LMG', 66, { magSize: 30, rpm: 520, damage: 40, reloadTime: 3.2 }],
+  ['lmg_rampart', 'lmg', 'Rampart 4', 'MG4-style LMG', 76, { rpm: 790, damage: 30 }],
+  ['lmg_talus', 'lmg', 'Talus 63', 'Stoner-63-style LMG', 86, { rpm: 720, damage: 31, mobility: 0.88 }],
+  ['sg_breaker', 'shotgun', 'Breaker 12', 'SPAS-12-style pump/auto', 49, { rpm: 110, damage: 14, magSize: 8 }],
+  ['sg_hound', 'shotgun', 'Hound KS', 'KSG-style bullpup pump', 59, { magSize: 12, rpm: 80, damage: 13 }],
+  ['sg_sawn', 'shotgun', 'Sawn Coach', 'Sawn-off double barrel (secondary)', 68, { rpm: 300, magSize: 2, damage: 17, rangeNear: 5, rangeFar: 12, mobility: 1.02 }],
+  ['sg_cairn', 'shotgun', 'Cairn A12', 'AA-12-style full-auto shotgun', 84, { auto: true, rpm: 300, magSize: 8, damage: 9 }],
+  ['dmr_brigand', 'marksman', 'Brigand 3', 'G3-marksman-style rifle', 53, { damage: 58, rpm: 280, magSize: 20 }],
+  ['dmr_needle', 'marksman', 'Needle 45', 'SKS-style carbine', 61, { damage: 50, rpm: 330, magSize: 10 }],
+  ['dmr_sparrow', 'marksman', 'Sparrow M1', 'Garand-style semi rifle', 71, { damage: 60, rpm: 260, magSize: 8 }],
+  ['dmr_umber', 'marksman', 'Umber DMR', 'FAL-DMR-style rifle', 82, { damage: 57, rpm: 300 }],
+  ['sr_harrow', 'sniper', 'Harrow 91', 'Mosin-style bolt rifle', 43, { damage: 115, rpm: 45, magSize: 5 }],
+  ['sr_hush', 'sniper', 'Hush VS', 'VSS-style integrally suppressed', 63, { damage: 60, rpm: 500, auto: true, magSize: 20, rangeNear: 30, rangeFar: 70 }],
+  ['sr_rampike', 'sniper', 'Rampike 98', 'Kar98-style bolt rifle', 73, { damage: 120, rpm: 52, adsTime: 0.36 }],
+  ['sr_gantry', 'sniper', 'Gantry L9', 'L96-style bolt rifle', 88, { damage: 118, rpm: 48, magSize: 10 }],
+  ['pi_mote', 'pistol', 'Mote 22', 'Suppressed .22 pistol', 31, { damage: 22, rpm: 480, magSize: 10 }],
+  ['pi_ridge', 'pistol', 'Ridge 26', 'P226-style pistol', 44, { damage: 30, rpm: 400, magSize: 15 }],
+  ['pi_brass', 'pistol', 'Brass PM', 'Makarov-style compact', 54, { damage: 26, rpm: 450, magSize: 8, mobility: 1.07 }],
+  ['pi_lug', 'pistol', 'Lugwrench P8', 'Toggle-lock pistol', 67, { damage: 32, rpm: 360 }],
+  ['pi_shard', 'pistol', 'Shard 57', 'FN-57-style PDW pistol', 78, { damage: 25, rpm: 480, magSize: 20 }],
+  ['ln_bolt', 'launcher', 'Bolt RR', 'Recoilless rifle', 51, { damage: 170, splash: 5, reloadTime: 4.2 }],
+  ['ln_hail', 'launcher', 'Hail 6', 'Revolver grenade launcher', 69, { magSize: 6, reserve: 6, rpm: 90, damage: 110, splash: 3.5 }],
+  ['ln_harpoon', 'launcher', 'Harpoon LW', 'Disposable light AT tube', 90, { damage: 180, splash: 5, reserve: 0 }],
+  ['sp_machete', 'special', 'Brush Machete', 'Machete (melee)', 35, { rpm: 80 }],
+  ['sp_baton', 'special', 'Riot Baton', 'Telescopic baton (melee)', 48, { rpm: 110, damage: 55 }],
+  ['sp_shovel', 'special', 'Trench Spade', 'Entrenching tool (melee)', 58, { rpm: 75 }],
+  ['sp_trench', 'special', 'Knuckle Blade', 'Trench knife (melee)', 72, { rpm: 100, mobility: 1.1 }],
+  ['sp_bow', 'special', 'Recurve Hunter', 'Compound bow', 60, { damage: 150, rangeNear: 30, rangeFar: 60, magSize: 1, reserve: 8, reloadTime: 0.9, adsTime: 0.25 }],
+  ['sp_nailer', 'special', 'Nailer 9', 'Pneumatic nail gun', 65, { damage: 30, rangeNear: 8, rangeFar: 20, magSize: 40, reserve: 120, rpm: 700, auto: true, reloadTime: 2 }],
+  ['sp_flare', 'special', 'Signal Flare', 'Flare pistol', 81, { damage: 90, rangeNear: 40, rangeFar: 60, magSize: 1, reserve: 4, reloadTime: 1.8, splash: 1.5 }],
+  ['sp_ballistic', 'special', 'Spring Blade', 'Ballistic knife', 93, { damage: 100, rangeNear: 15, rangeFar: 20, magSize: 1, reserve: 3, reloadTime: 1.4 }],
+  ['sp_grapple', 'special', 'Hookline', 'Grapple launcher (utility)', 97, { damage: 20 }],
 ];
 
 export const WEAPON_LIST: WeaponDef[] = ROWS.map(([id, cls, name, inspiration, unlockLevel, over]) => {

@@ -114,9 +114,9 @@ describe('create-a-class', () => {
 });
 
 describe('weapons data', () => {
-  it('ships 45 unique weapons with sane stats', () => {
-    expect(WEAPON_LIST).toHaveLength(45);
-    expect(new Set(WEAPON_LIST.map((w) => w.id)).size).toBe(45);
+  it('ships 90 unique weapons with sane stats', () => {
+    expect(WEAPON_LIST).toHaveLength(90);
+    expect(new Set(WEAPON_LIST.map((w) => w.id)).size).toBe(90);
     for (const w of WEAPON_LIST) { expect(w.stats.rpm).toBeGreaterThan(0); expect(w.stats.recoil.length).toBeGreaterThan(0); }
   });
   it('falloff and attachments', () => {
