@@ -9,6 +9,25 @@ export interface MoveEvents {
   footstep: boolean;
   landed: number; // impact speed on landing (0 = none)
   jumped: boolean;
+  slid: boolean;
+  mantled: boolean;
+}
+
+/**
+ * Pure ledge probe for mantling. Scans upward in front of the player for the first height where a
+ * standing capsule fits on top of an obstacle. Returns the ledge top (world y) or null.
+ */
+export function findMantleLedge(world: Pick<CollisionWorld, 'overlaps'>, x: number, y: number, z: number, dirX: number, dirZ: number): number | null {
+  const ax = x + dirX * PLAYER.mantleReach, az = z + dirZ * PLAYER.mantleReach;
+  // Something must actually be in front at knee/chest height.
+  if (!world.overlaps(ax, y + PLAYER.mantleMin - 0.05, az, PLAYER.radius * 0.8, 0.1)) return null;
+  for (let h = PLAYER.mantleMin; h <= PLAYER.mantleMax + 1e-6; h += 0.05) {
+    if (world.overlaps(ax, y + h, az, PLAYER.radius, PLAYER.crouchHeight)) continue;
+    // Free on top: the column above the player must be clear too so we can lift into it.
+    if (world.overlaps(x, y + 0.05, z, PLAYER.radius * 0.9, h + PLAYER.crouchHeight)) return null;
+    return y + h;
+  }
+  return null;
 }
 
 export class Player {
@@ -30,6 +49,15 @@ export class Player {
   aiming = false;
   /** 0..1 aim transition, driven by weapon system. */
   adsT = 0;
+  /** >0 while sliding (seconds left). */
+  slideT = 0;
+  private slideCd = 0;
+  private slideDir = { x: 0, z: 0 };
+  /** Mantle tween state; active while mantleT < 1. */
+  mantling = false;
+  private mantleT = 0;
+  private mantleFrom = { x: 0, y: 0, z: 0 };
+  private mantleTo = { x: 0, y: 0, z: 0 };
   private stepDist = 0;
   private airTime = 0;
 
@@ -46,6 +74,9 @@ export class Player {
     this.recoilPitch = this.recoilYaw = 0;
     this.stepDist = 0;
     this.adsT = 0;
+    this.slideT = 0;
+    this.slideCd = 0;
+    this.mantling = false;
   }
 
   get eyeY(): number {
@@ -61,8 +92,23 @@ export class Player {
   }
 
   update(dt: number, input: Input, world: CollisionWorld, opts: { canSprintExtra: boolean; speedMult: number }): MoveEvents {
-    const ev: MoveEvents = { footstep: false, landed: 0, jumped: false };
+    const ev: MoveEvents = { footstep: false, landed: 0, jumped: false, slid: false, mantled: false };
     const v = this.vitals;
+    if (this.mantling) { this.updateMantle(dt); return ev; }
+    this.slideCd = Math.max(0, this.slideCd - dt);
+    // --- Slide: crouch while sprinting on the ground ---
+    if (this.sprinting && this.grounded && this.slideCd <= 0 && this.slideT <= 0 && input.consume('crouch')) {
+      const sp = Math.max(PLAYER.slideSpeed, Math.hypot(this.vel.x, this.vel.z) * 1.15);
+      const l = Math.hypot(this.vel.x, this.vel.z) || 1;
+      this.slideDir = { x: this.vel.x / l, z: this.vel.z / l };
+      this.vel.x = this.slideDir.x * sp;
+      this.vel.z = this.slideDir.z * sp;
+      this.slideT = PLAYER.slideTime;
+      this.crouched = true;
+      this.sprinting = false;
+      ev.slid = true;
+    }
+    if (this.slideT > 0) return this.updateSlide(dt, input, world, ev);
     // --- Crouch toggle with ceiling clearance check ---
     if (input.consume('crouch')) {
       if (this.crouched) {
@@ -120,8 +166,23 @@ export class Player {
       this.vel.z += (dvz / dl) * step;
     }
 
-    // --- Jump / gravity ---
-    if (input.consume('jump') && this.grounded && !this.crouched) {
+    // --- Mantle / jump / gravity ---
+    const wantJump = input.consume('jump');
+    if ((wantJump || (!this.grounded && fwd > 0 && this.vel.y < 1.5)) && !this.crouched) {
+      const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
+      const top = fwd > 0 || wantJump ? findMantleLedge(world, this.pos.x, this.pos.y, this.pos.z, -sin, -cos) : null;
+      if (top !== null && (wantJump || !this.grounded)) {
+        this.mantling = true;
+        this.mantleT = 0;
+        this.mantleFrom = { ...this.pos };
+        this.mantleTo = { x: this.pos.x - sin * PLAYER.mantleReach, y: top, z: this.pos.z - cos * PLAYER.mantleReach };
+        this.vel = { x: 0, y: 0, z: 0 };
+        this.sprinting = false;
+        ev.mantled = true;
+        return ev;
+      }
+    }
+    if (wantJump && this.grounded && !this.crouched) {
       this.vel.y = PLAYER.jumpVelocity;
       this.grounded = false;
       ev.jumped = true;
@@ -159,6 +220,48 @@ export class Player {
         ev.footstep = !this.crouched || this.stepDist > 0; // crouch steps are quieter but still audible
       }
     }
+    return ev;
+  }
+
+  private updateMantle(dt: number): void {
+    this.mantleT = Math.min(1, this.mantleT + dt / PLAYER.mantleTime);
+    const t = this.mantleT;
+    // Rise first, then move forward over the lip.
+    const ty = Math.min(1, t / 0.6), txz = Math.max(0, (t - 0.35) / 0.65);
+    const e = (k: number) => k * k * (3 - 2 * k);
+    this.pos.y = this.mantleFrom.y + (this.mantleTo.y - this.mantleFrom.y) * e(ty);
+    this.pos.x = this.mantleFrom.x + (this.mantleTo.x - this.mantleFrom.x) * e(txz);
+    this.pos.z = this.mantleFrom.z + (this.mantleTo.z - this.mantleFrom.z) * e(txz);
+    if (t >= 1) { this.mantling = false; this.grounded = true; this.airTime = 0; }
+  }
+
+  private updateSlide(dt: number, input: Input, world: CollisionWorld, ev: MoveEvents): MoveEvents {
+    this.slideT -= dt;
+    this.height = Math.max(PLAYER.crouchHeight, this.height - dt * 9);
+    const decay = Math.max(0, 1 - PLAYER.slideFriction * dt);
+    this.vel.x *= decay;
+    this.vel.z *= decay;
+    // Jumping out of a slide keeps momentum (slide-cancel jump).
+    if (input.consume('jump') && !world.overlaps(this.pos.x, this.pos.y + 0.02, this.pos.z, PLAYER.radius, PLAYER.standHeight - 0.02)) {
+      this.crouched = false;
+      this.slideT = 0;
+      this.vel.y = PLAYER.jumpVelocity;
+      this.grounded = false;
+      ev.jumped = true;
+    }
+    this.vel.y -= WORLD.gravity * dt;
+    const px = this.pos.x, pz = this.pos.z;
+    const res = world.move(this.pos, PLAYER.radius, this.height, this.vel.x * dt, this.vel.y * dt, this.vel.z * dt, PLAYER.stepHeight, this.grounded);
+    if (res.blockedX) this.vel.x = 0;
+    if (res.blockedZ) this.vel.z = 0;
+    if (res.grounded) this.vel.y = 0;
+    this.grounded = res.grounded;
+    if (this.slideT <= 0 || Math.hypot(this.vel.x, this.vel.z) < PLAYER.crouchSpeed) {
+      this.slideT = 0;
+      this.slideCd = PLAYER.slideCooldown;
+    }
+    this.speed2d = Math.hypot(this.pos.x - px, this.pos.z - pz) / dt;
+    this.moving = false;
     return ev;
   }
 

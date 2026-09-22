@@ -46,6 +46,16 @@ export const PLAYER = {
   startPlateInventory: 2,
   startGrenades: 2,
   startCash: 500,
+  // Slide: sprint + crouch. Boost, then low-friction decay; no steering.
+  slideSpeed: 9.4,
+  slideTime: 0.75,
+  slideFriction: 2.2,
+  slideCooldown: 0.6,
+  // Mantle: jump into a ledge between these heights (relative to feet) to climb it.
+  mantleMin: 0.55,
+  mantleMax: 1.9,
+  mantleReach: 0.55,
+  mantleTime: 0.32,
 };
 
 export interface WeaponDef {
