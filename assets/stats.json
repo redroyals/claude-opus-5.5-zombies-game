@@ -1,0 +1,228 @@
+{
+ "smg_wren": {
+  "id": "smg_wren",
+  "tris": 6999,
+  "kb": 208,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "sp_knife": {
+  "id": "sp_knife",
+  "tris": 7000,
+  "kb": 256,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "ar_kestrel": {
+  "id": "ar_kestrel",
+  "tris": 7000,
+  "kb": 338,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "ar_corvid": {
+  "id": "ar_corvid",
+  "tris": 6999,
+  "kb": 340,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "ar_tern": {
+  "id": "ar_tern",
+  "tris": 7000,
+  "kb": 418,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "bullpup"
+ },
+ "ar_moraine": {
+  "id": "ar_moraine",
+  "tris": 6999,
+  "kb": 368,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "smg_skiff": {
+  "id": "smg_skiff",
+  "tris": 6999,
+  "kb": 241,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "smg_fennec": {
+  "id": "smg_fennec",
+  "tris": 7000,
+  "kb": 287,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "bullpup"
+ },
+ "lmg_bastion": {
+  "id": "lmg_bastion",
+  "tris": 7000,
+  "kb": 227,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "sg_hullbreaker": {
+  "id": "sg_hullbreaker",
+  "tris": 6999,
+  "kb": 238,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "sg_tidal": {
+  "id": "sg_tidal",
+  "tris": 7000,
+  "kb": 244,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "dmr_sentry": {
+  "id": "dmr_sentry",
+  "tris": 6999,
+  "kb": 312,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "sr_longwatch": {
+  "id": "sr_longwatch",
+  "tris": 7000,
+  "kb": 315,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "pi_warden": {
+  "id": "pi_warden",
+  "tris": 6999,
+  "kb": 279,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "pistol-rear"
+ },
+ "pi_magnus": {
+  "id": "pi_magnus",
+  "tris": 6999,
+  "kb": 347,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "pistol-rear"
+ },
+ "pi_basalt": {
+  "id": "pi_basalt",
+  "tris": 7000,
+  "kb": 303,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "pistol-rear"
+ },
+ "ln_lotus": {
+  "id": "ln_lotus",
+  "tris": 6999,
+  "kb": 294,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "ww_arc": {
+  "id": "ww_arc",
+  "tris": 6999,
+  "kb": 489,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "perk_bulwark": {
+  "id": "perk_bulwark",
+  "tris": 11574,
+  "kb": 630,
+  "tex": 1024
+ },
+ "z_shambler": {
+  "id": "z_shambler",
+  "tris": 14550,
+  "kb": 1123,
+  "tex": 2048
+ },
+ "ww_singularity": {
+  "id": "ww_singularity",
+  "tris": 7000,
+  "kb": 309,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "ww_cryo": {
+  "id": "ww_cryo",
+  "tris": 7000,
+  "kb": 548,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ },
+ "mystery_box": {
+  "id": "mystery_box",
+  "tris": 11124,
+  "kb": 438,
+  "tex": 1024
+ },
+ "perk_quickhands": {
+  "id": "perk_quickhands",
+  "tris": 10720,
+  "kb": 383,
+  "tex": 1024
+ },
+ "perk_hammerfall": {
+  "id": "perk_hammerfall",
+  "tris": 11627,
+  "kb": 487,
+  "tex": 1024
+ },
+ "perk_lifeline": {
+  "id": "perk_lifeline",
+  "tris": 11203,
+  "kb": 478,
+  "tex": 1024
+ },
+ "reforger": {
+  "id": "reforger",
+  "tris": 11316,
+  "kb": 454,
+  "tex": 1024
+ },
+ "generator": {
+  "id": "generator",
+  "tris": 7999,
+  "kb": 355,
+  "tex": 1024
+ },
+ "lab_table": {
+  "id": "lab_table",
+  "tris": 7999,
+  "kb": 382,
+  "tex": 1024
+ },
+ "filing_cabinets": {
+  "id": "filing_cabinets",
+  "tris": 7999,
+  "kb": 324,
+  "tex": 1024
+ },
+ "lamp": {
+  "id": "lamp",
+  "tris": 7999,
+  "kb": 343,
+  "tex": 512
+ }
+}

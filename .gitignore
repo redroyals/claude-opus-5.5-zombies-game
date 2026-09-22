@@ -1,3 +1,6 @@
 node_modules
 dist
 .DS_Store
+assets/raw
+assets/work
+__pycache__/

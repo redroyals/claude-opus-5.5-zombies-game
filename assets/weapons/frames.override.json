@@ -1,0 +1,9 @@
+{
+ "note": "Manual frame corrections after visual review (gallery.html sheets). grip: fraction of weapon length measured from the stock end; flip: muzzle detection was reversed.",
+ "weapons": {
+  "pi_basalt": {
+   "flip": true
+  }
+ },
+ "attachments": {}
+}
