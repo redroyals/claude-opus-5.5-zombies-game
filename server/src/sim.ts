@@ -6,7 +6,7 @@ import { History, clampRewind, rayPlayer, type Zone } from '../../src/shared/lag
 import { EF, type EntityState, type SelfState, type ServerEvent } from '../../src/shared/protocol';
 import { MODES, chooseSpawn, pickTeam, stepFlag, flagOwner, type ModeId } from '../../src/shared/modes';
 import { WEAPONS, WEAPON_INDEX, WEAPON_LIST, applyAttachments, damageAt, fireInterval, type WeaponStats } from '../../src/data/weapons';
-import { DEFAULT_LOADOUTS, validateLoadout, streakCost, STREAK_BY_ID, type Loadout, type Unlocks } from '../../src/shared/loadout';
+import { DEFAULT_LOADOUTS, validateLoadout, streakCost, type Loadout, type Unlocks } from '../../src/shared/loadout';
 import { matchXp, type MatchStats } from '../../src/shared/progression';
 
 export interface Gun { id: string; stats: WeaponStats; ammo: number; reserve: number }
@@ -365,7 +365,7 @@ export class MatchSim {
         const after = flagOwner(this.flags[i]);
         if (after !== before && after >= 0) for (const p of this.players.values()) if (p.alive && p.team === after && Math.hypot(p.move.x - f.x, p.move.z - f.z) < 4) { p.stats.captures++; p.stats.score += 150; }
       });
-      if (this.tick % (TICK_RATE * 5) === 0) for (const f of this.flags) { const o = flagOwner(f); if (o >= 0) this.teamScore[o]++; }
+      if (this.tick % (TICK_RATE * 5) === 0) for (const f of this.flags) { const o = flagOwner(f); if (o !== -1) this.teamScore[o]++; }
     }
     if (this.mode === 'kc') {
       for (const [id, t] of this.tags) {
