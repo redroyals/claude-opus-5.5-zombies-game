@@ -1,0 +1,84 @@
+[
+ {
+  "id": "smg_skiff",
+  "cat": "weapons",
+  "name": "Skiff MX",
+  "size": 0.54,
+  "url": "assets/weapons/smg_skiff.glb",
+  "lod1": "assets/weapons/smg_skiff.lod1.glb",
+  "stats": {
+   "id": "smg_skiff",
+   "tris": 7000,
+   "srcTris": 7305,
+   "kb": 236,
+   "tex": 1024
+  },
+  "method": "text"
+ },
+ {
+  "id": "pi_magnus",
+  "cat": "weapons",
+  "name": "Magnus .44",
+  "size": 0.3,
+  "url": "assets/weapons/pi_magnus.glb",
+  "lod1": "assets/weapons/pi_magnus.lod1.glb",
+  "stats": {
+   "id": "pi_magnus",
+   "tris": 7000,
+   "srcTris": 7903,
+   "kb": 345,
+   "tex": 1024
+  },
+  "method": "text"
+ },
+ {
+  "id": "eq_frag",
+  "cat": "equipment",
+  "name": "eq_frag",
+  "size": 0.11,
+  "url": "assets/equipment/eq_frag.glb",
+  "lod1": null,
+  "stats": {
+   "id": "eq_frag",
+   "tris": 2500,
+   "srcTris": 3124,
+   "kb": 126,
+   "tex": 512
+  },
+  "method": "text"
+ },
+ {
+  "id": "k-dumpster",
+  "cat": "kits",
+  "map": "kowloon",
+  "name": "k-dumpster",
+  "size": 2,
+  "url": "assets/kits/kowloon/k-dumpster.glb",
+  "lod1": "assets/kits/kowloon/k-dumpster.lod1.glb",
+  "stats": {
+   "id": "k-dumpster",
+   "tris": 5426,
+   "srcTris": 5426,
+   "kb": 283,
+   "tex": 1024
+  },
+  "method": "text"
+ },
+ {
+  "id": "l-bench",
+  "cat": "kits",
+  "map": "lisbon",
+  "name": "l-bench",
+  "size": 2,
+  "url": "assets/kits/lisbon/l-bench.glb",
+  "lod1": "assets/kits/lisbon/l-bench.lod1.glb",
+  "stats": {
+   "id": "l-bench",
+   "tris": 5338,
+   "srcTris": 5338,
+   "kb": 307,
+   "tex": 1024
+  },
+  "method": "text"
+ }
+]

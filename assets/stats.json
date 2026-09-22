@@ -1,0 +1,44 @@
+{
+ "smg_skiff": {
+  "id": "smg_skiff",
+  "tris": 7000,
+  "srcTris": 7305,
+  "kb": 236,
+  "tex": 1024
+ },
+ "pi_magnus": {
+  "id": "pi_magnus",
+  "tris": 6999,
+  "kb": 347,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "pistol-rear"
+ },
+ "eq_frag": {
+  "id": "eq_frag",
+  "tris": 2500,
+  "kb": 118,
+  "tex": 512
+ },
+ "k-dumpster": {
+  "id": "k-dumpster",
+  "tris": 5426,
+  "kb": 288,
+  "tex": 1024
+ },
+ "l-bench": {
+  "id": "l-bench",
+  "tris": 5338,
+  "srcTris": 5338,
+  "kb": 307,
+  "tex": 1024
+ },
+ "smg_wren": {
+  "id": "smg_wren",
+  "tris": 6999,
+  "kb": 208,
+  "tex": 1024,
+  "confidence": "high",
+  "gripRule": "spike-behind-magazine"
+ }
+}

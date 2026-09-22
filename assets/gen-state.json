@@ -1,0 +1,359 @@
+{
+ "pi_magnus": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0ca96-e97f-723e-b485-a2ca8936b5ae",
+  "task": "01a0ca97-bcdf-71d9-b1f4-a304ba3bcd2f",
+  "status": "ok",
+  "at": "2026-09-22T19:29:42.790Z"
+ },
+ "smg_skiff": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0ca96-e988-7212-8b6e-91590a4f0687",
+  "task": "01a0ca97-bce0-77d7-bfc7-8b66a89e0575",
+  "status": "ok",
+  "at": "2026-09-22T19:29:51.471Z"
+ },
+ "eq_frag": {
+  "cat": "equipment",
+  "method": "text",
+  "preview": "01a0ca96-e9ef-758e-b680-72103f930d42",
+  "task": "01a0ca97-dff7-7198-994f-4ab17ec179dd",
+  "status": "ok",
+  "at": "2026-09-22T19:30:00.135Z"
+ },
+ "k-ac-unit": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0ca96-e9f8-71a5-9ae4-e086eef34e7a",
+  "status": "failed",
+  "error": "01a0ca96-e9f8-71a5-9ae4-e086eef34e7a FAILED {\"type\":\"invalid_input\",\"code\":\"invalid_input\",\"message\":\"Model service error (RepairDidNotCloseError): blueberry postproc[fidelity]: repair did not close the mesh (boundary_edges=5418, manifold=True). Upstream marks and continues; serving has nowhere to c"
+ },
+ "l-bench": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0ca96-ea6a-74ca-9322-b104fe20bbcb",
+  "task": "01a0ca97-bdd5-7127-95fa-ec43fc61bf3d",
+  "status": "ok",
+  "at": "2026-09-22T19:29:42.322Z"
+ },
+ "k-dumpster": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0ca96-ea6b-7602-a800-ec84e8283223",
+  "task": "01a0ca98-0146-7692-8884-52e844460882",
+  "status": "ok",
+  "at": "2026-09-22T19:30:09.049Z"
+ },
+ "ar_kestrel": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa7-d8ae-7724-8d31-8e0d2829f511",
+  "task": "01a0caa8-ce3b-74a0-b827-c17bf553d460",
+  "status": "ok",
+  "at": "2026-09-22T19:48:28.592Z"
+ },
+ "ar_corvid": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa7-d8b8-777b-acb6-4651f53d7ce8",
+  "task": "01a0caa8-abcf-716c-8fce-d925dec0f713",
+  "status": "ok",
+  "at": "2026-09-22T19:48:12.310Z"
+ },
+ "ar_moraine": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa7-d91f-7409-afab-d88ddfdbe123",
+  "task": "01a0caa8-aaa2-72a5-bfe3-767ce5ded051",
+  "status": "ok",
+  "at": "2026-09-22T19:48:11.838Z"
+ },
+ "ar_tern": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa7-d924-7377-b85b-e926ea3793ea",
+  "task": "01a0caa8-cd90-70b0-99ae-dcab819eb4c7",
+  "status": "ok",
+  "at": "2026-09-22T19:48:20.276Z"
+ },
+ "smg_wren": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa7-d992-763e-beff-99b5d4b1e026",
+  "task": "01a0caa8-ce5e-73b6-8631-8a9e30e0e173",
+  "status": "ok",
+  "at": "2026-09-22T19:48:20.394Z"
+ },
+ "smg_fennec": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa7-d99c-7773-8041-94c64025af65",
+  "task": "01a0caa8-abcc-7243-bab9-2e991dde19f5",
+  "status": "ok",
+  "at": "2026-09-22T19:48:12.289Z"
+ },
+ "sg_hullbreaker": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa7-da03-7469-9cfd-81e30f91ccd6",
+  "task": "01a0caa8-ac4d-7139-a6c4-54eeed1e0f32",
+  "status": "ok",
+  "at": "2026-09-22T19:48:11.921Z"
+ },
+ "lmg_bastion": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa7-da0e-708a-a65f-85d2abee0a0b",
+  "task": "01a0caa8-cdd6-779b-b437-466e99f70ff6",
+  "status": "ok",
+  "at": "2026-09-22T19:48:20.303Z"
+ },
+ "sg_tidal": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa9-5cde-7587-9e51-6b2e0c1da6f7",
+  "task": "01a0caaa-4ec8-7774-a9ff-b56ee97fab46",
+  "status": "ok",
+  "at": "2026-09-22T19:50:41.971Z"
+ },
+ "dmr_sentry": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa9-5d2c-77d8-ac91-9de7c2fdbdbe",
+  "task": "01a0caaa-4e24-7195-b450-064464f631aa",
+  "status": "ok",
+  "at": "2026-09-22T19:50:33.643Z"
+ },
+ "sr_longwatch": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa9-5e9d-7557-bf94-564b0f8c74b2",
+  "task": "01a0caaa-4e92-704a-9cb8-411c08f8bacf",
+  "status": "ok",
+  "at": "2026-09-22T19:50:42.458Z"
+ },
+ "pi_warden": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa9-5eb6-700d-9cab-58c4ad54d580",
+  "task": "01a0caaa-7461-7143-82ca-ad0d30f3de72",
+  "status": "ok",
+  "at": "2026-09-22T19:50:42.287Z"
+ },
+ "pi_basalt": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa9-7f74-7780-ade7-dd33517dae7d",
+  "task": "01a0caaa-70a8-7620-9fa0-c8091959800b",
+  "status": "ok",
+  "at": "2026-09-22T19:50:42.642Z"
+ },
+ "ln_lotus": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa9-7de8-73b6-8d49-67d2a139da5c",
+  "task": "01a0caaa-70a3-74cb-82b1-a0103846a995",
+  "status": "ok",
+  "at": "2026-09-22T19:50:42.064Z"
+ },
+ "sp_knife": {
+  "cat": "weapons",
+  "method": "text",
+  "preview": "01a0caa9-7e49-76c9-898c-8558294d42b7",
+  "task": "01a0caaa-4e2c-769f-a32b-4a466768f350",
+  "status": "ok",
+  "at": "2026-09-22T19:50:34.003Z"
+ },
+ "att_red_dot": {
+  "cat": "attachments",
+  "method": "text",
+  "preview": "01a0caa9-9e56-7055-8b08-2a935d1ba2ae",
+  "task": "01a0caaa-b52d-71e4-8903-7eb3c6008dd3",
+  "status": "ok",
+  "at": "2026-09-22T19:51:15.363Z"
+ },
+ "att_holo": {
+  "cat": "attachments",
+  "method": "text",
+  "preview": "01a0caab-86c5-72d9-8786-2726ac22c41b",
+  "task": "01a0caac-768c-7141-9ce3-744b59339222",
+  "status": "ok",
+  "at": "2026-09-22T19:52:58.048Z"
+ },
+ "att_scope_4x": {
+  "cat": "attachments",
+  "method": "text",
+  "preview": "01a0caab-882f-722f-94b7-f85066c345b0",
+  "task": "01a0caac-74e6-7424-824d-c145b04057ac",
+  "status": "ok",
+  "at": "2026-09-22T19:52:57.804Z"
+ },
+ "att_suppressor": {
+  "cat": "attachments",
+  "method": "text",
+  "preview": "01a0caab-a753-70b2-b163-a97fad638c0a",
+  "task": "01a0caac-b82a-70f4-8847-bd731882782d",
+  "status": "ok",
+  "at": "2026-09-22T19:53:06.224Z"
+ },
+ "att_foregrip": {
+  "cat": "attachments",
+  "method": "text",
+  "preview": "01a0caab-a7b0-70b0-975d-a4baaa1107b8",
+  "task": "01a0caac-9763-75c3-9705-acc4366058cc",
+  "status": "ok",
+  "at": "2026-09-22T19:52:58.577Z"
+ },
+ "att_ext_mag": {
+  "cat": "attachments",
+  "method": "text",
+  "preview": "01a0caab-aa99-74c9-8d6a-479944841673",
+  "task": "01a0caac-7af3-7496-ba9b-6f4d61358db1",
+  "status": "ok",
+  "at": "2026-09-22T19:53:06.625Z"
+ },
+ "att_laser": {
+  "cat": "attachments",
+  "method": "text",
+  "preview": "01a0caab-aa9d-70be-8776-19eaf876d914",
+  "task": "01a0caac-fca2-75d1-82e3-61ca228b2371",
+  "status": "ok",
+  "at": "2026-09-22T19:53:13.878Z"
+ },
+ "att_bipod": {
+  "cat": "attachments",
+  "method": "text",
+  "preview": "01a0caab-a9f0-75bd-a262-056318243047",
+  "task": "01a0caac-98c9-7029-8c2a-6308825fbf80",
+  "status": "ok",
+  "at": "2026-09-22T19:52:58.635Z"
+ },
+ "op_team_a": {
+  "cat": "characters",
+  "method": "text",
+  "preview": "01a0caac-2b5e-7354-8fd0-c26f600cf100",
+  "task": "01a0caad-436d-759c-9a30-cf7fdd08b2c2",
+  "status": "ok",
+  "at": "2026-09-22T19:53:13.689Z"
+ },
+ "op_team_b": {
+  "cat": "characters",
+  "method": "text",
+  "preview": "01a0caad-ba5c-717d-b8bb-6151befddcd2",
+  "task": "01a0caae-ce5f-7656-beae-6ee971f963fb",
+  "status": "ok",
+  "at": "2026-09-22T19:54:54.536Z"
+ },
+ "op_urban": {
+  "cat": "characters",
+  "method": "text",
+  "preview": "01a0caad-bb44-759c-88fa-8200fbdf6254",
+  "task": "01a0caae-ccc5-73c8-bbb6-cb77f1a0db61",
+  "status": "ok",
+  "at": "2026-09-22T19:55:02.669Z"
+ },
+ "op_arctic": {
+  "cat": "characters",
+  "method": "text",
+  "preview": "01a0caad-bd5e-72ea-8365-69824dc702fc",
+  "task": "01a0caae-cd7e-75a0-a067-9bd67c2ad15b",
+  "status": "ok",
+  "at": "2026-09-22T19:55:02.223Z"
+ },
+ "op_heavy": {
+  "cat": "characters",
+  "method": "text",
+  "preview": "01a0caad-bd9c-7692-8c56-9796de71a4ac",
+  "task": "01a0caae-cdc7-7016-bf00-ccc913031594",
+  "status": "ok",
+  "at": "2026-09-22T19:54:54.050Z"
+ },
+ "op_recon": {
+  "cat": "characters",
+  "method": "text",
+  "preview": "01a0caad-daee-7027-9d66-5597166b5f90",
+  "task": "01a0caae-eeeb-74a6-aab9-d559c24119d8",
+  "status": "ok",
+  "at": "2026-09-22T19:55:02.470Z"
+ },
+ "k-water-tank": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caad-dc76-72c0-9925-2f5d5fc64868",
+  "task": "01a0caae-cdc9-70eb-b8e2-27d561e55a50",
+  "status": "ok",
+  "at": "2026-09-22T19:55:02.458Z"
+ },
+ "k-ac-cluster": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caad-f997-7240-9aae-bda3c0de3cde",
+  "task": "01a0caaf-76d8-7213-a855-7cd5154eac23",
+  "status": "ok",
+  "at": "2026-09-22T19:55:52.289Z"
+ },
+ "k-stair-metal": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caad-fa4f-755a-bed0-94bf48f3cba9",
+  "task": "01a0caae-cd98-74bb-9891-3c33a58a149e",
+  "status": "ok",
+  "at": "2026-09-22T19:54:54.218Z"
+ },
+ "k-market-stall": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caaf-8004-7300-8b3c-c7ff32dd2c56",
+  "task": "01a0cab0-f08b-74d5-aec5-f84bf3ed1273"
+ },
+ "k-neon-frame": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caaf-80a6-759c-abc1-335e55889891",
+  "task": "01a0cab0-6df0-724c-b6ef-e2d9ed05cf79",
+  "status": "ok",
+  "at": "2026-09-22T19:56:48.499Z"
+ },
+ "l-tram": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caaf-81e4-7188-b47f-52af1e6b862e",
+  "task": "01a0cab0-f0d0-759e-b6dd-ec751471521a"
+ },
+ "l-facade": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caaf-9fea-73be-b56f-0624ff81914c",
+  "task": "01a0cab0-adf1-7082-948b-d152865d3ecd"
+ },
+ "l-kiosk": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caaf-a27a-70d1-a37a-49b4e83c3a84",
+  "task": "01a0cab0-f1e4-7600-8f8c-9ec456df6a40"
+ },
+ "l-stairs": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caaf-a0e6-7251-904e-c1c58faeffac",
+  "task": "01a0cab0-9498-72b6-a733-a8e3bc1d4a2c"
+ },
+ "r-house-block": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0caaf-a34b-779e-9da6-2cab58989909",
+  "task": "01a0cab1-351e-71e9-8cf1-b3199353de10"
+ },
+ "r-water-tank": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0cab0-6522-721c-a328-c3a21dbe00fb"
+ },
+ "r-satellite": {
+  "cat": "kits",
+  "method": "text",
+  "preview": "01a0cab1-3f10-71ed-81b1-93cd006e4377"
+ }
+}

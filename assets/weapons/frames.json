@@ -1,0 +1,101 @@
+{
+ "convention": "Game space: metres, +Y up. Weapons: barrel along -Z, origin = grip hand point (socket_grip). mounts.* are offsets from the origin and also exist as named empty nodes in each GLB (mount_optic top rail, mount_muzzle muzzle centre, mount_under under-barrel, mount_mag magazine well bottom, mount_stock stock butt). Measured by tools/blender/postprocess.py: muzzle end = end with the smaller cross-section, grip = hanging spike right behind the magazine (bullpups: frontmost spike; pistols: deepest rear slice); manual corrections live in assets/weapons/frames.override.json (grip = fraction of length from the stock end, flip = swap ends). Attachments: origin = mount_base (bottom centre of the rail clamp), front along -Z, mount_front = front face. Standard rail: attachments snap mount_base onto a weapon mount_* node.",
+ "weapons": {
+  "smg_skiff": {
+   "grip": [
+    0,
+    0,
+    0
+   ],
+   "muzzle": [
+    0,
+    0.104,
+    -0.196
+   ],
+   "length": 0.54,
+   "sourceAxis": "x",
+   "muzzleAtPositive": false,
+   "confidence": "high"
+  },
+  "pi_magnus": {
+   "length": 0.3,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "pistol-rear",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.0001,
+     0.1052,
+     -0.2362
+    ],
+    "mount_optic": [
+     0,
+     0.1238,
+     -0.0827
+    ],
+    "mount_under": [
+     0,
+     0.0845,
+     -0.1536
+    ],
+    "mount_mag": [
+     0,
+     0.0153,
+     -0.0425
+    ],
+    "mount_stock": [
+     0,
+     0.0359,
+     0.0637
+    ]
+   },
+   "tris": 6999
+  },
+  "smg_wren": {
+   "length": 0.66,
+   "sourceAxis": "x",
+   "muzzleEndThinner": false,
+   "gripRule": "spike-behind-magazine",
+   "confidence": "high",
+   "mounts": {
+    "socket_grip": [
+     0,
+     0,
+     0
+    ],
+    "mount_muzzle": [
+     0.003,
+     0.124,
+     -0.1733
+    ],
+    "mount_optic": [
+     0,
+     0.1492,
+     -0.0606
+    ],
+    "mount_under": [
+     0,
+     0.112,
+     -0.1126
+    ],
+    "mount_mag": [
+     0,
+     -0.0713,
+     -0.0312
+    ],
+    "mount_stock": [
+     0,
+     0.0542,
+     0.4868
+    ]
+   },
+   "tris": 6999
+  }
+ }
+}
