@@ -5,7 +5,10 @@
 export type WeaponClass =
   | 'ar' | 'smg' | 'lmg' | 'shotgun' | 'marksman' | 'sniper' | 'pistol' | 'launcher' | 'special';
 
-export type AttachmentSlot = 'optic' | 'muzzle' | 'barrel' | 'underbarrel' | 'magazine' | 'stock';
+export type AttachmentSlot = 'optic' | 'muzzle' | 'barrel' | 'underbarrel' | 'magazine' | 'reargrip' | 'stock' | 'laser' | 'ammo';
+
+/** Gunsmith rule: at most this many attachments per weapon. */
+export const MAX_ATTACHMENTS = 5;
 
 export interface RecoilStep { pitch: number; yaw: number } // degrees per shot
 
@@ -38,6 +41,14 @@ export interface WeaponStats {
   penetration: number;
   /** Launcher projectiles: splash radius in metres (0 = hitscan). */
   splash: number;
+  /** Muzzle velocity m/s (hitscan inside 40 m; beyond that the server adds travel-time lead check). */
+  bulletVelocity: number;
+  /** Idle ADS sway in degrees (lower = steadier). */
+  aimStability: number;
+  /** Seconds after sprinting before the weapon can fire. */
+  sprintToFire: number;
+  /** Seconds to swap to this weapon. */
+  swapTime: number;
 }
 
 export interface WeaponDef {
@@ -56,18 +67,18 @@ export interface WeaponDef {
 
 const P = (pitch: number, yaw: number): RecoilStep => ({ pitch, yaw });
 
-const ALL_SLOTS: AttachmentSlot[] = ['optic', 'muzzle', 'barrel', 'underbarrel', 'magazine', 'stock'];
+const ALL_SLOTS: AttachmentSlot[] = ['optic', 'muzzle', 'barrel', 'underbarrel', 'magazine', 'reargrip', 'stock', 'laser', 'ammo'];
 
 const BASE: Record<WeaponClass, { stats: WeaponStats; slots: AttachmentSlot[]; primary: boolean }> = {
-  ar: { primary: true, slots: ALL_SLOTS, stats: { damage: 30, minDamageMult: 0.7, rangeNear: 30, rangeFar: 70, headMult: 1.5, pellets: 1, rpm: 700, auto: true, burst: 0, magSize: 30, reserve: 150, reloadTime: 2.1, adsTime: 0.24, adsZoom: 0.75, hipSpread: 2.6, adsSpread: 0.3, mobility: 0.93, recoil: [P(0.5, 0.15), P(0.55, -0.2), P(0.5, 0.25), P(0.6, -0.1)], recoilRecover: 9, penetration: 0.8, splash: 0 } },
-  smg: { primary: true, slots: ALL_SLOTS, stats: { damage: 25, minDamageMult: 0.6, rangeNear: 12, rangeFar: 35, headMult: 1.4, pellets: 1, rpm: 850, auto: true, burst: 0, magSize: 32, reserve: 192, reloadTime: 1.8, adsTime: 0.17, adsZoom: 0.82, hipSpread: 2.0, adsSpread: 0.5, mobility: 1.0, recoil: [P(0.35, 0.2), P(0.4, -0.25), P(0.35, 0.3)], recoilRecover: 11, penetration: 0.4, splash: 0 } },
-  lmg: { primary: true, slots: ['optic', 'muzzle', 'barrel', 'underbarrel', 'magazine'], stats: { damage: 32, minDamageMult: 0.75, rangeNear: 35, rangeFar: 80, headMult: 1.4, pellets: 1, rpm: 650, auto: true, burst: 0, magSize: 100, reserve: 200, reloadTime: 5.2, adsTime: 0.38, adsZoom: 0.72, hipSpread: 3.8, adsSpread: 0.4, mobility: 0.84, recoil: [P(0.55, 0.3), P(0.5, -0.3)], recoilRecover: 7, penetration: 1.2, splash: 0 } },
-  shotgun: { primary: true, slots: ['optic', 'muzzle', 'barrel', 'underbarrel', 'magazine', 'stock'], stats: { damage: 14, minDamageMult: 0.2, rangeNear: 7, rangeFar: 20, headMult: 1.2, pellets: 8, rpm: 75, auto: false, burst: 0, magSize: 6, reserve: 36, reloadTime: 3.6, adsTime: 0.2, adsZoom: 0.85, hipSpread: 5.5, adsSpread: 4.2, mobility: 0.95, recoil: [P(3.2, 0.5)], recoilRecover: 6, penetration: 0.3, splash: 0 } },
-  marksman: { primary: true, slots: ALL_SLOTS, stats: { damage: 55, minDamageMult: 0.8, rangeNear: 45, rangeFar: 90, headMult: 1.8, pellets: 1, rpm: 300, auto: false, burst: 0, magSize: 15, reserve: 60, reloadTime: 2.4, adsTime: 0.3, adsZoom: 0.55, hipSpread: 3.5, adsSpread: 0.1, mobility: 0.9, recoil: [P(1.3, 0.2)], recoilRecover: 8, penetration: 1.0, splash: 0 } },
-  sniper: { primary: true, slots: ['optic', 'muzzle', 'barrel', 'magazine', 'stock'], stats: { damage: 110, minDamageMult: 0.9, rangeNear: 80, rangeFar: 150, headMult: 2.0, pellets: 1, rpm: 50, auto: false, burst: 0, magSize: 5, reserve: 25, reloadTime: 3.4, adsTime: 0.42, adsZoom: 0.3, hipSpread: 7, adsSpread: 0, mobility: 0.87, recoil: [P(4, 0.6)], recoilRecover: 5, penetration: 1.2, splash: 0 } },
-  pistol: { primary: false, slots: ['optic', 'muzzle', 'barrel', 'magazine'], stats: { damage: 28, minDamageMult: 0.55, rangeNear: 10, rangeFar: 28, headMult: 1.5, pellets: 1, rpm: 420, auto: false, burst: 0, magSize: 12, reserve: 48, reloadTime: 1.5, adsTime: 0.14, adsZoom: 0.85, hipSpread: 1.8, adsSpread: 0.6, mobility: 1.05, recoil: [P(0.9, 0.25), P(0.9, -0.25)], recoilRecover: 12, penetration: 0.3, splash: 0 } },
-  launcher: { primary: false, slots: ['optic'], stats: { damage: 150, minDamageMult: 1, rangeNear: 100, rangeFar: 150, headMult: 1, pellets: 1, rpm: 30, auto: false, burst: 0, magSize: 1, reserve: 2, reloadTime: 3.5, adsTime: 0.45, adsZoom: 0.7, hipSpread: 3, adsSpread: 0.3, mobility: 0.9, recoil: [P(3, 0.4)], recoilRecover: 5, penetration: 0, splash: 4.5 } },
-  special: { primary: false, slots: [], stats: { damage: 100, minDamageMult: 1, rangeNear: 2, rangeFar: 2.5, headMult: 1, pellets: 1, rpm: 90, auto: false, burst: 0, magSize: 1, reserve: 0, reloadTime: 0, adsTime: 0.2, adsZoom: 1, hipSpread: 0, adsSpread: 0, mobility: 1.08, recoil: [P(0, 0)], recoilRecover: 10, penetration: 0, splash: 0 } },
+  ar: { primary: true, slots: ALL_SLOTS, stats: { damage: 30, minDamageMult: 0.7, rangeNear: 30, rangeFar: 70, headMult: 1.5, pellets: 1, rpm: 700, auto: true, burst: 0, magSize: 30, reserve: 150, reloadTime: 2.1, adsTime: 0.24, adsZoom: 0.75, hipSpread: 2.6, adsSpread: 0.3, mobility: 0.93, recoil: [P(0.5, 0.15), P(0.55, -0.2), P(0.5, 0.25), P(0.6, -0.1)], recoilRecover: 9, penetration: 0.8, splash: 0, bulletVelocity: 820, aimStability: 0.35, sprintToFire: 0.22, swapTime: 0.45 } },
+  smg: { primary: true, slots: ALL_SLOTS, stats: { damage: 25, minDamageMult: 0.6, rangeNear: 12, rangeFar: 35, headMult: 1.4, pellets: 1, rpm: 850, auto: true, burst: 0, magSize: 32, reserve: 192, reloadTime: 1.8, adsTime: 0.17, adsZoom: 0.82, hipSpread: 2.0, adsSpread: 0.5, mobility: 1.0, recoil: [P(0.35, 0.2), P(0.4, -0.25), P(0.35, 0.3)], recoilRecover: 11, penetration: 0.4, splash: 0, bulletVelocity: 420, aimStability: 0.3, sprintToFire: 0.14, swapTime: 0.4 } },
+  lmg: { primary: true, slots: ['optic', 'muzzle', 'barrel', 'underbarrel', 'magazine', 'reargrip', 'laser', 'ammo'], stats: { damage: 32, minDamageMult: 0.75, rangeNear: 35, rangeFar: 80, headMult: 1.4, pellets: 1, rpm: 650, auto: true, burst: 0, magSize: 100, reserve: 200, reloadTime: 5.2, adsTime: 0.38, adsZoom: 0.72, hipSpread: 3.8, adsSpread: 0.4, mobility: 0.84, recoil: [P(0.55, 0.3), P(0.5, -0.3)], recoilRecover: 7, penetration: 1.2, splash: 0, bulletVelocity: 850, aimStability: 0.45, sprintToFire: 0.36, swapTime: 0.6 } },
+  shotgun: { primary: true, slots: ['optic', 'muzzle', 'barrel', 'underbarrel', 'magazine', 'reargrip', 'stock', 'laser', 'ammo'], stats: { damage: 14, minDamageMult: 0.2, rangeNear: 7, rangeFar: 20, headMult: 1.2, pellets: 8, rpm: 75, auto: false, burst: 0, magSize: 6, reserve: 36, reloadTime: 3.6, adsTime: 0.2, adsZoom: 0.85, hipSpread: 5.5, adsSpread: 4.2, mobility: 0.95, recoil: [P(3.2, 0.5)], recoilRecover: 6, penetration: 0.3, splash: 0, bulletVelocity: 400, aimStability: 0.3, sprintToFire: 0.2, swapTime: 0.45 } },
+  marksman: { primary: true, slots: ALL_SLOTS, stats: { damage: 55, minDamageMult: 0.8, rangeNear: 45, rangeFar: 90, headMult: 1.8, pellets: 1, rpm: 300, auto: false, burst: 0, magSize: 15, reserve: 60, reloadTime: 2.4, adsTime: 0.3, adsZoom: 0.55, hipSpread: 3.5, adsSpread: 0.1, mobility: 0.9, recoil: [P(1.3, 0.2)], recoilRecover: 8, penetration: 1.0, splash: 0, bulletVelocity: 880, aimStability: 0.4, sprintToFire: 0.26, swapTime: 0.5 } },
+  sniper: { primary: true, slots: ['optic', 'muzzle', 'barrel', 'magazine', 'reargrip', 'stock', 'laser', 'ammo'], stats: { damage: 110, minDamageMult: 0.9, rangeNear: 80, rangeFar: 150, headMult: 2.0, pellets: 1, rpm: 50, auto: false, burst: 0, magSize: 5, reserve: 25, reloadTime: 3.4, adsTime: 0.42, adsZoom: 0.3, hipSpread: 7, adsSpread: 0, mobility: 0.87, recoil: [P(4, 0.6)], recoilRecover: 5, penetration: 1.2, splash: 0, bulletVelocity: 900, aimStability: 0.55, sprintToFire: 0.32, swapTime: 0.6 } },
+  pistol: { primary: false, slots: ['optic', 'muzzle', 'barrel', 'magazine', 'reargrip', 'laser', 'ammo'], stats: { damage: 28, minDamageMult: 0.55, rangeNear: 10, rangeFar: 28, headMult: 1.5, pellets: 1, rpm: 420, auto: false, burst: 0, magSize: 12, reserve: 48, reloadTime: 1.5, adsTime: 0.14, adsZoom: 0.85, hipSpread: 1.8, adsSpread: 0.6, mobility: 1.05, recoil: [P(0.9, 0.25), P(0.9, -0.25)], recoilRecover: 12, penetration: 0.3, splash: 0, bulletVelocity: 360, aimStability: 0.25, sprintToFire: 0.1, swapTime: 0.3 } },
+  launcher: { primary: false, slots: ['optic', 'laser'], stats: { damage: 150, minDamageMult: 1, rangeNear: 100, rangeFar: 150, headMult: 1, pellets: 1, rpm: 30, auto: false, burst: 0, magSize: 1, reserve: 2, reloadTime: 3.5, adsTime: 0.45, adsZoom: 0.7, hipSpread: 3, adsSpread: 0.3, mobility: 0.9, recoil: [P(3, 0.4)], recoilRecover: 5, penetration: 0, splash: 4.5, bulletVelocity: 120, aimStability: 0.5, sprintToFire: 0.35, swapTime: 0.6 } },
+  special: { primary: false, slots: [], stats: { damage: 100, minDamageMult: 1, rangeNear: 2, rangeFar: 2.5, headMult: 1, pellets: 1, rpm: 90, auto: false, burst: 0, magSize: 1, reserve: 0, reloadTime: 0, adsTime: 0.2, adsZoom: 1, hipSpread: 0, adsSpread: 0, mobility: 1.08, recoil: [P(0, 0)], recoilRecover: 10, penetration: 0, splash: 0, bulletVelocity: 60, aimStability: 0.2, sprintToFire: 0.08, swapTime: 0.3 } },
 };
 
 type Row = [id: string, cls: WeaponClass, name: string, inspiration: string, unlock: number, over?: Partial<WeaponStats>];
@@ -186,45 +197,112 @@ export const WEAPONS: Record<string, WeaponDef> = Object.fromEntries(WEAPON_LIST
 export const WEAPON_INDEX: Record<string, number> = Object.fromEntries(WEAPON_LIST.map((w, i) => [w.id, i]));
 
 // ---------------------------------------------------------------------------------------------
-// Attachments
+// Attachments — 9 slots, several options each, all with real tradeoffs. Unlocked by weapon level.
+export type ModKey = 'damage' | 'rangeNear' | 'rangeFar' | 'rpm' | 'magSize' | 'reloadTime' | 'adsTime' | 'adsZoom' | 'hipSpread' | 'adsSpread'
+  | 'mobility' | 'recoilV' | 'recoilH' | 'bulletVelocity' | 'aimStability' | 'sprintToFire' | 'penetration' | 'headMult' | 'swapTime';
+
 export interface AttachmentDef {
   id: string;
   slot: AttachmentSlot;
   name: string;
-  /** Unlocked at this weapon level (per weapon kills-based XP). */
+  /** Weapon level (1..WEAPON_MAX_LEVEL) that unlocks it on each weapon. */
   weaponLevel: number;
   /** Multiplicative modifiers (1 = unchanged). */
-  mod: Partial<Record<'damage' | 'rangeNear' | 'rangeFar' | 'rpm' | 'magSize' | 'reloadTime' | 'adsTime' | 'adsZoom' | 'hipSpread' | 'adsSpread' | 'mobility' | 'recoil', number>>;
-  /** Hides the shooter on the minimap when firing. */
+  mod: Partial<Record<ModKey, number>>;
+  /** Restrict to these weapon classes (default: any weapon with the slot). */
+  classes?: WeaponClass[];
+  /** Hides the shooter from radar when firing. */
   suppressed?: boolean;
 }
 
+const A = (id: string, slot: AttachmentSlot, name: string, weaponLevel: number, mod: AttachmentDef['mod'], extra: Partial<AttachmentDef> = {}): AttachmentDef => ({ id, slot, name, weaponLevel, mod, ...extra });
+
 export const ATTACHMENTS: AttachmentDef[] = [
-  { id: 'red_dot', slot: 'optic', name: 'Pinpoint Reflex', weaponLevel: 2, mod: { adsTime: 0.97 } },
-  { id: 'holo', slot: 'optic', name: 'Halo Holographic', weaponLevel: 5, mod: { adsZoom: 0.95 } },
-  { id: 'acog', slot: 'optic', name: '4x Prism', weaponLevel: 9, mod: { adsZoom: 0.7, adsTime: 1.12 } },
-  { id: 'suppressor', slot: 'muzzle', name: 'Hush Suppressor', weaponLevel: 4, mod: { rangeFar: 0.85, recoil: 0.95 }, suppressed: true },
-  { id: 'comp', slot: 'muzzle', name: 'Flat Compensator', weaponLevel: 7, mod: { recoil: 0.85 } },
-  { id: 'long_barrel', slot: 'barrel', name: 'Extended Barrel', weaponLevel: 3, mod: { rangeNear: 1.2, rangeFar: 1.15, adsTime: 1.08 } },
-  { id: 'short_barrel', slot: 'barrel', name: 'Snub Barrel', weaponLevel: 8, mod: { hipSpread: 0.8, rangeFar: 0.85, mobility: 1.02 } },
-  { id: 'grip', slot: 'underbarrel', name: 'Vertical Grip', weaponLevel: 6, mod: { recoil: 0.8, adsTime: 1.05 } },
-  { id: 'laser', slot: 'underbarrel', name: 'Tac Laser', weaponLevel: 10, mod: { hipSpread: 0.65 } },
-  { id: 'ext_mag', slot: 'magazine', name: 'Extended Mag', weaponLevel: 4, mod: { magSize: 1.5, reloadTime: 1.1 } },
-  { id: 'fast_mag', slot: 'magazine', name: 'Quick Mag', weaponLevel: 11, mod: { reloadTime: 0.7 } },
-  { id: 'light_stock', slot: 'stock', name: 'Skeleton Stock', weaponLevel: 5, mod: { mobility: 1.04, adsTime: 0.9, recoil: 1.1 } },
-  { id: 'heavy_stock', slot: 'stock', name: 'Padded Stock', weaponLevel: 12, mod: { recoil: 0.85, mobility: 0.97 } },
+  // Optics: zoom vs ADS speed
+  A('red_dot', 'optic', 'Pinpoint Reflex', 2, { adsTime: 1.02 }),
+  A('holo', 'optic', 'Halo Holographic', 5, { adsZoom: 0.95, adsTime: 1.03 }),
+  A('mini_prism', 'optic', '2.5x Mini Prism', 9, { adsZoom: 0.82, adsTime: 1.07, aimStability: 1.05 }),
+  A('acog', 'optic', '4x Prism', 14, { adsZoom: 0.7, adsTime: 1.12, aimStability: 1.1 }),
+  A('thermal', 'optic', 'Heatline Thermal', 22, { adsZoom: 0.75, adsTime: 1.15 }),
+  A('var_scope', 'optic', '8x Variable Scope', 18, { adsZoom: 0.4, adsTime: 1.2, aimStability: 1.25 }, { classes: ['marksman', 'sniper', 'ar'] }),
+  // Muzzles: recoil / radar vs range / ADS
+  A('suppressor', 'muzzle', 'Hush Suppressor', 4, { rangeFar: 0.9, recoilV: 0.96, adsTime: 1.04 }, { suppressed: true }),
+  A('heavy_supp', 'muzzle', 'Monolith Suppressor', 20, { rangeNear: 1.05, rangeFar: 1.05, adsTime: 1.1, mobility: 0.98 }, { suppressed: true }),
+  A('comp', 'muzzle', 'Flat Compensator', 7, { recoilV: 0.85, recoilH: 1.05 }),
+  A('brake', 'muzzle', 'Split Muzzle Brake', 12, { recoilH: 0.82, adsTime: 1.03 }),
+  A('flash_hider', 'muzzle', 'Flash Guard', 3, { recoilV: 0.95 }),
+  A('choke', 'muzzle', 'Tight Choke', 6, { hipSpread: 0.75, adsSpread: 0.75, rangeNear: 1.2 }, { classes: ['shotgun'] }),
+  // Barrels: range/velocity vs handling
+  A('long_barrel', 'barrel', 'Extended Barrel', 3, { rangeNear: 1.2, rangeFar: 1.15, bulletVelocity: 1.2, adsTime: 1.08, mobility: 0.98 }),
+  A('heavy_barrel', 'barrel', 'Fluted Heavy Barrel', 16, { rangeNear: 1.12, recoilV: 0.92, adsTime: 1.1, mobility: 0.97 }),
+  A('short_barrel', 'barrel', 'Snub Barrel', 8, { hipSpread: 0.85, rangeFar: 0.85, bulletVelocity: 0.85, mobility: 1.03, adsTime: 0.95 }),
+  A('rapid_barrel', 'barrel', 'Rapid-Fire Barrel', 24, { rpm: 1.1, rangeNear: 0.9, recoilV: 1.08 }, { classes: ['ar', 'smg', 'lmg'] }),
+  // Underbarrel: recoil vs ADS/mobility
+  A('grip', 'underbarrel', 'Vertical Grip', 6, { recoilV: 0.82, adsTime: 1.05 }),
+  A('angled', 'underbarrel', 'Angled Grip', 10, { adsTime: 0.93, recoilV: 0.95 }),
+  A('bipod', 'underbarrel', 'Folding Bipod', 15, { recoilV: 0.88, recoilH: 0.88, mobility: 0.96 }),
+  A('stub_grip', 'underbarrel', 'Stubby Grip', 19, { recoilH: 0.8, hipSpread: 0.95, adsTime: 1.04 }),
+  // Magazines: capacity vs reload/mobility
+  A('ext_mag', 'magazine', 'Extended Mag', 4, { magSize: 1.5, reloadTime: 1.1, mobility: 0.99, adsTime: 1.03 }),
+  A('drum_mag', 'magazine', 'Drum Mag', 21, { magSize: 2.0, reloadTime: 1.35, mobility: 0.96, adsTime: 1.08 }, { classes: ['ar', 'smg', 'lmg', 'shotgun'] }),
+  A('fast_mag', 'magazine', 'Quick Mag', 11, { reloadTime: 0.7 }),
+  A('light_mag', 'magazine', 'Polymer Mag', 25, { mobility: 1.02, magSize: 0.85, reloadTime: 0.9 }),
+  // Rear grips: stability/ADS
+  A('stipple', 'reargrip', 'Stippled Grip', 5, { adsTime: 0.96, aimStability: 0.9 }),
+  A('rubber', 'reargrip', 'Rubberised Grip', 13, { recoilH: 0.9, sprintToFire: 1.05 }),
+  A('slick', 'reargrip', 'Slick Grip', 23, { sprintToFire: 0.85, swapTime: 0.9, recoilV: 1.04 }),
+  // Stocks: recoil vs mobility
+  A('light_stock', 'stock', 'Skeleton Stock', 5, { mobility: 1.04, adsTime: 0.92, recoilV: 1.1 }),
+  A('heavy_stock', 'stock', 'Padded Stock', 12, { recoilV: 0.85, recoilH: 0.9, mobility: 0.97, adsTime: 1.05 }),
+  A('no_stock', 'stock', 'Stock Removed', 17, { mobility: 1.07, adsTime: 0.85, recoilV: 1.25, aimStability: 1.3 }),
+  // Lasers: hip vs visibility
+  A('laser', 'laser', 'Tac Laser', 10, { hipSpread: 0.7 }),
+  A('ads_laser', 'laser', 'Aim Laser', 14, { adsTime: 0.9, sprintToFire: 0.9 }),
+  A('ir_laser', 'laser', 'IR Laser', 26, { hipSpread: 0.85, adsTime: 0.95 }),
+  // Ammunition types
+  A('fmj', 'ammo', 'Full Metal Jacket', 9, { penetration: 1.6, damage: 0.97 }),
+  A('hollow', 'ammo', 'Hollow Point', 20, { damage: 1.08, rangeFar: 0.9, penetration: 0.5 }),
+  A('subsonic', 'ammo', 'Subsonic Rounds', 15, { bulletVelocity: 0.7 }, { suppressed: true }),
+  A('hv_rounds', 'ammo', 'High-Velocity Rounds', 27, { bulletVelocity: 1.35, recoilV: 1.05 }),
+  A('slugs', 'ammo', 'Slug Rounds', 18, { damage: 5.5, rangeNear: 3, rangeFar: 3 }, { classes: ['shotgun'] }),
 ];
 export const ATTACHMENT_BY_ID: Record<string, AttachmentDef> = Object.fromEntries(ATTACHMENTS.map((a) => [a.id, a]));
 
-/** Apply attachments to a weapon's stats. Unknown/incompatible attachments are ignored. */
+export const WEAPON_MAX_LEVEL = 30;
+
+/** Attachments that fit a weapon. */
+export function attachmentsFor(w: WeaponDef): AttachmentDef[] {
+  return ATTACHMENTS.filter((a) => w.slots.includes(a.slot) && (!a.classes || a.classes.includes(w.cls)));
+}
+
+/** Validate an attachment set against slots, the 5-attachment limit and (optionally) weapon level. */
+export function attachmentErrors(w: WeaponDef, ids: string[], weaponLevel = WEAPON_MAX_LEVEL): string[] {
+  const errs: string[] = [];
+  if (ids.length > MAX_ATTACHMENTS) errs.push(`max ${MAX_ATTACHMENTS} attachments`);
+  const slots = new Set<AttachmentSlot>();
+  for (const id of ids) {
+    const a = ATTACHMENT_BY_ID[id];
+    if (!a) { errs.push(`unknown attachment ${id}`); continue; }
+    if (!w.slots.includes(a.slot) || (a.classes && !a.classes.includes(w.cls))) errs.push(`${a.name} does not fit ${w.name}`);
+    if (slots.has(a.slot)) errs.push(`two ${a.slot} attachments`);
+    slots.add(a.slot);
+    if (a.weaponLevel > weaponLevel) errs.push(`${a.name} unlocks at ${w.name} level ${a.weaponLevel}`);
+  }
+  return errs;
+}
+
+/** Apply attachments to a weapon's stats. Invalid/incompatible attachments are ignored. */
 export function applyAttachments(w: WeaponDef, attachmentIds: string[]): WeaponStats {
   const s: WeaponStats = { ...w.stats, recoil: w.stats.recoil.map((r) => ({ ...r })) };
-  for (const id of attachmentIds) {
+  const seen = new Set<AttachmentSlot>();
+  for (const id of attachmentIds.slice(0, MAX_ATTACHMENTS)) {
     const a = ATTACHMENT_BY_ID[id];
-    if (!a || !w.slots.includes(a.slot)) continue;
-    for (const [k, m] of Object.entries(a.mod) as [keyof AttachmentDef['mod'], number][]) {
-      if (k === 'recoil') s.recoil = s.recoil.map((r) => ({ pitch: r.pitch * m, yaw: r.yaw * m }));
-      else if (k === 'magSize') s.magSize = Math.round(s.magSize * m);
+    if (!a || !w.slots.includes(a.slot) || (a.classes && !a.classes.includes(w.cls)) || seen.has(a.slot)) continue;
+    seen.add(a.slot);
+    for (const [k, m] of Object.entries(a.mod) as [ModKey, number][]) {
+      if (k === 'recoilV') s.recoil = s.recoil.map((r) => ({ pitch: r.pitch * m, yaw: r.yaw }));
+      else if (k === 'recoilH') s.recoil = s.recoil.map((r) => ({ pitch: r.pitch, yaw: r.yaw * m }));
+      else if (k === 'magSize') s.magSize = Math.max(1, Math.round(s.magSize * m));
       else (s[k] as number) *= m;
     }
   }

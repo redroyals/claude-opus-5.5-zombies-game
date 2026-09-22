@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { encodeInputs, decodeInputs, encodeSnapshot, decodeSnapshot, Reader, qYaw, dqYaw, qPos, dqPos, type EntityState } from '../src/shared/protocol';
 import { History, rayPlayer, clampRewind, MAX_REWIND_TICKS } from '../src/shared/lagcomp';
-import { xpForLevel, levelForXp, MAX_LEVEL, prestige, canPrestige, matchXp, MATCH_XP_CAP, weaponLevelForKills } from '../src/shared/progression';
+import { xpForLevel, levelForXp, MAX_LEVEL, prestige, canPrestige, matchXp, MATCH_XP_CAP, weaponLevelForXp, levelUpDollars, matchDollars, DOLLARS } from '../src/shared/progression';
 import { validateLoadout, DEFAULT_LOADOUTS, streakCost, type Loadout } from '../src/shared/loadout';
 import { BoxWorld, newMoveState, stepMove, BTN, TICK_DT } from '../src/shared/movement';
 import { MAPS } from '../src/shared/maps';
@@ -10,7 +10,7 @@ import { stepFlag, flagOwner, pickTeam } from '../src/shared/modes';
 
 describe('protocol', () => {
   it('round-trips an input batch with quantized angles', () => {
-    const buf = encodeInputs({ viewTick: 1234.5, inputs: [{ seq: 77, fwd: 127, strafe: -64, yaw: 1.2345, pitch: -0.4, buttons: BTN.fire | BTN.jump }, { seq: 78, fwd: 0, strafe: 0, yaw: -2, pitch: 0.2, buttons: 0 }] });
+    const buf = encodeInputs({ viewTick: 1234.5, inputs: [{ seq: 77, fwd: 127, strafe: -64, yaw: 1.2345, pitch: -0.4, buttons: BTN.fire | BTN.jump | BTN.lethal }, { seq: 78, fwd: 0, strafe: 0, yaw: -2, pitch: 0.2, buttons: 0 }] });
     const r = new Reader(buf); expect(r.u8()).toBe(1);
     const b = decodeInputs(r);
     expect(b.viewTick).toBeCloseTo(1234.5);
@@ -20,8 +20,8 @@ describe('protocol', () => {
     expect(b.inputs[0].yaw).toBeCloseTo(1.2345, 3);
     expect(b.inputs[1].yaw).toBeCloseTo(-2 + Math.PI * 2, 3);
     expect(b.inputs[0].pitch).toBeCloseTo(-0.4, 3);
-    expect(b.inputs[0].buttons).toBe(BTN.fire | BTN.jump);
-    expect(buf.byteLength).toBe(1 + 4 + 1 + 4 + 2 * 7);
+    expect(b.inputs[0].buttons).toBe(BTN.fire | BTN.jump | BTN.lethal);
+    expect(buf.byteLength).toBe(1 + 4 + 1 + 4 + 2 * 8);
   });
   it('quantizes positions to 1/64 m and yaw wraps', () => {
     expect(Math.abs(dqPos(qPos(12.3456)) - 12.3456)).toBeLessThan(1 / 64);
@@ -30,10 +30,13 @@ describe('protocol', () => {
   it('delta-encodes snapshots: unchanged entities cost 0 bytes, removals propagate', () => {
     const sent = new Map<number, EntityState>(), known = new Map<number, EntityState>();
     const e: EntityState = { id: 3, x: 10, y: 2, z: -5, yaw: 1, pitch: 0.1, flags: 0, health: 100, weapon: 4 };
-    const s1 = encodeSnapshot({ tick: 1, ackSeq: 9, self: { x: 1, y: 2, z: 3, vx: 0, vy: 0, vz: 0, moveFlags: 1, slideT: 0, slideCd: 0, health: 100, ammo: 30, reserve: 90, weapon: 0 }, entities: [e], removed: [] }, sent);
+    const s1 = encodeSnapshot({ tick: 1, ackSeq: 9, self: { x: 1, y: 2, z: 3, vx: 0, vy: 0, vz: 0, moveFlags: 1 | 4, slideT: 0, slideCd: 0, tacT: 3, tacRecharge: 0, stunT: 0, mantleT: 0.5, mfx: 1, mfy: 0, mfz: 3, mtx: 1, mty: 1.2, mtz: 3.8, health: 100, ammo: 30, reserve: 90, weapon: 0, lethals: 2, tacticals: 1, streakMask: 5, streak: 4 }, entities: [e], removed: [] }, sent);
     const r1 = new Reader(s1); r1.u8();
     const d1 = decodeSnapshot(r1, known);
     expect(d1.self?.ammo).toBe(30);
+    expect(d1.self?.mty).toBeCloseTo(1.2);
+    expect(d1.self?.mantleT).toBeCloseTo(0.5, 3);
+    expect(d1.self?.streakMask).toBe(5);
     expect(known.get(3)?.x).toBeCloseTo(10, 1);
     const s2 = encodeSnapshot({ tick: 2, ackSeq: 10, self: null, entities: [e], removed: [] }, sent);
     const s3 = encodeSnapshot({ tick: 3, ackSeq: 11, self: null, entities: [{ ...e, health: 60 }], removed: [] }, sent);
@@ -87,28 +90,103 @@ describe('progression', () => {
   it('match xp is capped', () => {
     expect(matchXp({ kills: 10, headshots: 2, assists: 1, confirms: 0, denies: 0, captures: 0, defends: 0, bestStreak: 5, won: true, completed: true })).toBe(1000 + 100 + 50 + 50 + 500);
     expect(matchXp({ kills: 10000, headshots: 0, assists: 0, confirms: 0, denies: 0, captures: 0, defends: 0, bestStreak: 0, won: true, completed: true })).toBe(MATCH_XP_CAP);
-    expect(weaponLevelForKills(0)).toBe(1);
+    expect(weaponLevelForXp(0)).toBe(1);
+    expect(weaponLevelForXp(1e9)).toBe(30);
+    expect(levelUpDollars(0, xpForLevel(3))).toBe(2 * DOLLARS.perLevel);
+    expect(matchDollars(1e9)).toBe(DOLLARS.matchCap);
+  });
+});
+
+import { perkEffects, PERKS, flinchDegrees, fallDamage } from '../src/shared/perks';
+import { computeCamos, recordKill, EMPTY_PROGRESS, BASE_CAMOS, ARGENT_REQ, type WeaponProgress } from '../src/shared/camos';
+import { UNLOCK_TABLE, isUnlocked, unlocksAtLevel, EQUIP_UNLOCKS } from '../src/shared/unlocks';
+import { LETHALS, TACTICALS, KILLSTREAKS } from '../src/shared/loadout';
+import { attachmentsFor, ATTACHMENTS, MAX_ATTACHMENTS } from '../src/data/weapons';
+
+describe('perks', () => {
+  it('3 tiers, each with at least 4 options, all with real effects', () => {
+    for (const t of [1, 2, 3]) expect(PERKS.filter((p) => p.tier === t).length).toBeGreaterThanOrEqual(4);
+    for (const p of PERKS) expect(Object.keys(p.fx).length).toBeGreaterThan(0);
+  });
+  it('merges effects', () => {
+    const fx = perkEffects(['fleet', 'quickdraw', 'deadsilence']);
+    expect(fx.tacSprintMult).toBe(2);
+    expect(fx.adsTimeMult).toBeCloseTo(0.8);
+    expect(fx.footstepVolume).toBe(0.25);
+    expect(perkEffects(['steady', 'tuned']).flinchMult).toBeCloseTo(0.35);
+    expect(fallDamage(15, perkEffects(['softland']))).toBe(0);
+    expect(fallDamage(15, perkEffects([]))).toBeGreaterThan(0);
+    expect(flinchDegrees(30, perkEffects(['steady']))).toBeCloseTo(0.9);
+  });
+});
+
+describe('unlocks', () => {
+  it('table covers levels to 100, level 1 has starter kit, equipment literals agree', () => {
+    expect(Math.max(...UNLOCK_TABLE.map((e) => e.level))).toBeLessThanOrEqual(100);
+    expect(unlocksAtLevel(1).some((e) => e.id === 'ar_kestrel')).toBe(true);
+    for (const e of [...LETHALS, ...TACTICALS, ...KILLSTREAKS]) expect(EQUIP_UNLOCKS.find((u) => u.id === e.id)?.level).toBe(e.unlockLevel);
+  });
+  it('prestige keeps unlocks; tokens unlock early', () => {
+    expect(isUnlocked({ level: 1, prestige: 0 }, 'weapon', 'sr_gantry')).toBe(false);
+    expect(isUnlocked({ level: 1, prestige: 1 }, 'weapon', 'sr_gantry')).toBe(true);
+    expect(isUnlocked({ level: 1, prestige: 0, tokenUnlocks: ['weapon:sr_gantry'] }, 'weapon', 'sr_gantry')).toBe(true);
+  });
+});
+
+describe('gunsmith', () => {
+  it('each primary has 20+ compatible attachments over 9 slots', () => {
+    expect(new Set(ATTACHMENTS.map((a) => a.slot)).size).toBe(9);
+    expect(attachmentsFor(WEAPONS.ar_kestrel).length).toBeGreaterThanOrEqual(20);
+    expect(MAX_ATTACHMENTS).toBe(5);
+    expect(attachmentsFor(WEAPONS.ar_kestrel).some((a) => a.id === 'slugs')).toBe(false);
+    expect(attachmentsFor(WEAPONS.sg_hullbreaker).some((a) => a.id === 'slugs')).toBe(true);
+  });
+});
+
+describe('camos', () => {
+  const maxed: WeaponProgress = { kills: 999, headshots: 999, longshots: 999, hipKills: 999, doubleKills: 999, noDeathTriples: 999, adsKills: 999, pointBlank: 999 };
+  it('ladder -> gilded -> argent -> prism (class) -> void (all classes)', () => {
+    const one = computeCamos({ ar_kestrel: { ...EMPTY_PROGRESS, kills: 80 } });
+    expect(one.ar_kestrel).toEqual(['woodland', 'digital']);
+    const gildOnly = computeCamos({ ar_kestrel: { ...maxed, noDeathTriples: 0 } });
+    expect(gildOnly.ar_kestrel).toContain('gilded');
+    expect(gildOnly.ar_kestrel).not.toContain('argent');
+    const smgs = Object.fromEntries(WEAPON_LIST.filter((w) => w.cls === 'smg').map((w) => [w.id, maxed]));
+    const c = computeCamos(smgs);
+    expect(c.smg_wren).toContain('prism');
+    expect(c.smg_wren).not.toContain('void');
+    const all = computeCamos(Object.fromEntries(WEAPON_LIST.map((w) => [w.id, maxed])));
+    expect(all.ar_kestrel).toContain('void');
+    expect(all.sp_kukri).not.toContain('void');
+    expect(BASE_CAMOS).toHaveLength(8);
+    expect(Object.keys(ARGENT_REQ).length).toBeGreaterThan(0);
+  });
+  it('recordKill tracks challenge stats', () => {
+    const p = recordKill(EMPTY_PROGRESS, { cls: 'sniper', dist: 80, head: true, ads: true, double: true, streakNoDeath: 3 });
+    expect(p).toMatchObject({ kills: 1, headshots: 1, longshots: 1, hipKills: 0, adsKills: 1, doubleKills: 1, noDeathTriples: 1, pointBlank: 0 });
   });
 });
 
 describe('create-a-class', () => {
-  const lvl1 = { level: 1, prestige: 0, weaponKills: {} };
+  const lvl1 = { level: 1, prestige: 0, weaponXp: {} };
   it('default classes are valid at level 1', () => {
     for (const l of DEFAULT_LOADOUTS) expect(validateLoadout(l, lvl1)).toEqual([]);
   });
   it('rejects locked weapons, wrong perk tiers, bad attachments, duplicate streaks', () => {
-    const bad: Loadout = { ...DEFAULT_LOADOUTS[0], primary: 'ar_quill', perks: ['steady', 'fleet', 'deadsilence'], primaryAttachments: ['acog', 'holo'], streaks: ['scout', 'scout', 'gunship'] };
+    const bad: Loadout = { ...DEFAULT_LOADOUTS[0], primary: 'ar_quill', perks: ['steady', 'fleet', 'deadsilence'], primaryAttachments: ['acog', 'holo', 'grip', 'laser', 'fmj', 'comp'], streaks: ['scout', 'scout', 'gunship'] };
     const e = validateLoadout(bad, lvl1);
     expect(e.some((m) => m.includes('locked until level 36'))).toBe(true);
     expect(e.some((m) => m.includes('tier 1'))).toBe(true);
     expect(e.some((m) => m.includes('two optic'))).toBe(true);
+    expect(e.some((m) => m.includes('max 5'))).toBe(true);
+    expect(e.some((m) => m.includes('unlocks at'))).toBe(true);
     expect(e.some((m) => m.includes('3 different'))).toBe(true);
   });
   it('secondary slot needs Double Carry for a primary', () => {
     const l = { ...DEFAULT_LOADOUTS[0], secondary: 'smg_wren' };
     expect(validateLoadout(l, lvl1).join()).toContain('Double Carry');
     const ok = { ...l, perks: ['fleet', 'overkill', 'deadsilence'] as [string, string, string] };
-    expect(validateLoadout(ok, { level: 20, prestige: 0, weaponKills: {} })).toEqual([]);
+    expect(validateLoadout(ok, { level: 1, prestige: 0, weaponXp: {} })).toEqual([]); // perks never level-locked
   });
   it('hardline reduces streak cost', () => { expect(streakCost('gunship', ['hardline'])).toBe(6); });
 });
@@ -125,8 +203,9 @@ describe('weapons data', () => {
     expect(damageAt(k, 200, 'body')).toBeCloseTo(21);
     expect(damageAt(k, 5, 'head')).toBe(45);
     const s = applyAttachments(WEAPONS.ar_kestrel, ['ext_mag', 'grip', 'bogus']);
+    expect(s.adsTime).toBeCloseTo(0.24 * 1.03 * 1.05);
     expect(s.magSize).toBe(45);
-    expect(s.recoil[0].pitch).toBeCloseTo(0.4);
+    expect(s.recoil[0].pitch).toBeCloseTo(0.41);
     expect(WEAPONS.ar_kestrel.stats.magSize).toBe(30); // not mutated
   });
 });
@@ -137,7 +216,8 @@ describe('shared movement', () => {
   it('is deterministic', () => { expect(run(BTN.sprint)).toEqual(run(BTN.sprint)); });
   it('walks at walk speed and sprints faster', () => {
     expect(-run(0).vz).toBeCloseTo(4.6, 1);
-    expect(-run(BTN.sprint).vz).toBeCloseTo(7.1, 1);
+    expect(-run(BTN.sprint).vz).toBeCloseTo(8.4, 1); // tactical sprint window
+    expect(-run(BTN.sprint, 150).vz).toBeCloseTo(7.1, 1); // after tac sprint expires
   });
   it('walls block and steps are climbed', () => {
     const s = run(0, 60, -Math.PI / 2); // facing +x into wall at x=5
@@ -164,6 +244,12 @@ describe('shared movement', () => {
         expect(Math.abs(s.y - sp.y)).toBeLessThan(0.6);
       }
     }
+  });
+  it('mantles onto a 1.2 m ledge', () => {
+    const w = new BoxWorld([[-50, -1, -50, 50, 0, 50], [-3, 0, -3, 3, 1.2, -2]]);
+    const s = newMoveState(0, 0, -1.4);
+    for (let i = 0; i < 30; i++) stepMove(s, { seq: i, fwd: i < 12 ? 127 : 0, strafe: 0, yaw: 0, pitch: 0, buttons: i === 0 ? BTN.jump : 0 }, w);
+    expect(s.y).toBeCloseTo(1.2, 1);
   });
   it('TICK_DT is 1/30', () => expect(TICK_DT).toBeCloseTo(1 / 30));
 });

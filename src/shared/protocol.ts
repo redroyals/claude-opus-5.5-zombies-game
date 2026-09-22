@@ -64,10 +64,10 @@ export interface InputBatch {
 export const MAX_BATCH = 8;
 
 export function encodeInputs(b: InputBatch): ArrayBuffer {
-  const w = new Writer(8 + b.inputs.length * 9).u8(C2S.Input).f32(b.viewTick).u8(Math.min(MAX_BATCH, b.inputs.length));
+  const w = new Writer(10 + b.inputs.length * 8).u8(C2S.Input).f32(b.viewTick).u8(Math.min(MAX_BATCH, b.inputs.length));
   const list = b.inputs.slice(-MAX_BATCH);
   w.u32(list.length ? list[0].seq : 0);
-  for (const i of list) w.i8(i.fwd).i8(i.strafe).u16(qYaw(i.yaw)).i16(qPitch(i.pitch)).u8(i.buttons);
+  for (const i of list) w.i8(i.fwd).i8(i.strafe).u16(qYaw(i.yaw)).i16(qPitch(i.pitch)).u16(i.buttons);
   return w.done();
 }
 
@@ -77,8 +77,8 @@ export function decodeInputs(r: Reader): InputBatch {
   const first = r.u32();
   const inputs: MoveInput[] = [];
   for (let k = 0; k < n; k++) {
-    if (r.left < 7) break;
-    inputs.push({ seq: first + k, fwd: r.i8(), strafe: r.i8(), yaw: dqYaw(r.u16()), pitch: dqPitch(r.i16()), buttons: r.u8() });
+    if (r.left < 8) break;
+    inputs.push({ seq: first + k, fwd: r.i8(), strafe: r.i8(), yaw: dqYaw(r.u16()), pitch: dqPitch(r.i16()), buttons: r.u16() });
   }
   return { viewTick: Number.isFinite(viewTick) ? viewTick : 0, inputs };
 }
@@ -100,8 +100,15 @@ export interface SelfState {
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
   /** MoveState extras needed for exact reconciliation. */
-  moveFlags: number; // 1 grounded, 2 crouched
+  moveFlags: number; // 1 grounded, 2 crouched, 4 mantling, 8 sprinting
   slideT: number; slideCd: number;
+  tacT: number; tacRecharge: number; stunT: number;
+  mantleT: number; mfx: number; mfy: number; mfz: number; mtx: number; mty: number; mtz: number;
+  lethals: number; tacticals: number;
+  /** Earned but unused killstreak ids (indices into the player's 3 streak slots bitmask). */
+  streakMask: number;
+  /** Kills this life. */
+  streak: number;
   health: number;
   ammo: number;
   reserve: number;
@@ -129,7 +136,10 @@ export function encodeSnapshot(s: Snapshot, prev: Map<number, EntityState>): Arr
     const m = s.self;
     w.u8(1).f32(m.x).f32(m.y).f32(m.z).f32(m.vx).f32(m.vy).f32(m.vz).u8(m.moveFlags)
       .u16(Math.round(m.slideT * 1000)).u16(Math.round(m.slideCd * 1000))
-      .u8(Math.max(0, Math.min(255, Math.round(m.health)))).u16(m.ammo).u16(m.reserve).u8(m.weapon);
+      .u16(Math.round(m.tacT * 1000)).u16(Math.round(m.tacRecharge * 1000)).u16(Math.round(m.stunT * 1000))
+      .u8(Math.max(0, Math.min(255, Math.round(m.health)))).u16(m.ammo).u16(m.reserve).u8(m.weapon)
+      .u8(m.lethals).u8(m.tacticals).u8(m.streakMask).u8(Math.min(255, m.streak));
+    if (m.moveFlags & 4) w.u16(Math.round(m.mantleT * 65535)).f32(m.mfx).f32(m.mfy).f32(m.mfz).f32(m.mtx).f32(m.mty).f32(m.mtz);
   } else w.u8(0);
   const countAt = w.o;
   w.u8(0);
@@ -165,7 +175,12 @@ export function decodeSnapshot(r: Reader, known: Map<number, EntityState>): Snap
   const tick = r.u32(), ackSeq = r.u32();
   let self: SelfState | null = null;
   if (r.u8()) {
-    self = { x: r.f32(), y: r.f32(), z: r.f32(), vx: r.f32(), vy: r.f32(), vz: r.f32(), moveFlags: r.u8(), slideT: r.u16() / 1000, slideCd: r.u16() / 1000, health: r.u8(), ammo: r.u16(), reserve: r.u16(), weapon: r.u8() };
+    const x = r.f32(), y = r.f32(), z = r.f32(), vx = r.f32(), vy = r.f32(), vz = r.f32(), moveFlags = r.u8();
+    const slideT = r.u16() / 1000, slideCd = r.u16() / 1000, tacT = r.u16() / 1000, tacRecharge = r.u16() / 1000, stunT = r.u16() / 1000;
+    const health = r.u8(), ammo = r.u16(), reserve = r.u16(), weapon = r.u8(), lethals = r.u8(), tacticals = r.u8(), streakMask = r.u8(), streak = r.u8();
+    let mantleT = -1, mfx = 0, mfy = 0, mfz = 0, mtx = 0, mty = 0, mtz = 0;
+    if (moveFlags & 4) { mantleT = r.u16() / 65535; mfx = r.f32(); mfy = r.f32(); mfz = r.f32(); mtx = r.f32(); mty = r.f32(); mtz = r.f32(); }
+    self = { x, y, z, vx, vy, vz, moveFlags, slideT, slideCd, tacT, tacRecharge, stunT, mantleT, mfx, mfy, mfz, mtx, mty, mtz, health, ammo, reserve, weapon, lethals, tacticals, streakMask, streak };
   }
   const n = r.u8();
   const entities: EntityState[] = [];
@@ -192,14 +207,23 @@ export function encodePong(t: number): ArrayBuffer { return new Writer(5).u8(S2C
 // ---- JSON control messages -------------------------------------------------------------------
 export type ServerEvent =
   | { t: 'welcome'; you: number; room: string; mode: string; map: string; tick: number; tickRate: number; private: boolean; guest: boolean; name: string; protocol: number }
-  | { t: 'roster'; players: { id: number; name: string; team: number; level: number; prestige: number; kills: number; deaths: number; score: number; bot?: boolean }[] }
+  | { t: 'roster'; players: { id: number; name: string; team: number; level: number; prestige: number; kills: number; deaths: number; score: number; quiet: boolean; noPlate: boolean }[] }
   | { t: 'kill'; killer: number; victim: number; weapon: string; head: boolean; tick: number }
   | { t: 'hit'; victim: number; dmg: number; head: boolean }
   | { t: 'streak'; id: number; streak: string }
   | { t: 'score'; teams: number[]; flags?: number[]; timeLeft: number }
   | { t: 'tag'; id: number; x: number; y: number; z: number; team: number } // kill confirmed dog tag
   | { t: 'tagGone'; id: number }
-  | { t: 'end'; winner: number; xp: Record<number, number>; reason: string }
+  | { t: 'end'; winner: number; xp: Record<number, number>; dollars: Record<number, number>; reason: string }
+  | { t: 'proj'; id: number; kind: string; owner: number; x: number; y: number; z: number; vx: number; vy: number; vz: number }
+  | { t: 'boom'; id: number; kind: string; x: number; y: number; z: number; r: number }
+  | { t: 'equip'; id: number; kind: string; owner: number; team: number; x: number; y: number; z: number; yaw: number }
+  | { t: 'equipGone'; id: number }
+  | { t: 'flash'; strength: number; dur: number }
+  | { t: 'stun'; dur: number }
+  | { t: 'smoke'; x: number; y: number; z: number; dur: number }
+  | { t: 'radar'; pts: { x: number; z: number; id: number }[]; jammed: boolean }
+  | { t: 'camo'; weapon: string; camo: string }
   | { t: 'error'; msg: string };
 
 export type ClientEvent =

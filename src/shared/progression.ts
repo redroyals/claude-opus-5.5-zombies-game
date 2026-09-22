@@ -1,18 +1,18 @@
-// Progression math: XP -> level (1..55), prestige (0..10), XP awards. Pure.
-export const MAX_LEVEL = 55;
+// Progression math: XP -> level (1..100), prestige (0..10), XP + dollar awards. Pure.
+export const MAX_LEVEL = 100;
 export const MAX_PRESTIGE = 10;
 
-/** Total XP required to *reach* level L (L=1 => 0). Gently rising curve: ~1.25M XP to hit 55. */
+/** XP needed to go from level l to l+1 (~3M XP total to reach 100). */
+export function xpToNext(level: number): number {
+  return Math.round(1000 + 180 * level + 6 * level * level);
+}
+
+/** Total XP required to *reach* level L (L=1 => 0). */
 export function xpForLevel(level: number): number {
   const L = Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
   let total = 0;
   for (let i = 1; i < L; i++) total += xpToNext(i);
   return total;
-}
-
-/** XP needed to go from level l to l+1. */
-export function xpToNext(level: number): number {
-  return Math.round(800 + 250 * level + 18 * level * level);
 }
 
 export function levelForXp(xp: number): number {
@@ -31,22 +31,15 @@ export function canPrestige(p: Progress): boolean {
   return levelForXp(p.xp) >= MAX_LEVEL && p.prestige < MAX_PRESTIGE;
 }
 
+/** Prestige resets level; base unlocks are kept (see unlocks.ts) and a prestige token is granted. */
 export function prestige(p: Progress): Progress {
   if (!canPrestige(p)) return p;
   return { xp: 0, prestige: p.prestige + 1 };
 }
 
 export const XP = {
-  kill: 100,
-  headshotBonus: 50,
-  assist: 50,
-  confirm: 50, // kill confirmed tag
-  deny: 25,
-  capture: 150,
-  defend: 75,
-  win: 500,
-  loss: 200, // completion bonus
-  streakBonus: 25, // per kill in a streak beyond 3
+  kill: 100, headshotBonus: 50, assist: 50, confirm: 50, deny: 25, capture: 150, defend: 75,
+  win: 500, loss: 200, streakBonus: 25,
 };
 
 /** Match XP cap per match (anti-farm). */
@@ -61,7 +54,36 @@ export function matchXp(s: MatchStats): number {
   return Math.max(0, Math.min(MATCH_XP_CAP, Math.round(xp)));
 }
 
-/** Weapon level from kills with it (for attachment unlocks). */
-export function weaponLevelForKills(kills: number): number {
-  return Math.min(15, 1 + Math.floor(Math.sqrt(Math.max(0, kills) / 4)));
+// ---- weapon levels (attachment unlocks) --------------------------------------------------------
+export const WEAPON_MAX_LEVEL = 30;
+export function weaponXpToNext(level: number): number { return 600 + 150 * level; }
+export function weaponLevelForXp(xp: number): number {
+  let lvl = 1, need = 0;
+  while (lvl < WEAPON_MAX_LEVEL) { need += weaponXpToNext(lvl); if (xp < need) break; lvl++; }
+  return lvl;
+}
+/** Weapon XP per kill with that weapon (headshots worth more). */
+export const WEAPON_XP = { kill: 100, headshot: 40 };
+
+// ---- in-game dollars (no real money; server-side ledger only) -----------------------------------
+export const DOLLARS = {
+  /** Match payout = xp / 20, capped. */
+  perMatchXpDivisor: 20,
+  matchCap: 1500,
+  perLevel: 250,
+  perPrestige: 5000,
+  perCamo: 100,
+  perGilded: 1000,
+  perArgent: 2500,
+  perPrism: 5000,
+  perVoid: 25000,
+};
+
+export function matchDollars(xp: number): number {
+  return Math.min(DOLLARS.matchCap, Math.floor(Math.max(0, xp) / DOLLARS.perMatchXpDivisor));
+}
+
+/** Dollars from levelling from xpBefore to xpAfter (same prestige). */
+export function levelUpDollars(xpBefore: number, xpAfter: number): number {
+  return Math.max(0, levelForXp(xpAfter) - levelForXp(xpBefore)) * DOLLARS.perLevel;
 }

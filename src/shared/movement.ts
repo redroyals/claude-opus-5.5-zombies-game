@@ -10,10 +10,24 @@ export const MOVE = {
   walk: 4.6, sprint: 7.1, crouchSpeed: 2.3, ads: 2.9,
   groundAccel: 55, airAccel: 9, friction: 10, gravity: 17, jump: 5.4, step: 0.55,
   slideSpeed: 9.4, slideTime: 0.75, slideFriction: 2.2, slideCooldown: 0.6,
+  tacSprint: 8.4, tacTime: 3, tacRecharge: 4,
+  mantleMin: 0.55, mantleMax: 1.9, mantleReach: 0.55, mantleTime: 0.32,
+  stunSpeedMult: 0.55,
 };
 
+/** Perk/weapon/status modifiers to movement (see perks.ts). */
+export interface MoveMods {
+  speedMult: number;
+  tacSprintMult: number;
+  tacRechargeMult: number;
+  mantleTimeMult: number;
+  slideCooldownMult: number;
+  slideSpeedMult: number;
+}
+export const NO_MODS: MoveMods = { speedMult: 1, tacSprintMult: 1, tacRechargeMult: 1, mantleTimeMult: 1, slideCooldownMult: 1, slideSpeedMult: 1 };
+
 /** Buttons bitfield (u8 on the wire). */
-export const BTN = { jump: 1, crouch: 2, sprint: 4, ads: 8, fire: 16, reload: 32, swap: 64, use: 128 } as const;
+export const BTN = { jump: 1, crouch: 2, sprint: 4, ads: 8, fire: 16, reload: 32, swap: 64, use: 128, lethal: 256, tactical: 512, melee: 1024 } as const;
 
 export interface MoveInput {
   seq: number;
@@ -33,10 +47,22 @@ export interface MoveState {
   slideT: number;
   slideCd: number;
   sdx: number; sdz: number;
+  /** Tactical sprint seconds remaining / seconds until it recharges. */
+  tacT: number;
+  tacRecharge: number;
+  sprinting: boolean;
+  /** Mantle tween progress 0..1 (<0 = not mantling) and endpoints. */
+  mantleT: number;
+  mfx: number; mfy: number; mfz: number;
+  mtx: number; mty: number; mtz: number;
+  /** Seconds of concussion slow remaining. */
+  stunT: number;
+  /** Downward speed at the moment of landing this tick (0 if no landing). */
+  landImpact: number;
 }
 
 export function newMoveState(x = 0, y = 0, z = 0): MoveState {
-  return { x, y, z, vx: 0, vy: 0, vz: 0, grounded: true, crouched: false, slideT: 0, slideCd: 0, sdx: 0, sdz: 0 };
+  return { x, y, z, vx: 0, vy: 0, vz: 0, grounded: true, crouched: false, slideT: 0, slideCd: 0, sdx: 0, sdz: 0, tacT: MOVE.tacTime, tacRecharge: 0, sprinting: false, mantleT: -1, mfx: 0, mfy: 0, mfz: 0, mtx: 0, mty: 0, mtz: 0, stunT: 0, landImpact: 0 };
 }
 
 export function height(s: MoveState): number { return s.crouched || s.slideT > 0 ? MOVE.crouch : MOVE.stand; }
@@ -101,8 +127,22 @@ export function rayBox(ox: number, oy: number, oz: number, dx: number, dy: numbe
 }
 
 /** Advance one fixed tick. Mutates and returns s. `speedMult` = weapon mobility. */
-export function stepMove(s: MoveState, inp: MoveInput, world: BoxWorld, speedMult = 1): MoveState {
+export function stepMove(s: MoveState, inp: MoveInput, world: BoxWorld, mods: MoveMods = NO_MODS): MoveState {
   const dt = TICK_DT;
+  s.landImpact = 0;
+  s.stunT = Math.max(0, s.stunT - dt);
+  if (s.mantleT >= 0) {
+    // Rise, then move forward. No animation lock beyond the tween; ends grounded.
+    s.mantleT = Math.min(1, s.mantleT + dt / (MOVE.mantleTime * mods.mantleTimeMult));
+    const k = s.mantleT, rise = Math.min(1, k / 0.6), fwdK = Math.max(0, (k - 0.35) / 0.65);
+    s.y = s.mfy + (s.mty - s.mfy) * rise;
+    s.x = s.mfx + (s.mtx - s.mfx) * fwdK;
+    s.z = s.mfz + (s.mtz - s.mfz) * fwdK;
+    s.vx = s.vy = s.vz = 0;
+    if (s.mantleT >= 1) { s.mantleT = -1; s.grounded = true; }
+    return s;
+  }
+  const speedMult = mods.speedMult * (s.stunT > 0 ? MOVE.stunSpeedMult : 1);
   const fwd = clamp(inp.fwd, -127, 127) / 127, str = clamp(inp.strafe, -127, 127) / 127;
   const b = inp.buttons;
   const sinY = Math.sin(inp.yaw), cosY = Math.cos(inp.yaw);
@@ -112,11 +152,22 @@ export function stepMove(s: MoveState, inp: MoveInput, world: BoxWorld, speedMul
   if (wl > 1) { wx /= wl; wz /= wl; }
 
   const wantCrouch = (b & BTN.crouch) !== 0;
-  const sprinting = (b & BTN.sprint) !== 0 && fwd > 0.5 && !(b & BTN.ads);
+  const sprinting = (b & BTN.sprint) !== 0 && fwd > 0.5 && !(b & BTN.ads) && !s.crouched && s.stunT <= 0;
+  s.sprinting = sprinting && s.slideT <= 0;
   s.slideCd = Math.max(0, s.slideCd - dt);
+  // Tactical sprint: the first tacTime seconds of a sprint are faster; recharges while not sprinting.
+  const tacMax = MOVE.tacTime * mods.tacSprintMult;
+  let tac = false;
+  if (s.sprinting && s.grounded) {
+    if (s.tacT > 0) { tac = true; s.tacT = Math.max(0, s.tacT - dt); }
+    s.tacRecharge = MOVE.tacRecharge * mods.tacRechargeMult;
+  } else if (!s.sprinting) {
+    s.tacRecharge = Math.max(0, s.tacRecharge - dt);
+    if (s.tacRecharge <= 0) s.tacT = tacMax;
+  }
   // Slide start
   if (wantCrouch && sprinting && s.grounded && s.slideT <= 0 && s.slideCd <= 0 && !s.crouched) {
-    const sp = Math.max(MOVE.slideSpeed, Math.hypot(s.vx, s.vz) * 1.15);
+    const sp = Math.max(MOVE.slideSpeed * mods.slideSpeedMult, Math.hypot(s.vx, s.vz) * 1.15);
     const l = Math.hypot(wx, wz) || 1;
     s.sdx = wx / l; s.sdz = wz / l;
     s.vx = s.sdx * sp; s.vz = s.sdz * sp;
@@ -126,12 +177,12 @@ export function stepMove(s: MoveState, inp: MoveInput, world: BoxWorld, speedMul
     s.slideT -= dt;
     const decay = Math.max(0, 1 - MOVE.slideFriction * dt);
     s.vx *= decay; s.vz *= decay;
-    if (s.slideT <= 0 || !wantCrouch) { s.slideT = 0; s.slideCd = MOVE.slideCooldown; }
+    if (s.slideT <= 0 || !wantCrouch) { s.slideT = 0; s.slideCd = MOVE.slideCooldown * mods.slideCooldownMult; }
   } else {
     // Crouch with clearance check
     if (wantCrouch) s.crouched = true;
     else if (s.crouched && !world.overlaps(s.x, s.y + 0.05, s.z, MOVE.radius, MOVE.stand - 0.05)) s.crouched = false;
-    const max = (s.crouched ? MOVE.crouchSpeed : b & BTN.ads ? MOVE.ads : sprinting ? MOVE.sprint : MOVE.walk) * speedMult;
+    const max = (s.crouched ? MOVE.crouchSpeed : b & BTN.ads ? MOVE.ads : sprinting ? (tac ? MOVE.tacSprint : MOVE.sprint) : MOVE.walk) * speedMult;
     const tx = wx * max, tz = wz * max;
     const acc = s.grounded ? MOVE.groundAccel : MOVE.airAccel;
     if (s.grounded && wl < 0.01) {
@@ -140,6 +191,17 @@ export function stepMove(s: MoveState, inp: MoveInput, world: BoxWorld, speedMul
     } else {
       s.vx = approach(s.vx, tx, acc * dt);
       s.vz = approach(s.vz, tz, acc * dt);
+    }
+  }
+  // Mantle: jump into a ledge, or hold forward while airborne against one.
+  if (fwd > 0.3 && s.slideT <= 0 && (!s.grounded || b & BTN.jump) && (b & BTN.jump || s.vy < 1)) {
+    const l = Math.hypot(wx, wz) || 1;
+    const top = findLedge(world, s.x, s.y, s.z, wx / l, wz / l);
+    if (top !== null) {
+      s.mantleT = 0; s.mfx = s.x; s.mfy = s.y; s.mfz = s.z;
+      s.mtx = s.x + (wx / l) * (MOVE.mantleReach + MOVE.radius * 0.5); s.mty = top; s.mtz = s.z + (wz / l) * (MOVE.mantleReach + MOVE.radius * 0.5);
+      s.crouched = false; s.slideT = 0;
+      return s;
     }
   }
   // Jump (cancels slide, keeps momentum)
@@ -157,12 +219,24 @@ export function stepMove(s: MoveState, inp: MoveInput, world: BoxWorld, speedMul
   const ny = s.y + s.vy * dt;
   if (!world.overlaps(s.x, ny, s.z, MOVE.radius, h)) { s.y = ny; s.grounded = false; }
   else {
-    if (s.vy < 0) { s.y = snapDown(s, world, h, ny); s.grounded = true; }
+    if (s.vy < 0) { if (!s.grounded) s.landImpact = -s.vy; s.y = snapDown(s, world, h, ny); s.grounded = true; }
     s.vy = 0;
   }
   if (s.vy <= 0 && !s.grounded && world.overlaps(s.x, s.y - 0.02, s.z, MOVE.radius, 0.02)) s.grounded = true;
   if (s.y < -20) { s.y = 0; s.vy = 0; } // safety
   return s;
+}
+
+/** Ledge probe for mantling: the first height in [mantleMin, mantleMax] where a standing capsule fits. */
+export function findLedge(w: BoxWorld, x: number, y: number, z: number, dx: number, dz: number): number | null {
+  const ax = x + dx * MOVE.mantleReach, az = z + dz * MOVE.mantleReach;
+  if (!w.overlaps(ax, y + MOVE.mantleMin - 0.05, az, MOVE.radius * 0.8, 0.1)) return null;
+  for (let hh = MOVE.mantleMin; hh <= MOVE.mantleMax + 1e-6; hh += 0.05) {
+    if (w.overlaps(ax, y + hh, az, MOVE.radius, MOVE.crouch)) continue;
+    if (w.overlaps(x, y + 0.05, z, MOVE.radius * 0.9, hh + MOVE.crouch)) return null;
+    return y + hh;
+  }
+  return null;
 }
 
 function moveAxis(s: MoveState, w: BoxWorld, h: number, dx: number, dz: number) {
