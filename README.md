@@ -76,3 +76,12 @@ Fonts come from the local system stack. Three.js is MIT licensed.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Rounds (Zombies) mode — `phase1` branch
+
+Press **ZOMBIES · ROUNDS** on the title screen (or open `/?mode=zombies`). You start with the P-19 and 500 points.
+Rounds scale forever. Spend points at wall-buys (chalk signs), the Cache (mystery box, 950), the power switch, 4 perk
+machines, and the Reforger (pack-a-punch, needs power). New movement: **slide** (sprint + C) and **mantle**
+(jump at a waist-to-head-height ledge). See `docs/DESIGN.md` and `docs/ROADMAP.md`.
+
+Asset samples: `pnpm dev` then open `http://127.0.0.1:5173/samples.html` (dev-only review page for `assets/samples/*.glb`).

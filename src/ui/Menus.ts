@@ -12,7 +12,8 @@ export class Menus {
   private settingsReturn: Screen = 'title';
 
   constructor(private game: Game) {
-    $('btn-deploy').addEventListener('click', () => void this.game.deploy());
+    $('btn-deploy').addEventListener('click', () => { this.game.setMode('extraction'); void this.game.deploy(); });
+    $('btn-zombies').addEventListener('click', () => { this.game.setMode('zombies'); void this.game.deploy(); });
     $('btn-settings').addEventListener('click', () => this.openSettings('title'));
     $('btn-resume').addEventListener('click', () => void this.game.resume());
     $('btn-pause-settings').addEventListener('click', () => this.openSettings('pause'));

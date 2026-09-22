@@ -24,9 +24,11 @@ import { ViewModel } from '../weapons/ViewModel';
 import { WeaponSystem } from '../weapons/WeaponSystem';
 import { addReserve, cancelReload, createWeapon, effectiveStats, isReloading } from '../weapons/WeaponState';
 import { Level } from '../world/Level';
+import { ZombiesMode, type ZInteraction } from '../zombies/ZombiesMode';
 import { Input } from './Input';
 import { loadBest, loadSettings, recordBest, saveSettings, type Settings } from './Settings';
 
+export type GameMode = 'extraction' | 'zombies';
 export type GameState = 'title' | 'playing' | 'paused' | 'dying' | 'extracting' | 'results';
 
 type Interaction =
@@ -34,7 +36,8 @@ type Interaction =
   | { kind: 'station'; station: 'buy' | 'upgrade' }
   | { kind: 'transmitter' }
   | { kind: 'radio' }
-  | { kind: 'board' };
+  | { kind: 'board' }
+  | { kind: 'zm'; zm: ZInteraction };
 
 export class Game {
   state: GameState = 'title';
@@ -57,6 +60,8 @@ export class Game {
   readonly map: MapRenderer;
   weapons: WeaponSystem;
   mission!: Mission;
+  mode: GameMode = new URLSearchParams(location.search).get('mode') === 'zombies' ? 'zombies' : 'extraction';
+  readonly zm: ZombiesMode;
   loadout!: Loadout;
   settings: Settings;
   private acc = 0;
@@ -113,6 +118,13 @@ export class Game {
     this.renderer.scene.add(this.interact.group);
     this.heli = new Helicopter(this.M, this.level.poi.heliLand.x, this.level.poi.heliLand.z);
     this.renderer.scene.add(this.heli.group);
+    this.zm = new ZombiesMode({
+      level: this.level, enemies: this.enemies, loadout: () => this.loadout, vitals: () => this.player.vitals,
+      syncWeapons: () => this.weapons.syncModel(),
+      toast: (t, k = '', sm = '', d = 2.5) => this.hud.toast(t, k, sm, d),
+      sound: (k) => this.audio.ui(k),
+    });
+    this.renderer.scene.add(this.zm.group);
     this.contamWall = this.buildContaminationWall();
     this.renderer.scene.add(this.contamWall);
     onProgress(0.85, 'SYNCHRONISING…');
@@ -120,7 +132,7 @@ export class Game {
     this.hud = new Hud(this.map);
     this.input = new Input(this.renderer.renderer.domElement);
     this.weapons = new WeaponSystem(this.newLoadout(), this.vm, this.audio, this.fx, {
-      onHit: (fb) => { this.hud.hit(fb.kind); this.audio.hitmarker(fb.kind); },
+      onHit: (fb) => { this.hud.hit(fb.kind); this.audio.hitmarker(fb.kind); if (this.mode === 'zombies') this.zm.onHit(fb.kind); },
       onShot: () => { this.mission.stats.shots++; },
     });
     this.menus = new Menus(this);
@@ -160,7 +172,21 @@ export class Game {
     this.loadout = this.newLoadout();
     this.weapons.reset(this.loadout);
     this.player.reset(poi.playerSpawn.x, poi.playerSpawn.z, poi.playerSpawn.yaw);
-    this.spawner.populate();
+    const zombies = this.mode === 'zombies';
+    this.zm.group.visible = zombies;
+    this.interact.group.visible = !zombies;
+    this.heli.group.visible = !zombies;
+    if (zombies) {
+      this.zm.reset();
+      this.loadout.slots = [createWeapon('pistol'), null];
+      this.loadout.cash = 0;
+      this.weapons.reset(this.loadout);
+      this.player.vitals.armor = 0;
+      this.player.vitals.plates = 0;
+    } else {
+      this.zm.clearMods();
+      this.spawner.populate();
+    }
     this.level.defenseRing.visible = false;
     this.station = null;
     this.mapOpen = false;
@@ -180,6 +206,13 @@ export class Game {
     this.renderer.grade.uniforms.uDamage.value = 0;
     this.renderer.grade.uniforms.uLowHealth.value = 0;
     (document.getElementById('fade') as HTMLElement).style.opacity = '0';
+  }
+
+  /** Switch game mode; takes effect on the next deploy (which resets the level). */
+  setMode(m: GameMode): void {
+    if (this.mode === m) return;
+    this.mode = m;
+    if (this.state === 'title') this.resetMission();
   }
 
   /** Deploy from the title screen or redeploy from results. Must be called from a user gesture. */
@@ -401,7 +434,8 @@ export class Game {
     this.enemies.update(dt, this.playerTarget());
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camQuat);
     const fl = Math.hypot(fwd.x, fwd.z) || 1;
-    this.spawner.update(dt, {
+    if (this.mode === 'zombies') this.zm.update(dt, { x: p.pos.x, z: p.pos.z });
+    else this.spawner.update(dt, {
       px: p.pos.x, pz: p.pos.z, eyeY: p.eyeY, fx: fwd.x / fl, fz: fwd.z / fl,
       pressure: this.mission.pressure,
       defenseActive: this.mission.defense.status === 'active',
@@ -409,9 +443,9 @@ export class Game {
     });
 
     // Mission
-    const events = this.mission.update(dt, { x: p.pos.x, z: p.pos.z }, v.alive);
+    const events = this.mode === 'zombies' ? [] : this.mission.update(dt, { x: p.pos.x, z: p.pos.z }, v.alive);
     for (const e of events) this.onMissionEvent(e);
-    if (this.mission.inContamination(p.pos.x, p.pos.z) && v.alive) {
+    if (this.mode !== 'zombies' && this.mission.inContamination(p.pos.x, p.pos.z) && v.alive) {
       applyDamage(v, MISSION.contaminationDps * dt, true);
       this.toxicTick -= dt;
       if (this.toxicTick <= 0) { this.toxicTick = 1.2; this.audio.hurt(false); }
@@ -437,6 +471,7 @@ export class Game {
     }
 
     // Defeat checks
+    if (!v.alive && this.mode === 'zombies') this.zm.onDowned(v);
     if (!v.alive) this.onDeath();
     else if (this.mission.outcome === 'timeout') this.onTimeout();
   }
@@ -477,6 +512,10 @@ export class Game {
     const p = this.player.pos;
     const poi = this.level.poi;
     const near = (x: number, z: number, r: number, y = 0) => Math.hypot(x - p.x, z - p.z) < r && Math.abs(p.y - y) < 1.6;
+    if (this.mode === 'zombies') {
+      const z = this.zm.find(p.x, p.z);
+      return z && p.y < 2.2 ? { kind: 'zm', zm: z } : null;
+    }
     const ex = this.mission.extraction;
     if (ex.state === 'landed' && ex.canBoard({ x: p.x, z: p.z }, this.player.vitals.alive)) return { kind: 'board' };
     if (near(poi.radio.x, poi.radio.z, MISSION.radioRadius)) return { kind: 'radio' };
@@ -501,6 +540,7 @@ export class Game {
     }
     if (!pressed) return;
     switch (it.kind) {
+      case 'zm': this.zm.use(it.zm); break;
       case 'crate': this.lootCrate(it.crate); break;
       case 'station':
         this.station = this.station === it.station ? null : it.station;
@@ -633,6 +673,7 @@ export class Game {
     if (this.state !== 'playing' && this.state !== 'dying') return;
     this.mission.stats.kills++;
     if (head) this.mission.stats.headshots++;
+    if (this.mode === 'zombies') { this.zm.onKill(head); return; }
     if (z.elite) {
       if (this.mission.onEliteKilled()) {
         addCash(this.loadout, MISSION.huntReward);
@@ -903,6 +944,7 @@ export class Game {
         case 'radio': prompt = ex.state === 'available' ? '<kbd>E</kbd> Signal extraction <span class="cost">STARTS FINAL HORDE</span>'
           : ex.state === 'locked' ? 'Extraction radio <span class="denied">COMPLETE BOTH CONTRACTS</span>' : null; break;
         case 'board': prompt = '<kbd>E</kbd> Board the helicopter'; break;
+        case 'zm': prompt = this.zm.prompt(it.zm); break;
       }
     }
     const other = this.loadout.slots[this.loadout.active === 0 ? 1 : 0];
@@ -912,11 +954,20 @@ export class Game {
     const spreadDeg = this.weapons.currentSpread(p);
     const spreadPx = (Math.tan((spreadDeg * Math.PI) / 180) / Math.tan(fovRad / 2)) * (window.innerHeight / 2);
     const stats = w ? effectiveStats(w.id, w.tier) : null;
+    const zmode = this.mode === 'zombies';
+    if (zmode) {
+      const r = this.zm.rounds;
+      contracts.length = 0;
+      contracts.push({ title: `ROUND ${Math.max(1, r.round)}`, tag: r.spec.special ? 'SPECIAL' : 'ZOMBIES',
+        sub: r.phase === 'break' ? `Next round in ${Math.ceil(r.timer)}s` : `${r.toSpawn + this.enemies.aliveCount} remaining`, state: 'active' });
+      contracts.push({ title: 'PERKS', tag: `${this.zm.zp.perks.length}/4`, sub: this.zm.zp.perks.join(' · ') || 'none', state: 'active' });
+      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? 'Reforger + perks live' : 'Find the switch', state: this.zm.power ? 'done' : 'active' });
+    }
     this.hud.update(dt, {
-      remaining: m.remaining, finalPhase: m.finalPhase,
-      timerLabel: m.finalPhase ? 'EXFIL WINDOW' : 'MISSION',
+      remaining: zmode ? this.survival : m.remaining, finalPhase: zmode ? false : m.finalPhase,
+      timerLabel: zmode ? 'SURVIVED' : m.finalPhase ? 'EXFIL WINDOW' : 'MISSION',
       contracts, region: regionAt(p.pos.z),
-      health: v.health, armor: v.armor, plates: v.plates, grenades: this.loadout.grenades, cash: this.loadout.cash,
+      health: v.health, armor: v.armor, plates: v.plates, grenades: this.loadout.grenades, cash: zmode ? this.zm.zp.points : this.loadout.cash,
       weaponName: w ? WEAPONS[w.id].name : '', tier: w?.tier ?? 0, mag: w?.mag ?? 0, magSize: stats?.magSize ?? 1, reserve: w?.reserve ?? 0,
       reloading: w ? isReloading(w) : false,
       secondary: other ? `[${this.loadout.active === 0 ? 2 : 1}] ${WEAPONS[other.id].shortName}  ${other.mag}/${other.reserve}` : '',
@@ -930,6 +981,8 @@ export class Game {
 
     // Waypoints
     const wps: WaypointView[] = [];
+    if (zmode) { this.hud.updateWaypoints(wps, this.renderer.camera, p.pos.x, p.pos.z); }
+    else {
     if (d.status !== 'complete') wps.push({ x: poi.transmitter.x, y: 4, z: poi.transmitter.z, kind: 'contract', icon: 'D', label: d.status === 'active' ? 'DEFEND' : 'UPLINK' });
     if (ex.state !== 'locked' && ex.state !== 'boarded') wps.push({ x: poi.lzPad.x, y: 2.5, z: poi.lzPad.z, kind: 'lz', icon: 'H', label: ex.state === 'landed' ? 'BOARD' : 'EXFIL' });
     if (eliteZ && eliteZ.alive && m.hunt.status !== 'complete') {
@@ -943,6 +996,7 @@ export class Game {
       }
     }
     this.hud.updateWaypoints(wps, this.renderer.camera, p.pos.x, p.pos.z);
+    }
 
     // Maps
     const markers: MapMarker[] = [];

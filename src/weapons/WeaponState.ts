@@ -25,18 +25,22 @@ export interface EffectiveStats {
   shell?: { start: number; perShell: number; end: number };
 }
 
+/** Global player modifiers (Zombies perks). Identity by default so the extraction mode is unaffected. */
+export const WEAPON_MODS = { damageMult: 1, rpmMult: 1, reloadMult: 1 };
+
 export function effectiveStats(id: WeaponId, tier: number): EffectiveStats {
   const d: WeaponDef = WEAPONS[id];
   const t = UPGRADE_TIERS[Math.max(0, Math.min(UPGRADE_TIERS.length - 1, tier))];
+  const m = WEAPON_MODS;
   return {
-    damage: d.damage * t.damageMult,
+    damage: d.damage * t.damageMult * m.damageMult,
     magSize: Math.round(d.magSize * t.magMult),
     reserveMax: Math.round(d.reserveMax * t.magMult),
-    reloadTime: d.reloadTime * t.reloadMult,
-    fireInterval: 60 / (d.rpm * t.rpmMult),
+    reloadTime: d.reloadTime * t.reloadMult * m.reloadMult,
+    fireInterval: 60 / (d.rpm * t.rpmMult * m.rpmMult),
     spreadMult: t.spreadMult,
     shell: d.shellReload
-      ? { start: d.shellReload.start * t.reloadMult, perShell: d.shellReload.perShell * t.reloadMult, end: d.shellReload.end * t.reloadMult }
+      ? { start: d.shellReload.start * t.reloadMult * m.reloadMult, perShell: d.shellReload.perShell * t.reloadMult * m.reloadMult, end: d.shellReload.end * t.reloadMult * m.reloadMult }
       : undefined,
   };
 }
