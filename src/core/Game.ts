@@ -430,7 +430,7 @@ export class Game {
     const p = this.player;
     const cam = this.renderer.camera;
     cam.position.set(p.pos.x, p.eyeY, p.pos.z);
-    this.camEuler.set(p.pitch, p.yaw, 0, 'YXZ');
+    this.camEuler.set(p.pitch + this.weapons.swayPitch, p.yaw + this.weapons.swayYaw, 0, 'YXZ');
     cam.quaternion.setFromEuler(this.camEuler);
     this.camQuat.copy(cam.quaternion);
     cam.updateMatrixWorld();
