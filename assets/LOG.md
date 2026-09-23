@@ -98,3 +98,24 @@ Meshy start balance 9570 (2026-09-22). Budget: spend <= 4000, script floor 5800 
 - Static props are packed by `scripts/lahore-atlas.mjs` into `public/models/lahore/props_atlas.glb` (one material, 4096 atlas,
   meshopt-simplified to per-prop budgets); sources in `public/models/lahore/src/`. Perk flask glow: `scripts/lahore-perk-glow.mjs`.
 - Review sheets: /tmp/lahore-art/{meshy-s1,meshy-s2,meshy-s3,meshy-s5,perks,kit-v2,kit-b,kit-c}.png.
+## Rio · Ridgelight art pass (branch favela-art, 2026-09-23)
+- **Meshy: 0 credits spent.** Balance read-only check 7,483 at start (above the 5,000 floor; this pass had a 900 cap).
+  The first generation call (`node scripts/meshy-gen.mjs --cat favela --ids fv_hh_brick,fv_hill_cluster,fv_granite_peak,fv_banana --conc 4`,
+  4 x 30 = 120 credits, stage-1 render check) was refused by the session's permission policy before any task was
+  created, so nothing was bought and the whole pass is procedural (Blender + canvas textures). The queued prompts, if
+  the spend is approved later (add them to the FAVELA list with `art: 1`, run with MESHY_CAP_FAVELA=1610):
+  - fv_hh_brick (9.5 m): three-storey self-built hillside house, exposed orange clay brick with thick grey mortar,
+    concrete columns and slab edges, unfinished top floor with rusty rebar, ground floor partly rendered turquoise,
+    iron window grilles, a balcony with a steel railing, a blue water tank, facade facing forward.
+  - fv_hill_cluster (24 m): dense cluster of ~20 small colourful stacked houses up a steep hillside, flat roofs with
+    blue tanks, brick and pastel render, many small dark windows, compact wide block.
+  - fv_granite_peak (backdrop): a single rounded granite dome rising from the sea, bare cliffs with dark water streaks,
+    forest on the lower slopes (generic, not a landmark copy).
+  - fv_banana (4 m), then stage 2: painted two-storey shopfront house, narrow four-storey house with peeling render,
+    samba carnival float (feathers/sequins, no symbols), market fruit stall, snack cart with umbrella, substation
+    gantry, station hall, bougainvillea planter, potted plants, palm, mango tree, scooter.
+- Instead, 0 credits: Blender kit v2 (`tools/blender/favela_houses.py`, `favela_dress.py`): 14 houses + 14 LOD1 shells,
+  16 dressing pieces, new pole and street lamp; `scripts/compress-kit.mjs --keep-uv` (the kit had shipped with its UVs
+  pruned). Reused (copied, no API) nothing: mp-assets `k-ac-cluster` / `l-bench` were considered but the procedural
+  bench and per-window AC units read better at this scale.
+- Deleted from public: fv_house_a..f (v1 houses) and fv_house_block (unused Meshy reuse). public/models/favela: 9.1 MB -> 10.3 MB.

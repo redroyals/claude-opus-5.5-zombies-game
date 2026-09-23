@@ -17,6 +17,9 @@ const pick = (f) => dirArg > 0 ? kitNames?.has(f.slice(0, -4)) : /^(kit_.*|power
 for (const f of fs.readdirSync(DIR).filter(pick)) {
   const d = await io.read(path.join(DIR, f));
   if (d.getRoot().listExtensionsUsed().some((e) => /meshopt/.test(e.extensionName))) continue;
-  await d.transform(prune({ keepLeaves: true }), quantize(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  // --keep-uv: keep world-space UVs on untextured kit slots (the game maps tiling textures onto them at runtime);
+  // plain prune() drops TEXCOORD_0 from materials without textures, and quantize() would normalise UVs past 1.
+  const keepUv = process.argv.includes('--keep-uv');
+  await d.transform(prune({ keepLeaves: true, keepAttributes: keepUv }), quantize(keepUv ? { pattern: /^(POSITION|NORMAL)/ } : {}), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
   fs.writeFileSync(path.join(DIR, f), await io.writeBinary(d)); console.log(f);
 }

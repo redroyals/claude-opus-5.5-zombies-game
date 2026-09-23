@@ -194,6 +194,16 @@ a reachable side):
   light up, and the Reforger's graffiti glows under UV.
 - Light budget: exactly 12 real shadowless point lights (the MAP_API guideline, asserted by a test). The rest is emissive
   sprites and light-pool decals, the same as the existing maps.
+- **Fixtures (art pass):** 9 sodium street lamps (curved arm, cobra head) and 17 wall lamps on every tier (street,
+  beco, laje, the escadaria, the station stair, the mirante, the substation, the bar), each with a glow halo (one
+  `Points` draw per colour, buzzing with the sodium flicker) and a warm light pool on the floor below it (one
+  instanced draw). Lit windows: every glass pane of every placed house is lit or dark on its own (about a quarter lit),
+  in warm tungsten, pale LED, cool fluorescent or TV blue.
+- **After power (art pass):** festoon strings also run criss-cross under the samba hall roof, up the escadaria and
+  twice across the mirante; the hall gets a stage backdrop mural and pennant bunting (bunting is there before power).
+- **Dark walls fixed:** the walls were dark because the kit had no UVs at runtime (see §10), the paints were the engine's
+  grey plaster and the fill was low. Now: procedural surfaces with brighter albedo, hemisphere fill 0.7 -> 1.05
+  (post-power 0.6 -> 0.9), and see-through railings where there were solid steel parapets.
 
 ---
 
@@ -230,54 +240,102 @@ This runs on the generic egg step machine plus the ride API:
 
 ## 10. Assets (as built)
 
-Everything lives in `public/models/favela/`: **7 MB for 48 GLBs**. The map geometry itself is procedural data, so the
-map is playable before any GLB arrives, and models stream in and replace their stand-ins. The whole download is
-far under the 40 MB target.
+Everything lives in `public/models/favela/`: **10.3 MB of GLBs** (the art pass added about 3 MB; budget 22 MB). The map
+geometry itself is procedural data, so the map is playable before any GLB arrives; the models stream in afterwards and
+merge into the hillside as they land (progressive).
 
-**Blender kit, 23 pieces, 0 credits** (`tools/blender/favela_kit.py`, meshopt via `scripts/compress-kit.mjs --dir public/models/favela`):
-- six background houses (`fv_house_a`–`f`, 1 to 4 storeys) with a concrete frame, clay-brick or painted-plaster
-  infill, windows (dark or lit), grilles, sills, rebar stubs, parapets, balconies, an outside stair and small water tanks;
-- a utility pole, sodium street lamp, wall lamp, floodlight mast, cable-line pylon, ladder, railing, tin roof,
-  rebar cluster, window grille, kite, laundry line, three **murals as geometry** (layered suns, waves, leaf fans,
-  zigzags and confetti; no text, no symbols), the station canopy and a goal-frame fallback.
+### Art pass (branch `favela-art`)
 
-Materials are named `fv_*`. The decorate hook maps them onto the game's shared textured materials, and
-`fv_plaster` is tinted per house from a pastel palette through vertex colours.
+**Surfaces, 0 bytes of download** (`src/zombies/maps/favela/materials.ts`, the map entry's `materials()` library, def
+`MatSpec.custom: 'fv:*'` keys). Tileable 512 px PBR sets baked on a canvas at load (1 UV = 2 m): the hollow ceramic
+favela brick with thick, sloppy grey mortar; painted cement render (roller marks, hairline cracks); raw cast
+concrete with formwork lines; walked-on slab. A small shader patch, `fvDetail`, adds what a tiling texture cannot:
+world-space macro colour drift, rain streaks that darken down from every storey line, and on painted render ragged
+patches where the render has fallen off and the brick shows through (more of them low on the wall, rising damp).
+The def's paints are 8 colours (the street front is now 8 houses of different colours, split at points no door
+crosses), the ceilings are pale render, and every surface of the Blender kit maps onto the same library.
+
+**Blender kit v2** (`tools/blender/favela_kit.py` + `favela_houses.py` + `favela_dress.py`, 0 credits):
+- **14 self-built houses** (`fv_h01`–`fv_h14`, 1 to 4 storeys, 1.7k–3.2k triangles) plus a ~100-triangle `.lod1`
+  shell each: concrete frame with corner columns and slab edges that stick out past the walls, per-storey exposed
+  brick or painted render, real window openings (reveals, recessed glass, aluminium frames, sills, iron grilles,
+  open shutters, AC units), steel or wood doors under a small canopy slab with a meter box and a wire, a roll-up
+  shopfront with a striped awning, balconies with railings and washing, storeys that overhang or step back behind a
+  railed terrace, outside stairs with pipe handrails, downpipes, breeze-block vents, and one of four tops (flat laje
+  with parapet, an unfinished storey with rebar and a half-built wall, corrugated tin roof, fibre-cement roof) with
+  water tanks, dishes and a washing line. Every placement gets its own render colour (vertex colour), is mirrored at
+  random and lights its own set of windows.
+- **Dressing:** banana plants, a coconut palm, two broad tropical trees, a bougainvillea planter, a green shrub,
+  a cluster of potted plants in tins, a fruit stall with a striped awning, a snack kiosk with an umbrella, a
+  chain-link fence panel (alpha-tested), a substation gantry with insulators, the **cable-car station hall** on the
+  crest (barrel roof, glazing band, the bull wheel under the roof, red beacons: it receives the line behind the top
+  station), the bottom station's curved roof cap, the lanchonete awning, a concrete bench, a lookout viewer, and a
+  new tapered utility pole (transformer can, insulators, junction boxes) and cobra-head street lamp.
+- Pipeline: `blender -b --factory-startup -P tools/blender/favela_kit.py -- --out public/models/favela`, then
+  `node scripts/compress-kit.mjs --dir public/models/favela --keep-uv`. **`--keep-uv` is new and matters:** the plain
+  `prune()` stripped `TEXCOORD_0` from every untextured slot, so the whole kit shipped without UVs and every tiling
+  texture sampled one texel (the flat, dark walls of the first build). The flag keeps the UVs as floats.
+
+**Draw calls:** the kit's ~40 material slots fold into pools: brick, render, concrete, dark concrete, corrugated
+sheet (vertex-coloured: tin, fibre-cement, rust, shutters), glass (dark / lit), one vertex-coloured "flat" pool for
+every small painted part, plant and fence post, and one self-lit mural pool. About 250 houses, 150 plants and all the
+street furniture cost about a dozen draws. The def's dressing props (`DRESS_PROPS`, formerly `PropDef`s) are drawn
+as one `InstancedMesh` per model with invisible box colliders of exactly the same footprint; every cable, wire and
+festoon wire is one mesh, all festoon bulbs one instanced mesh (the chase is written into instance colours), the neon
+one mesh, the procedural facade bits and railings one mesh.
+
+**Backdrop:** layered ridge bands around the bay (open to the sea at the mouth) and two generic bare-granite domes
+at the water's edge, vertex-coloured with their own dusk light and haze (one unfogged draw, inside the camera's
+700 m far plane). They are generic peaks, not a copy of any real landmark.
+
+**Meshy: 0 credits spent in the art pass.** The planned batch (hero houses, a hillside cluster, a granite peak, a
+banana plant, then market stalls, a samba float, station, gantry, plants; ~30 credits each, cap 900) was not run:
+the runner's first call was refused by this session's permission policy, so everything above is procedural. The
+queued prompts and the exact command are in `assets/LOG.md`. What Meshy would still add: detailed hero facades for
+the few houses nearest the street and laje, a samba float, market-stall and plant heroes with real textures.
+
+### Earlier assets (map-favela branch)
+
+**Blender kit v1, 23 pieces**: six background houses (replaced by the v2 houses above and deleted), pole, lamps,
+floodlight mast, pylon, ladder, railing, tin roof, rebar, grille, kite, laundry, three murals as geometry (no text,
+no symbols), the station canopy and a goal frame.
 
 **Meshy, 710 of the 1,200-credit cap** (ledger in `assets/gen-state.json`, batches in `assets/LOG.md`):
 
 | Batch | Credits | What |
 |---|---|---|
-| reuse from mp-assets | 20 | house block, barrel and gas cylinder fetched by finished task id (0); water tank and satellite previews refined (2 × 10) |
+| reuse from mp-assets | 20 | house block (now unused, deleted from public), barrel and gas cylinder fetched by finished task id (0); water tank and satellite previews refined (2 × 10) |
 | stage 1 | 390 | gondola cabin, bull wheel, transformer, bar counter, fridge, motorbike, wire bundle, goal, samba drums, speakers, costume rack, table + chairs, water tower |
 | stage 2 | 180 | perk machines ×4, Reforger, Cache |
 | retexture | 120 (logged at 20 each) | The "graffiti" prompts produced lettering ("PBR", tags), so all six machines were retextured with letter-free abstract-shapes prompts (`scripts/meshy-retexture.mjs`) |
 
-The gondola cabin's texture carried pseudo-lettering and is cleaned by `scripts/scrub-text.mjs` (a median filter on
-base colour, manifest field `scrub`). Lesson: never write "graffiti" or "tag" in a prompt. Per-asset triangle and
-texture budgets (1.5k–6k triangles, 512 px for small props) live in the manifest.
-
-**What the remaining 490 credits would buy** (not spent; the map does not need them): themed zombies
-(local-looking residents, 6 × ~50 with rigging), a hero samba float and costume mannequins, a real gondola top
-station structure instead of box and canopy, and a Meshy mural relief for the samba hall.
+The gondola cabin's texture carried pseudo-lettering and is cleaned by `scripts/scrub-text.mjs`. Lesson: never write
+"graffiti" or "tag" in a prompt.
 
 ## 11. Implementation notes
 
 - **Def**: `src/zombies/maps/favela/def.ts`, pure data plus two helpers (`cablePath`, `becoY`). Staging rooms
   (`name: 'STAGING'`) give the off-map roofs and yards that zombies drop or climb from a zone, so the validator and
   the director treat them properly.
+- **Entry + surfaces**: `entry.ts` registers the def with `materials.ts` (the procedural `fv:*` surface library) and
+  the decorate hooks; `maps/index.ts` imports the entry.
 - **Decorate**: `src/zombies/maps/favela/decorate.ts`. It builds a visual hillside terrain (kept below every play
-  floor), about 300 kit houses **merged per material** into roughly 10 meshes, about 1,500 instanced far houses and
-  city blocks, 5,200 city lights as one `Points`, the sea and sunset, the cable line and cabins, the wire tangle as
-  one merged tube mesh, festoon strings as 3 instanced meshes, floodlights, murals, neon and **invisible fall guards**
-  (movement-only colliders above every parapet and across climb gaps).
+  floor), about 250 kit houses (detailed within 9 m of the play space, `.lod1` shells beyond; skins in front of the
+  terrace faces never rise above the floor they dress, and no scatter house beside a terrace rises above that
+  terrace) **merged per material pool** into about a dozen meshes, trees and plants merged into the same pools, about
+  1,500 instanced far houses and city blocks, 5,200 city lights as one `Points`, the sea, ridges and domes, the sunset,
+  the cable line and cabins, all cables and wires as one tube mesh, festoon bulbs as one instanced mesh, floodlights,
+  murals, neon, lamp fixtures with glow points and light pools, the dressing props (instanced, see §10), the facade
+  detail on the def's long walls, see-through railings, and **invisible fall guards** (movement-only colliders above
+  every parapet, railing and climb gap).
 - **Update**: animates the cabins from the ride state, festoons chasing after power, neon flicker, sodium buzz
   and the floodlight heads.
 - **API extensions.** zcore upstreamed the shared ones as its canonical API: `machines` (per-map machine GLBs
   and perk footprints), `BoxDef.mat: null` (invisible colliders) and `EggReward.weapon`. Favela adds three more
   on top, all additive and documented in `docs/MAP_API.md`:
   - `rides` (`src/zombies/rides.ts`, plus a player pin in `Game.ts`);
-  - `PropDef.lod` (THREE.LOD with generated `<id>.lod1.glb` twins);
+  - `PropDef.lod` (THREE.LOD with generated `<id>.lod1.glb` twins; the favela itself now draws its props through
+    `DRESS_PROPS` instead);
   - `ride` / `eggStep` in the map update context.
 - **Tests**: `tests/maps-favela.test.ts` covers the validator, the 2-edge-connected door graph, tiers, the power
   cost, Reforger placement, box floors, spawn kinds, doors that must not be shadowed by other prompts, ride
@@ -319,11 +377,39 @@ and triangles are the numbers to watch:
 
 For comparison, the stock Nightfall map measured 327 draw calls and 132k triangles on this harness before zcore's perf pass.
 
+**Art pass, real GPU** (NVIDIA GB10 through ANGLE/GL-EGL, headless chromium, 1280×720, all doors open, a 16-view tour
+before and after power; the GPU was shared with other agents' browsers, so ms are indicative). Before = the
+map-favela build, after = favela-art:
+
+| View | Calls before → after | Triangles before → after | Frame ms after |
+|---|---|---|---|
+| Bottom street | 302 → 239 | 367k → 536k | 7.5 |
+| Stair alley | 297 → 236 | 377k → 545k | 7.9 |
+| Big laje | 267 → 216 | 333k → 497k | 8.0 |
+| Quadra, wide | 275 → 221 | 320k → 510k | 7.4 |
+| Samba hall | 212 → 167 | 307k → 466k | 7.7 |
+| Station, looking over the bay | 285 → 226 | 333k → 503k | 11.0 |
+| Mirante | 266 → 218 | 296k → 497k | 7.6 |
+| Substation | 186 → 151 | 295k → 429k | 7.5 |
+
+`GPU=1 MAP=favela node e2e/zombies-perf.mjs` (24+ zombies chasing, five rooms): calls 271–373 → 212–312, mean frame
+13.6 → 14.7 ms (both runs contended; about 68–73 fps). Calls include the sun's shadow pass (~50). Without the map's own
+dressing a wide view is ~150 calls of engine runtime (compiled walls per material, door kits, window planks,
+machines, signs, chalk) plus the shadow pass, which is why the widest views still sit at 215–240.
+
+**Play-through after the art pass** (swiftshader, the no-reload server): every check passes; on a heavily loaded
+machine two runs tripped the script's fixed 400/700 ms waits (door presses, one perk) while the screenshot showed the
+perk bought, so re-run on a quiet box before reading a single FAIL as a regression.
+
 **Known issues**
-- Worst-case views (the summit, the laje looking down the hill) run over the DESIGN budget of ~150 calls and
-  ~300k triangles. The hillside is mostly merged and instanced; the remaining cost is the per-object runtime (window
-  planks, door kits, props that cast shadows). zcore's perf pass lowered the shared parts. Run
-  `e2e/zombies-perf.mjs` on a real GPU before tuning further.
+- Wide views run at 215–240 calls, over the 200 target; the map-owned part is ~45 (a dozen pools, instanced props,
+  one mesh each for cables, festoons, neon, bits, glows, pools, sky pieces). The rest is shared runtime; the next
+  savings are engine-side (instanced door/debris kits and window planks, fewer batch chunks, a tighter shadow frustum).
+- Triangles went up by ~170k per view (detailed houses within 9 m of the play space, trees). The GB10 does not
+  notice, but the swiftshader e2e runs are slower; a weaker GPU could lower the LOD0 margin in `buildHouses`.
+- The painted render shows brick through ragged patches everywhere (shader noise), including interiors; under the
+  samba hall's magenta light they read as red specks.
+- Meshy was not used in the art pass (see §10), so there are no hero facades, samba float or textured plants.
 - The spawn director prices a spawn point by its own height (height difference counts 3× as distance), so climb
   yards and roof ledges read as "far" even though they deliver onto the player's floor. The def compensates with
   weights of 2.5–4. A `deliversTo` height on `SpawnPointDef` would be the clean fix.

@@ -8,9 +8,12 @@ import { models, type LoadedModel } from '../../../render/ModelRegistry';
 import type { MapDecorateContext, MapUpdateContext } from '../types';
 import type { P3 } from '../../mapdef';
 import {
-  CABIN_H, CABLE, FAVELA, GONDOLA_UP, PEAK, PEAK_CABLE, PEAK_UP, PYLON, SLIDE_PATH, T, TOWER, ZIP,
+  CABIN_H, CABLE, DRESS_PROPS, FAVELA, GONDOLA_UP, PEAK, PEAK_CABLE, PEAK_UP, PYLON, SLIDE_PATH, T, TOWER, ZIP, becoY,
 } from './def';
+import type { DressProp } from './def';
 import { pointAt, rideEase } from '../../rides';
+import { worldBox } from '../../../render/geom';
+import { favelaSurfaces, fvDetail } from './materials';
 
 const [T0, T1, T2, T3, , T5] = T;
 
@@ -52,34 +55,70 @@ function playRects(): R[] {
 const hits = (rs: R[], x0: number, z0: number, x1: number, z1: number, m = 0) => rs.some((r) => x1 > r.x0 - m && x0 < r.x1 + m && z1 > r.z0 - m && z0 < r.z1 + m);
 
 // ------------------------------------------------------------------------------------------------------
-// Shared favela materials (the Blender kit's fv_* slots map onto these)
+// Shared favela materials. The Blender kit's fv_* slots fold into a handful of POOLS so the whole hillside
+// (houses, plants, stalls, fences) costs about ten draw calls: textured surfaces (brick, render, concrete,
+// corrugated sheet) plus one vertex-coloured "flat" pool for every small painted part, and the window glass.
 // ------------------------------------------------------------------------------------------------------
-interface FvMats { byName: Map<string, THREE.Material>; plasterVC: THREE.MeshStandardMaterial; festoon: THREE.MeshBasicMaterial; neon: THREE.MeshBasicMaterial[]; floodHead: THREE.MeshBasicMaterial; sodium: THREE.MeshBasicMaterial; cable: THREE.MeshStandardMaterial }
+interface FvMats { byName: Map<string, THREE.Material>; plasterVC: THREE.MeshStandardMaterial; festoon: THREE.MeshBasicMaterial; neon: THREE.MeshBasicMaterial[]; floodHead: THREE.MeshBasicMaterial; sodium: THREE.MeshBasicMaterial; cable: THREE.MeshStandardMaterial; winLit: THREE.MeshBasicMaterial }
+
+/** Single-colour kit slots that share the vertex-coloured flat material (colour = the slot's paint). */
+const FLAT: Record<string, number> = {
+  fv_steel: 0x4a4f54, fv_rust: 0x7a4a2e, fv_wood: 0x7a5a3a, fv_tank_blue: 0x2c74b8, fv_paint_white: 0xe8e6e0, fv_paint_red: 0xb3261e,
+  fv_paint_yellow: 0xe2b21c, fv_rubber: 0x1a1a1a, fv_pvc: 0x9c9c98, fv_ac: 0xdcd8cf, fv_alum: 0xb4b8bb, fv_door_teal: 0x2f8a86,
+  fv_door_red: 0x9a2a26, fv_door_blue: 0x2e5aa8, fv_door_green: 0x2f7a4a, fv_door_yellow: 0xd8a820, fv_trunk_green: 0x6f7a3a,
+  fv_leaf: 0x3f8a32, fv_leaf2: 0x6aa83a, fv_leaf_dark: 0x2f5e28, fv_fruit_green: 0x8aa43a, fv_fruit_brown: 0x6a5030, fv_bark: 0x6a5a44,
+  fv_flower: 0xd8308a, fv_flower2: 0xf05aa8, fv_pot: 0xb5603a, fv_soil: 0x3a2a1e, fv_tin_can: 0xa8adb0, fv_insulator: 0x8a4a2a,
+  fv_m_orange: 0xf26a1b, fv_m_pink: 0xe8327a, fv_m_teal: 0x12a89a, fv_m_yellow: 0xf5c518, fv_m_blue: 0x1f5fc8, fv_m_green: 0x3cb043,
+  fv_m_purple: 0x7b3fa0, fv_m_white: 0xf2efe8, fv_m_black: 0x1a1a1a, fv_m_sky: 0x56c2e6,
+};
+/** Corrugated sheet slots (galvanised tin, fibre-cement, rusted tin, roll-up shutters). */
+const SHEET: Record<string, number> = { fv_tin: 0xb8bcc0, fv_sheet_tin: 0xb8bcc0, fv_sheet_fibro: 0x8e908a, fv_sheet_rust: 0x8a5436, fv_shutter: 0x9aa0a4 };
+/** Lit-window colours: warm tungsten, pale LED, cool fluorescent, TV blue. */
+const LIT = [0xffb060, 0xffc880, 0xffe2b0, 0xffb060, 0xbfe0ff, 0x8aa8ff];
+
 function favelaMats(ctx: MapDecorateContext): FvMats {
-  const M = ctx.M;
-  const std = (base: THREE.MeshStandardMaterial, color: number) => { const m = base.clone(); m.color.setHex(color); return m; };
-  const brick = std(M.brick, 0xe8a47c);
-  const plasterVC = std(M.plaster, 0xffffff);
-  plasterVC.vertexColors = true;
-  const winDark = new THREE.MeshStandardMaterial({ color: 0x141a20, roughness: 0.25, metalness: 0.3, envMapIntensity: 1.2 });
-  const winLit = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffb366).multiplyScalar(1.25) });
-  const tank = new THREE.MeshStandardMaterial({ color: 0x2a6fb0, roughness: 0.55 });
+  const S = favelaSurfaces();
+  const winDark = new THREE.MeshStandardMaterial({ color: 0x141a20, roughness: 0.18, metalness: 0.4, envMapIntensity: 1.4 });
+  const winLit = new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 1, 1).multiplyScalar(1.15), vertexColors: true });
+  const sheet = fvDetail((ctx.M.corrugated as THREE.MeshStandardMaterial).clone(), { macro: 0.3, streaks: 0 });
+  sheet.color.setHex(0xffffff); sheet.vertexColors = true;
+  const flat = fvDetail(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.72, metalness: 0.05, vertexColors: true, side: THREE.DoubleSide }), { macro: 0.1, streaks: 0 });
+  const link = new THREE.MeshStandardMaterial({ color: 0xb0b6ba, roughness: 0.5, metalness: 0.6, map: chainLinkTexture(), alphaTest: 0.5, side: THREE.DoubleSide });
   const sodium = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff9a3a).multiplyScalar(2.6) });
   const bulb = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd28a).multiplyScalar(2.2) });
   bulb.name = 'fv_bulb';
   const byName = new Map<string, THREE.Material>([
-    ['fv_brick', brick], ['fv_concrete', ctx.mat('concrete')], ['fv_concrete_dark', ctx.mat('concreteDark')],
-    ['fv_plaster', plasterVC], ['fv_plaster2', plasterVC], ['fv_window_dark', winDark], ['fv_window_lit', winLit],
+    ['fv_brick', S.brick], ['fv_concrete', S.concrete], ['fv_concrete_dark', S.concreteDark], ['fv_plaster', S.renderVC], ['fv_plaster2', S.renderVC],
+    ['fv_window_dark', winDark], ['fv_window_lit', winLit], ['fv_sheet', sheet], ['fv_flat', flat], ['fv_chainlink', link],
+    ['fv_bulb', bulb], ['fv_sodium', sodium], ['fv_mural', muralPool()],
+    // single placed GLBs (placeKit) keep plain shared materials
     ['fv_steel', ctx.mat('steel')], ['fv_rust', ctx.mat('rust')], ['fv_tin', ctx.mat('corrugated')], ['fv_wood', ctx.mat('wood')],
-    ['fv_tank_blue', tank], ['fv_paint_white', ctx.mat('white')], ['fv_bulb', bulb], ['fv_sodium', sodium],
+    ['fv_tank_blue', new THREE.MeshStandardMaterial({ color: 0x2a6fb0, roughness: 0.55 })], ['fv_paint_white', ctx.mat('white')],
     ['fv_paint_red', ctx.mat('red')], ['fv_paint_yellow', ctx.mat('hazardYellow')], ['fv_rubber', ctx.mat('rubber')],
   ]);
   const festoon = new THREE.MeshBasicMaterial({ color: 0x2a2420 });
-  const neon = [0xff3fbf, 0x2ef2ff, 0xffd23a].map((c) => new THREE.MeshBasicMaterial({ color: c }));
+  const neon = [new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true })];
   const floodHead = new THREE.MeshBasicMaterial({ color: 0x40464c });
   const cable = new THREE.MeshStandardMaterial({ color: 0x16181a, roughness: 0.6, metalness: 0.5 });
   byName.set('fv_floodhead', floodHead);
-  return { byName, plasterVC, festoon, neon, floodHead, sodium, cable };
+  return { byName, plasterVC: S.renderVC, festoon, neon, floodHead, sodium, cable, winLit };
+}
+
+function chainLinkTexture(): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  g.clearRect(0, 0, 64, 64);
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 3;
+  g.beginPath();
+  for (let k = -64; k <= 64; k += 32) { g.moveTo(k, 0); g.lineTo(k + 64, 64); g.moveTo(k + 64, 0); g.lineTo(k, 64); }
+  g.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(12, 12); // kit UVs are 2 m per unit here: one diamond every ~8 cm
+  t.anisotropy = 4;
+  return t;
 }
 
 /** Walks a loaded kit piece and yields (geometry in model space, material name). */
@@ -116,38 +155,64 @@ function kitParts(m: LoadedModel): { geo: THREE.BufferGeometry; mat: string }[] 
   return out;
 }
 
-/** Collects kit placements, then merges every placed part into one mesh per material when the GLBs arrive. */
+/** Placement job: model matrix, render tint (for fv_plaster), a seed for per-instance choices (lit windows). */
+interface Job { m: THREE.Matrix4; tint: THREE.Color; remap?: Record<string, string>; seed: number; litRate: number }
+const hash1 = (a: number) => { const s = Math.sin(a * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+
+/** Collects kit placements, then merges every placed part into one mesh per material POOL when the GLBs arrive. */
 class KitMerger {
-  private jobs = new Map<string, { m: THREE.Matrix4; tint: THREE.Color; remap?: Record<string, string> }[]>();
-  add(model: string, x: number, y: number, z: number, yaw: number, tint = new THREE.Color(1, 1, 1), scale = 1, remap?: Record<string, string>): void {
-    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(scale, scale, scale));
-    this.addM(model, m, tint, remap);
+  private jobs = new Map<string, Job[]>();
+  private n = 0;
+  add(model: string, x: number, y: number, z: number, yaw: number, tint = new THREE.Color(1, 1, 1), scale = 1, remap?: Record<string, string>, mirror = false, litRate = 0.24): void {
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(mirror ? -scale : scale, scale, scale));
+    this.addM(model, m, tint, remap, litRate);
   }
-  addM(model: string, m: THREE.Matrix4, tint = new THREE.Color(1, 1, 1), remap?: Record<string, string>): void {
+  addM(model: string, m: THREE.Matrix4, tint = new THREE.Color(1, 1, 1), remap?: Record<string, string>, litRate = 0.24): void {
     let a = this.jobs.get(model);
     if (!a) this.jobs.set(model, (a = []));
-    a.push({ m, tint, remap });
+    a.push({ m, tint, remap, seed: ++this.n * 7.31, litRate });
   }
   get count(): number { let n = 0; for (const a of this.jobs.values()) n += a.length; return n; }
-  build(root: THREE.Object3D, mats: FvMats, name: string): void {
+  build(root: THREE.Object3D, mats: FvMats, name: string, onDone?: () => void): void {
     const names = [...this.jobs.keys()];
+    (globalThis as unknown as { __fvJobs: unknown }).__fvJobs = names.map((k) => [k, this.jobs.get(k)!.length]);
     void Promise.all(names.map((n) => models.load(n))).then((loaded) => {
       const byMat = new Map<string, THREE.BufferGeometry[]>();
+      const push = (key: string, g: THREE.BufferGeometry) => { let arr = byMat.get(key); if (!arr) byMat.set(key, (arr = [])); arr.push(g); };
+      const col = new THREE.Color();
       loaded.forEach((lm, i) => {
         if (!lm) return;
         const parts = kitParts(lm);
+        const isMural = names[i].includes('fv_mural');
         for (const job of this.jobs.get(names[i])!) {
+          const mirrored = job.m.determinant() < 0;
           for (const p of parts) {
+            const src = job.remap?.[p.mat] ?? p.mat;
             const g = p.geo.clone().applyMatrix4(job.m);
+            if (mirrored) flipWinding(g);
             const n = g.attributes.position.count;
-            const col = new Float32Array(n * 3);
-            const c = p.mat.startsWith('fv_plaster') ? job.tint : new THREE.Color(1, 1, 1);
-            for (let k = 0; k < n; k++) { col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; }
-            g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-            const key = job.remap?.[p.mat] ?? p.mat;
-            let arr = byMat.get(key);
-            if (!arr) byMat.set(key, (arr = []));
-            arr.push(g);
+            const c = new Float32Array(n * 3);
+            const fill = (cc: THREE.Color, from = 0, to = n) => { for (let k = from; k < to; k++) { c[k * 3] = cc.r; c[k * 3 + 1] = cc.g; c[k * 3 + 2] = cc.b; } };
+            g.setAttribute('color', new THREE.BufferAttribute(c, 3)); // no copy: fill() below writes into it
+            if (src === 'fv_window_dark' || src === 'fv_window_lit') {
+              // Glass: every quad (2 triangles) of every placed house is lit or dark on its own.
+              const lit: THREE.BufferGeometry[] = [], dark: number[] = [];
+              for (let q = 0; q * 6 < n; q++) {
+                const h = hash1(job.seed + q * 1.618);
+                if (h < job.litRate) { fill(col.setHex(LIT[Math.floor(hash1(h * 91 + q) * LIT.length)]).multiplyScalar(0.7 + hash1(q + job.seed) * 0.5), q * 6, Math.min(n, q * 6 + 6)); lit.push(sliceTris(g, q * 6, Math.min(n, q * 6 + 6))); }
+                else dark.push(q);
+              }
+              if (lit.length) { const lg = mergeGeometries(lit, false); if (lg) push('fv_window_lit', lg); }
+              if (dark.length) { fill(col.setRGB(1, 1, 1)); push('fv_window_dark', dark.length * 6 === n ? g : mergeGeometries(dark.map((q) => sliceTris(g, q * 6, Math.min(n, q * 6 + 6))), false)!); }
+              continue;
+            }
+            let key = src;
+            if (src.startsWith('fv_plaster')) { fill(job.tint); key = 'fv_plaster'; }
+            else if (isMural && src.startsWith('fv_m_')) { fill(col.setHex(FLAT[src] ?? 0xffffff)); key = 'fv_mural'; }
+            else if (FLAT[src] !== undefined) { fill(col.setHex(FLAT[src])); key = 'fv_flat'; }
+            else if (SHEET[src] !== undefined) { fill(col.setHex(SHEET[src]).multiplyScalar(0.85 + hash1(job.seed) * 0.3)); key = 'fv_sheet'; }
+            else fill(col.setRGB(1, 1, 1));
+            push(key, g);
           }
         }
       });
@@ -162,8 +227,27 @@ class KitMerger {
         mesh.matrixAutoUpdate = false;
         root.add(mesh);
       }
+      onDone?.();
     });
   }
+}
+
+/** Mirrored placements turn triangles inside out: swap the 2nd and 3rd vertex of every triangle. */
+function flipWinding(g: THREE.BufferGeometry): void {
+  for (const k of Object.keys(g.attributes)) {
+    const a = g.getAttribute(k) as THREE.BufferAttribute;
+    const s = a.itemSize, arr = a.array as Float32Array;
+    for (let t = 0; t + 2 < a.count; t += 3) for (let c = 0; c < s; c++) { const i1 = (t + 1) * s + c, i2 = (t + 2) * s + c; const v = arr[i1]; arr[i1] = arr[i2]; arr[i2] = v; }
+  }
+}
+/** Copies vertices [a, b) of a non-indexed geometry. */
+function sliceTris(g: THREE.BufferGeometry, a: number, b: number): THREE.BufferGeometry {
+  const out = new THREE.BufferGeometry();
+  for (const k of Object.keys(g.attributes)) {
+    const at = g.getAttribute(k) as THREE.BufferAttribute;
+    out.setAttribute(k, new THREE.Float32BufferAttribute((at.array as Float32Array).slice(a * at.itemSize, b * at.itemSize), at.itemSize));
+  }
+  return out;
 }
 
 const MURAL_COLORS: Record<string, number> = { fv_m_orange: 0xf26a1b, fv_m_pink: 0xe8327a, fv_m_teal: 0x12a89a, fv_m_yellow: 0xf5c518, fv_m_blue: 0x1f5fc8, fv_m_green: 0x3cb043, fv_m_purple: 0x7b3fa0, fv_m_white: 0xf2efe8, fv_m_black: 0x1a1a1a, fv_m_sky: 0x56c2e6 };
@@ -174,6 +258,14 @@ function muralMat(name: string): THREE.Material | undefined {
   if (c === undefined) return undefined;
   let m = muralCache.get(name);
   if (!m) { m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, emissive: c, emissiveIntensity: 0.18, side: THREE.DoubleSide }); muralCache.set(name, m); }
+  return m;
+}
+
+/** Murals: vertex-coloured street-art paint with a touch of self-light so they read at dusk (one draw for all). */
+function muralPool(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, vertexColors: true, side: THREE.DoubleSide });
+  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * 0.2;'); };
+  m.customProgramCacheKey = () => 'fv-mural';
   return m;
 }
 
@@ -200,11 +292,17 @@ function placeKit(root: THREE.Object3D, mats: FvMats, model: string, x: number, 
 // ------------------------------------------------------------------------------------------------------
 // Pieces
 // ------------------------------------------------------------------------------------------------------
-const PASTEL = [0xd9906e, 0x6fb0a6, 0xe2c25e, 0xcf86a0, 0x94b86a, 0x7e9ccc, 0xe9dfcf, 0xa78fc4, 0xf0f0e8, 0xe7a35a];
+/** House render colours: pastels, the odd strong colour, and white. */
+const PASTEL = [0xe89a78, 0x7cc4b8, 0xf0d070, 0xe898b4, 0xa6cc78, 0x8cb0e6, 0xf4ecd8, 0xb8a0dc, 0xf6f4ee, 0xf2b068, 0x98dcc0, 0x88c8e8, 0xf0a890, 0xd8e878, 0xffffff, 0xf6f4ee];
+/** Blender kit houses v2 (tools/blender/favela_houses.py): footprint, slab-top height h, visual top (tanks, roofs). */
 const HOUSES = [
-  { id: 'fv_house_a', w: 4.2, d: 4.0, h: 6 }, { id: 'fv_house_b', w: 5.0, d: 4.5, h: 9 }, { id: 'fv_house_c', w: 3.6, d: 4.0, h: 3.5 },
-  { id: 'fv_house_d', w: 6.0, d: 5.0, h: 6 }, { id: 'fv_house_e', w: 4.0, d: 5.5, h: 12 }, { id: 'fv_house_f', w: 5.2, d: 5.0, h: 6 },
+  { id: 'fv_h01', w: 4.2, d: 4.2, h: 5.8, top: 7.7 }, { id: 'fv_h02', w: 5.0, d: 4.6, h: 8.7, top: 10.6 }, { id: 'fv_h03', w: 3.6, d: 4.0, h: 2.9, top: 4.45 },
+  { id: 'fv_h04', w: 6.2, d: 5.0, h: 5.8, top: 7.35 }, { id: 'fv_h05', w: 4.0, d: 5.4, h: 11.6, top: 14.4 }, { id: 'fv_h06', w: 5.2, d: 5.0, h: 5.8, top: 7.7 },
+  { id: 'fv_h07', w: 4.6, d: 4.4, h: 8.7, top: 11.5 }, { id: 'fv_h08', w: 3.4, d: 4.2, h: 8.7, top: 10.6 }, { id: 'fv_h09', w: 5.6, d: 4.8, h: 2.9, top: 4.8 },
+  { id: 'fv_h10', w: 4.4, d: 5.0, h: 5.8, top: 7.35 }, { id: 'fv_h11', w: 6.0, d: 5.2, h: 8.7, top: 10.6 }, { id: 'fv_h12', w: 3.8, d: 4.4, h: 5.8, top: 7.35 },
+  { id: 'fv_h13', w: 4.8, d: 5.6, h: 11.6, top: 13.5 }, { id: 'fv_h14', w: 5.4, d: 4.6, h: 5.8, top: 8.6 },
 ];
+type House = (typeof HOUSES)[number];
 
 function buildTerrain(ctx: MapDecorateContext): void {
   const W = 460, D = 560, sx = 84, sz = 104;
@@ -213,7 +311,7 @@ function buildTerrain(ctx: MapDecorateContext): void {
   g.translate(-10, 0, 60);
   const pos = g.attributes.position as THREE.BufferAttribute;
   const col = new Float32Array(pos.count * 3);
-  const dry = new THREE.Color(0x6a5238), green = new THREE.Color(0x3c5a30), dark = new THREE.Color(0x2e3a26), c = new THREE.Color();
+  const dry = new THREE.Color(0x8a6a48), green = new THREE.Color(0x4f7a38), dark = new THREE.Color(0x3a4a2e), c = new THREE.Color();
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
     let y = hill(x, z);
@@ -234,30 +332,37 @@ function buildTerrain(ctx: MapDecorateContext): void {
   ctx.root.add(mesh);
 }
 
-/** Near houses: detailed kit pieces, merged. Far houses: instanced boxes with a lit-window facade texture. */
+/** Near houses: detailed kit pieces (LOD0) close to the play space, the ~100-triangle shells (LOD1) further out,
+ *  instanced facade boxes beyond that; everything merged per material pool. */
 function buildHouses(ctx: MapDecorateContext, merger: KitMerger): void {
   const rs = playRects();
   const r = rng(7);
+  const SLOPED = new Set(['fv_h03', 'fv_h04', 'fv_h10', 'fv_h12']);
+  const tint = () => new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)]);
+  const place = (h: House, x: number, y: number, z: number, yaw: number, lod: boolean, lit = 0.24) =>
+    merger.add(`favela/${h.id}${lod ? '.lod1' : ''}.glb`, x, y, z, yaw, tint(), 1, undefined, r() < 0.5, lit);
   // 1) Skins: stacked houses in front of the big exposed terrace faces (the favela "wall" you see from every tier).
   const skin = (axis: 'x' | 'z', at: number, a0: number, a1: number, top: number, out: 1 | -1) => {
     for (let a = a0 + 2.2; a < a1 - 1.5;) {
-      const hv = HOUSES[Math.floor(r() * HOUSES.length)];
-      const w = hv.w;
       let y = hill(axis === 'x' ? a : at, axis === 'x' ? at : a) - 0.6;
       const yaw = axis === 'x' ? (out > 0 ? 0 : Math.PI) : (out > 0 ? Math.PI / 2 : -Math.PI / 2);
+      let wBay = 4;
+      let prevW = 0;
       while (y < top - 2) {
-        // Only houses that fit under the terrace top: a skin must never rise above the floor it dresses
-        // (it would block the view from that floor, e.g. the sea from the street).
-        const fits = HOUSES.filter((c) => y + c.h <= top + 0.3);
+        // A skin must never rise above the floor it dresses (it would block the view from that floor).
+        let fits = HOUSES.filter((c) => y + c.top <= top + 0.3 && (!prevW || c.w >= prevW - 0.6));
+        if (!fits.length) fits = HOUSES.filter((c) => y + c.top <= top + 0.3);
         if (!fits.length) break;
         const h = fits[Math.floor(r() * fits.length)];
-        const d = h.d;
-        const off = at + out * (d / 2 - 0.4 + r() * 0.3);
+        if (!prevW) wBay = h.w;
+        const off = at + out * (h.d / 2 - 0.4 + r() * 0.3);
         const [x, z] = axis === 'x' ? [a + (r() - 0.5) * 0.6, off] : [off, a + (r() - 0.5) * 0.6];
-        merger.add(`favela/${h.id}.glb`, x, y, z, yaw, new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)]));
-        y += h.h + (h.id === 'fv_house_c' ? 0.6 : 0.1);
+        place(h, x, y, z, yaw, false, 0.3);
+        prevW = h.w;
+        if (SLOPED.has(h.id)) break;
+        y += h.h + 0.02;
       }
-      a += w + 0.4 + r() * 1.2;
+      a += wBay + 0.3 + r() * 1.0;
     }
   };
   skin('z', -2, -24, 8, T3, -1);        // laje west face, over the ravine
@@ -268,57 +373,59 @@ function buildHouses(ctx: MapDecorateContext, merger: KitMerger): void {
   skin('x', -44, -12, 4, T5, 1);        // substation south face over the ravine head
   skin('z', 36, 30, 38, T0 + 3, 1);     // street east end
   skin('x', 38, 10.5, 36, T0 - 0.2, 1); // under the street's south parapet
-  // 2) Scatter: the rest of the hillside, avoiding the play space.
-  let far = 0;
+  // 2) Scatter: the rest of the hillside, avoiding the play space. Detailed near the play space, shells beyond.
   const farBoxes: THREE.Matrix4[] = [];
   const farCols: THREE.Color[] = [];
-  for (let gz = -104; gz < 70; gz += 6.5) {
-    for (let gx = -118; gx < 104; gx += 6.5) {
-      const x = gx + (r() - 0.5) * 2.4, z = gz + (r() - 0.5) * 2.4;
+  for (let gz = -104; gz < 70; gz += 6.2) {
+    for (let gx = -118; gx < 104; gx += 6.2) {
+      const x = gx + (r() - 0.5) * 2.2, z = gz + (r() - 0.5) * 2.2;
       const h = HOUSES[Math.floor(r() * HOUSES.length)];
       const hw = h.w / 2 + 0.2, hd = h.d / 2 + 0.2;
       if (hits(rs, x - hw, z - hd, x + hw, z + hd, 1.2)) continue;
       if (z > PEAK.z0 - 6 && z < PEAK.z1 + 8 && x > PEAK.x0 - 6 && x < PEAK.x1 + 6) continue;
+      if (x > 2 && x < 28 && z < -60 && z > -80) continue; // the station hall on the crest
       const y = hill(x, z) - 0.8;
-      const near = Math.abs(x) < 58 && z > -78 && z < 56;
-      const yaw = [0, Math.PI / 2, Math.PI, -Math.PI / 2][Math.floor(r() * 4)] * (r() < 0.6 ? 0 : 1);
+      const near = Math.abs(x) < 64 && z > -84 && z < 60;
+      const yaw = [0, Math.PI / 2, Math.PI, -Math.PI / 2][Math.floor(r() * 4)] * (r() < 0.65 ? 0 : 1);
       // Houses step down the hill: a roof may not rise more than 1.5 m above the ground 10 m uphill, so the
       // views downhill (street -> sea, laje -> city, mirante -> bay) stay open.
-      const maxTop = hill(x, z - 10) + 1.5;
+      // (below the street, where the sea view is, the rule is strict; uphill of the play space houses may stand taller)
+      const maxTop = hill(x, z - 10) + (z > 36 ? 1.5 : 4.8);
+      // A house beside a terrace never rises above that terrace's floor (keeps every lookout's view open).
+      let cap = Infinity;
+      for (const rm of FAVELA.rooms) {
+        if (rm.floor <= y + 1) continue;
+        const dx = Math.max(rm.rect.x0 - x, 0, x - rm.rect.x1), dz = Math.max(rm.rect.z0 - z, 0, z - rm.rect.z1);
+        if (Math.hypot(dx, dz) < 14) cap = Math.min(cap, rm.floor + 0.3);
+      }
       if (near) {
-        const hh = y + h.h <= maxTop ? h : HOUSES.find((c) => c.id === 'fv_house_c')!;
-        if (y + hh.h > maxTop + 1) continue;
-        merger.add(`favela/${hh.id}.glb`, x, y, z, yaw, new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)]));
-        if (r() < 0.2) { const h2 = HOUSES[Math.floor(r() * 3)]; if (y + hh.h + h2.h + 0.1 <= maxTop) merger.add(`favela/${h2.id}.glb`, x, y + hh.h + 0.1, z, yaw, new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)])); }
+        const fits = HOUSES.filter((c) => y + c.h <= maxTop + 0.3 && y + c.top <= cap);
+        if (!fits.length) continue;
+        const hh = fits.includes(h) ? h : fits[Math.floor(r() * fits.length)];
+        const detailed = hits(rs, x - hw, z - hd, x + hw, z + hd, 9);
+        place(hh, x, y, z, yaw, !detailed);
+        if (r() < 0.25 && !SLOPED.has(hh.id)) {
+          const up = HOUSES.filter((c) => c.w <= hh.w + 0.2 && y + hh.h + c.h <= maxTop + 0.3 && y + hh.h + c.top <= cap);
+          if (up.length) place(up[Math.floor(r() * up.length)], x, y + hh.h + 0.02, z, yaw, !detailed);
+        }
       } else {
         const bh = 3 + Math.floor(r() * 4) * 3;
         farBoxes.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y + bh / 2, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(h.w, bh, h.d)));
-        farCols.push(new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)]).lerp(new THREE.Color(0xb5643c), r() * 0.6));
-        far++;
+        farCols.push(new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)]).lerp(new THREE.Color(0xc0643a), r() * 0.7));
       }
     }
   }
   // Low roofs under the tin-roof slide (their tops sit just under the slide path)
-  for (let z = 10.5; z < 29; z += 4.6) {
+  for (let z = 10.5; z < 29; z += 4.8) {
     let y = hill(31, z) - 0.6;
     const top = pointAtZ(SLIDE_PATH, z) - 0.9;
-    while (y + 3 < top) { const h = HOUSES[[0, 3, 5][Math.floor(r() * 3)]]; if (y + h.h > top + 0.2) break; merger.add(`favela/${h.id}.glb`, 31, y, z, Math.PI, new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)])); y += h.h + 0.1; }
-  }
-  // The ravine: trees and scrub instead of houses (it keeps the cable, bridge and zipline sightlines clear)
-  const trunkG = new THREE.CylinderGeometry(0.12, 0.2, 3, 5); trunkG.translate(0, 1.5, 0);
-  const crownG = new THREE.IcosahedronGeometry(1.7, 0); crownG.scale(1, 0.8, 1); crownG.translate(0, 3.8, 0);
-  const trees: THREE.Matrix4[] = [];
-  for (let i = 0; i < 46; i++) {
-    const x = -16 + r() * 16, z = -32 + r() * 34; // south of the mirante/substation edge so no crown pokes above T5
-    if (Math.abs(x - PYLON.x) < 2.5 && Math.abs(z - PYLON.z) < 2.5) continue;
-    const sc = 0.7 + r() * 0.9;
-    trees.push(new THREE.Matrix4().compose(new THREE.Vector3(x, hill(x, z) - 0.2, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * 6), new THREE.Vector3(sc, sc * (0.8 + r() * 0.5), sc)));
-  }
-  for (const [g, c] of [[trunkG, 0x4a3828], [crownG, 0x4f7a3c]] as const) {
-    const im = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: c, roughness: 1, flatShading: true }), trees.length);
-    trees.forEach((m, i) => im.setMatrixAt(i, m));
-    im.name = 'fv:ravine-trees';
-    ctx.root.add(im);
+    while (y + 3 < top) {
+      const fits = HOUSES.filter((c) => c.w <= 5.2 && y + c.top <= top + 0.2 && !SLOPED.has(c.id));
+      if (!fits.length) break;
+      const h = fits[Math.floor(r() * fits.length)];
+      place(h, 31, y, z, Math.PI, false);
+      y += h.h + 0.02;
+    }
   }
   // Far hillside + the city below: one instanced box with a procedural lit-window facade.
   for (let i = 0; i < 2600; i++) {
@@ -327,7 +434,7 @@ function buildHouses(ctx: MapDecorateContext, merger: KitMerger): void {
     if (z < 90 && Math.abs(x) < 60) continue;
     const w = 6 + r() * 14, d = 6 + r() * 14, bh = 4 + r() * r() * (z > 200 ? 60 : 22);
     farBoxes.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y + bh / 2 - 1, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * Math.PI), new THREE.Vector3(w, bh, d)));
-    farCols.push(new THREE.Color(0xc8c0b8).lerp(new THREE.Color(0x8a8f9a), r()));
+    farCols.push(new THREE.Color(0xd8d0c4).lerp(new THREE.Color(0x8a90a0), r()));
   }
   const tex = facadeTexture();
   const farMat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: false });
@@ -338,7 +445,6 @@ function buildHouses(ctx: MapDecorateContext, merger: KitMerger): void {
   inst.frustumCulled = false;
   inst.name = 'fv:far-houses';
   ctx.root.add(inst);
-  void far;
 }
 
 /** Slide path height at z (the path runs along z at x 31). */
@@ -407,14 +513,21 @@ function buildVista(ctx: MapDecorateContext): void {
   sea.position.set(0, -44.5, 1130);
   sea.name = 'fv:sea';
   ctx.root.add(sea);
-  // Mountains: dark silhouettes on both sides of the bay, one steep dome at the water's edge.
-  const mtn = new THREE.MeshBasicMaterial({ color: 0x2a2640, fog: false });
-  const peaks: [number, number, number, number][] = [[-520, 520, 150, 190], [-360, 650, 95, 140], [460, 560, 170, 220], [300, 700, 70, 120], [140, 470, 88, 38], [-700, 200, 220, 320], [720, 180, 240, 330]];
-  for (const [x, z, h, rad] of peaks) {
-    const m = new THREE.Mesh(new THREE.ConeGeometry(rad, h, 7, 1), mtn);
-    m.position.set(x, -44 + h / 2, z);
-    m.rotation.y = x * 0.01;
-    ctx.root.add(m);
+  // Mountains: granite domes and forested ridges around the bay (one merged, unfogged, vertex-coloured mesh).
+  // The big dome at the water's edge is a generic granite peak, not a copy of any real landmark.
+  const hz = new THREE.Color(0x6a4a5a);
+  // Layered ridges wrapping the bay (far = hazier), and one generic bare-granite peak near the water's edge.
+  const geos: THREE.BufferGeometry[] = [
+    ridgeBand(560, 150, 0.85, 11, hz), ridgeBand(460, 100, 0.7, 12, hz), ridgeBand(380, 62, 0.55, 13, hz),
+    ridgeBand(560, 150, 0.85, 21, hz, 0.64 * Math.PI, 1.15 * Math.PI), ridgeBand(460, 100, 0.7, 22, hz, 0.66 * Math.PI, 1.15 * Math.PI), ridgeBand(380, 62, 0.55, 23, hz, 0.7 * Math.PI, 1.15 * Math.PI),
+    mountain(175, 470, 112, 58, 'dome', 901, hz), mountain(-250, 560, 90, 70, 'dome', 905, hz),
+  ];
+  const mg = mergeGeometries(geos, false);
+  if (mg) {
+    const mm = new THREE.Mesh(mg, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })); // colours carry their own dusk light + haze
+    mm.name = 'fv:mountains';
+    mm.frustumCulled = false;
+    ctx.root.add(mm);
   }
   // The low sun, just set, glowing on the horizon behind the bay.
   const sunC = document.createElement('canvas');
@@ -444,10 +557,12 @@ function cables(spans: [P3, P3, number][], radius: number, mat: THREE.Material):
   }
   if (!geos.length) return null;
   const g = mergeGeometries(geos, false);
+  if (g && cableBin) { cableBin.push(g); return null; } // decorate merges every cable into one draw at the end
   return g ? new THREE.Mesh(g, mat) : null;
 }
+let cableBin: THREE.BufferGeometry[] | null = null;
 
-interface Festoon { bulbs: THREE.InstancedMesh; mat: THREE.MeshBasicMaterial; phase: number }
+interface Festoon { bulbs: THREE.InstancedMesh; mat: THREE.MeshBasicMaterial; phase: number; base: THREE.Color[] }
 
 // ------------------------------------------------------------------------------------------------------
 // Animated state shared between decorate and update (a map is built once and cached by the runtime)
@@ -461,7 +576,7 @@ interface Anim {
   floodHead: THREE.MeshBasicMaterial;
   floodPools: THREE.Mesh[];
   sodium: THREE.MeshBasicMaterial;
-  sodiumGlow: THREE.Sprite[];
+  sodiumGlow: THREE.PointsMaterial[];
   kites: THREE.Object3D[];
   upDone: boolean; // which end each cabin sits at (swaps after every ride)
   lastRide: string | null;
@@ -482,10 +597,293 @@ function glowSprite(color: number, size: number): THREE.Sprite {
   return s;
 }
 
+// ------------------------------------------------------------------------------------------------------
+// Art pass: greenery, street life, fences, the station hall, light fixtures with glow + pools, backdrop
+// ------------------------------------------------------------------------------------------------------
+/** Small procedural painted parts (bunting, facade AC units, pipes) merged into ONE vertex-coloured mesh. */
+let flatBin: FlatBits | null = null;
+class FlatBits {
+  private geos: THREE.BufferGeometry[] = [];
+  box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, color: number): void {
+    const g = boxGeo(x0, y0, z0, x1, y1, z1).toNonIndexed();
+    this.tint(g, color);
+  }
+  tri(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, color: number): void {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z], 3));
+    g.computeVertexNormals();
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(6), 2));
+    this.tint(g, color);
+  }
+  private tint(g: THREE.BufferGeometry, color: number): void {
+    const n = g.attributes.position.count, c = new THREE.Color(color), a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(a, 3));
+    this.geos.push(g);
+  }
+  build(root: THREE.Object3D, mat: THREE.Material): void {
+    const g = this.geos.length ? mergeGeometries(this.geos, false) : null;
+    if (!g) return;
+    const m = new THREE.Mesh(g, mat);
+    m.name = 'fv:flat-bits';
+    m.matrixAutoUpdate = false;
+    root.add(m);
+  }
+}
+
+/** Trees, banana plants and palms: kit pieces, merged into the flat pool (zero extra draw calls). */
+function buildGreenery(merger: KitMerger): void {
+  const r = rng(61);
+  const rs = playRects();
+  // The ravine: broad trees and bananas (keeps the cable, bridge and zipline sightlines clear)
+  for (let i = 0; i < 28; i++) {
+    const x = -16 + r() * 16, z = -32 + r() * 34; // south of the mirante/substation edge so no crown pokes above T5
+    if (Math.abs(x - PYLON.x) < 3 && Math.abs(z - PYLON.z) < 3) continue;
+    if (z > -22.5 && z < -18.5) continue; // under the bridge
+    const sc = 0.75 + r() * 0.5;
+    merger.add(`favela/${r() < 0.5 ? 'fv_tree' : 'fv_tree_b'}.glb`, x, hill(x, z) - 0.3, z, r() * 6.28, undefined, sc);
+  }
+  for (let i = 0; i < 18; i++) {
+    const x = -15 + r() * 14, z = -30 + r() * 32;
+    merger.add('favela/fv_banana.glb', x, hill(x, z) - 0.1, z, r() * 6.28, undefined, 0.9 + r() * 0.5);
+  }
+  // Hillside pockets between the houses: trees, bananas, the odd palm (only where nothing else stands)
+  for (let i = 0; i < 90; i++) {
+    const x = (r() - 0.5) * 200, z = -100 + r() * 170;
+    if (hits(rs, x - 3, z - 3, x + 3, z + 3, 2)) continue;
+    if (z > PEAK.z0 - 8 && z < PEAK.z1 + 8 && x > PEAK.x0 - 8 && x < PEAK.x1 + 8) continue;
+    const y = hill(x, z);
+    if (y + 5 > hill(x, z - 10) + 4.5) continue; // keep the downhill views open
+    const k = r();
+    merger.add(`favela/${k < 0.4 ? 'fv_tree' : k < 0.7 ? 'fv_tree_b' : k < 0.93 ? 'fv_banana' : 'fv_palm'}.glb`, x, y - 0.4, z, r() * 6.28, undefined, 0.8 + r() * 0.4);
+  }
+  // Below the street: palms and bananas in the yards down the slope toward the sea
+  for (const [x, z, k] of [[-14, 44, 'fv_palm'], [15, 47, 'fv_palm'], [27, 44, 'fv_banana'], [-8, 50, 'fv_banana'], [33, 50, 'fv_palm'], [-20, 52, 'fv_tree']] as const) {
+    merger.add(`favela/${k}.glb`, x, hill(x, z) - 0.3, z, r() * 6.28, undefined, 1);
+  }
+}
+
+/** Street stall, snack kiosk, planters, benches, a lookout viewer, fences, the gantry and the station hall/cap. */
+function buildStreetLife(ctx: MapDecorateContext, merger: KitMerger): void {
+  const solid = (x: number, y: number, z: number, hw: number, hd: number, h: number, yaw = 0, surface: 'wood' | 'metal' | 'concrete' = 'wood') => {
+    const q = Math.abs(Math.sin(yaw)) > 0.7;
+    const [ax, az] = q ? [hd, hw] : [hw, hd];
+    ctx.world.add(x - ax, y, z - az, x + ax, y + h, z + az, { surface });
+  };
+  // Bottom street: fruit stall against the south parapet, snack kiosk at the west end
+  merger.add('favela/fv_stall.glb', 19, T0, 36.9, Math.PI);
+  solid(19.3, T0, 36.95, 1.8, 0.95, 2.4, 0);
+  merger.add('favela/fv_kiosk.glb', -14.6, T0, 36.8, Math.PI);
+  solid(-14.8, T0, 36.8, 1.3, 0.8, 2.3, 0);
+  merger.add('favela/fv_awning.glb', 3, T0 + 2.7, 38.05, Math.PI);
+  merger.add('favela/fv_pots.glb', 33.8, T0, 31.0, 0);
+  solid(33.8, T0, 31.0, 0.75, 0.4, 0.6);
+  merger.add('favela/fv_bush.glb', -16.8, T0, 32.2, 0.4);
+  solid(-16.8, T0, 32.2, 0.5, 0.5, 1.4);
+  // Big laje: planters, a banana plant in the corner, pots by the tanks
+  for (const [m, x, z, s] of [['fv_bush', -0.9, 0.4, 0.5], ['fv_shrub', -0.9, 3.6, 0.5], ['fv_pots', 33, -15.5, 0.75], ['fv_banana', 32.8, -0.6, 0.6], ['fv_pots', 9.5, 6.9, 0.75], ['fv_bush', 12.8, -22.9, 0.5]] as const) {
+    merger.add(`favela/${m}.glb`, x, T3, z, 0);
+    solid(x, T3, z, s, m === 'fv_pots' ? 0.4 : s, 1.5);
+  }
+  // Mirante: benches, the lookout viewer, planters and a palm at the rail
+  merger.add('favela/fv_viewer.glb', -28.5, T5, -35.7, 0);
+  solid(-28.5, T5, -35.7, 0.25, 0.3, 1.5, 0, 'metal');
+  for (const x of [-41, -17.8]) { merger.add('favela/fv_bench.glb', x, T5, -36.1, 0); solid(x, T5, -36.1, 0.95, 0.25, 0.5, 0, 'concrete'); }
+  for (const [m, x, z] of [['fv_bush', -46.9, -36.2], ['fv_bush', -46.9, -58.9], ['fv_shrub', -13.1, -58.9], ['fv_palm', -46.6, -41.5]] as const) {
+    merger.add(`favela/${m}.glb`, x, T5, z, 0);
+    solid(x, T5, z, 0.5, 0.5, 1.5);
+  }
+  // Quadra: chain-link on the south retaining parapet (not over the climb gap) and along the ravine side
+  for (let x = -46.5; x < -16; x += 3) if (x < -32 || x > -26.5) merger.add('favela/fv_fence.glb', x, T2 + 1.1, 16, 0);
+  for (let z = -6.5; z < 3; z += 3) merger.add('favela/fv_fence.glb', -16, T2 + 1.1, z, Math.PI / 2);
+  // Substation: fence on the ravine-edge parapet, the gantry behind the north wall
+  for (let x = -10.5; x < 4; x += 3) merger.add('favela/fv_fence.glb', x, T5 + 1.1, -44, 0);
+  merger.add('favela/fv_gantry.glb', -4, T5 - 0.5, -63.5, 0);
+  merger.add('favela/fv_gantry.glb', -4, T5 - 0.5, -68.5, 0, undefined, 0.9);
+  // The cable-car station hall on the crest (receives the line behind the top station), the bottom station's cap
+  merger.add('favela/fv_station_hall.glb', 13, T5 - 0.4, -70.5, 0.12);
+  merger.add('favela/fv_station_cap.glb', -44, T2 + 6, 12, 0);
+}
+
+/** Glow halos (one Points draw per colour) and light pools (one instanced draw) for every lamp fixture. */
+function glowPoints(ctx: MapDecorateContext, pts: THREE.Vector3[], color: number, size: number): THREE.Points | null {
+  if (!pts.length) return null;
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  const m = new THREE.PointsMaterial({ map: ctx.M.tex.glow, color, size, sizeAttenuation: true, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
+  const p = new THREE.Points(g, m);
+  p.frustumCulled = false;
+  p.name = 'fv:glow';
+  ctx.root.add(p);
+  return p;
+}
+function poolMesh(ctx: MapDecorateContext, pools: [number, number, number, number][], mat: THREE.Material): THREE.InstancedMesh | null {
+  if (!pools.length) return null;
+  const g = new THREE.PlaneGeometry(1, 1);
+  g.rotateX(-Math.PI / 2);
+  const im = new THREE.InstancedMesh(g, mat, pools.length);
+  const m4 = new THREE.Matrix4();
+  pools.forEach(([x, y, z, s], i) => im.setMatrixAt(i, m4.compose(new THREE.Vector3(x, y + 0.03, z), new THREE.Quaternion(), new THREE.Vector3(s, 1, s))));
+  im.name = 'fv:light-pools';
+  im.frustumCulled = false;
+  ctx.root.add(im);
+  return im;
+}
+
+/** A ridge line around the bay: a curved strip (radius `R` around the map) whose crest is layered noise, forested
+ *  low, bare rock on the steep high points, blended toward the horizon haze by `haze`. */
+function ridgeBand(R: number, H: number, haze: number, seed: number, horizon: THREE.Color, a0 = -0.15 * Math.PI, a1 = 0.36 * Math.PI): THREE.BufferGeometry {
+  const r = rng(seed);
+  const n = 90; // an arc (angles around the map, 0 = +X, PI/2 = the open sea to the south)
+  const ph = Array.from({ length: 6 }, () => r() * 10);
+  const pos: number[] = [], col: number[] = [], idx: number[] = [];
+  const forest = new THREE.Color(0x2c4430), rock = new THREE.Color(0x585460), c = new THREE.Color();
+  const rows = [0, 0.45, 0.8, 1];
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + ((a1 - a0) * i) / n;
+    const u = i / n;
+    let h = 0.35 + 0.25 * Math.sin(u * 9 + ph[0]) + 0.18 * Math.sin(u * 23 + ph[1]) + 0.1 * Math.sin(u * 51 + ph[2]) + 0.05 * Math.sin(u * 113 + ph[3]);
+    h += 0.5 * Math.pow(Math.max(0, Math.sin(u * 4.3 + ph[4])), 6); // the odd taller summit
+    h = Math.max(0.12, h) * H * (0.6 + 0.4 * Math.sin(u * Math.PI));
+    const x = Math.cos(a) * R, z = 40 + Math.sin(a) * R; // (inside the camera's 700 m far plane)
+    for (const t of rows) {
+      const rr = 1 + (1 - t) * 0.06; // the base spreads outward a little: the silhouette leans back
+      pos.push(x * rr, -44 + h * t, (z - 40) * rr + 40);
+      c.copy(forest).lerp(rock, t > 0.7 && h > H * 0.45 ? (t - 0.7) * 2.5 : 0).lerp(horizon, haze);
+      col.push(c.r, c.g, c.b);
+    }
+  }
+  for (let i = 0; i < n; i++) for (let k = 0; k < rows.length - 1; k++) {
+    const p0 = i * rows.length + k, p1 = (i + 1) * rows.length + k;
+    idx.push(p0, p1, p0 + 1, p0 + 1, p1, p1 + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g.toNonIndexed();
+}
+
+/** Procedural granite dome / ridge for the bay (a generic peak, not a landmark copy). Vertex-coloured, unfogged. */
+function mountain(x: number, z: number, h: number, rad: number, kind: 'dome' | 'ridge', seed: number, horizon: THREE.Color): THREE.BufferGeometry {
+  const r = rng(seed);
+  const rings = 22, segs = 40;
+  const pos: number[] = [], col: number[] = [], idx: number[] = [];
+  const granite = new THREE.Color(0x46424e), streak = new THREE.Color(0x2c2a34), forest = new THREE.Color(0x2e4630), rim = new THREE.Color(0xd08a6a), c = new THREE.Color();
+  const ph = [r() * 6, r() * 6, r() * 6];
+  for (let i = 0; i <= rings; i++) {
+    const t = i / rings; // 0 base .. 1 top
+    for (let j = 0; j <= segs; j++) {
+      const a = (j / segs) * Math.PI * 2;
+      const lump = 1 + 0.12 * Math.sin(a * 3 + ph[0] + t * 2) + 0.07 * Math.sin(a * 7 + ph[1]) + 0.05 * Math.sin(a * 13 + ph[2] + t * 6) + 0.03 * Math.sin(a * 29 + t * 9);
+      // dome: a steep bare face, the crown off-centre, a long forested shoulder on one side; ridge: broad and low
+      const prof = kind === 'dome' ? Math.pow(Math.max(0, 1 - Math.pow(t, 1.7)), 0.62) * (1 - 0.2 * t) * (1 + 0.5 * (1 - t) * Math.max(0, Math.cos(a - 0.6))) : Math.pow(1 - t, 0.8);
+      const rr = rad * prof * lump * (kind === 'ridge' ? (1 + 0.9 * Math.abs(Math.cos(a))) : 1 + 0.25 * Math.max(0, Math.cos(a)));
+      const y = -44 + h * t;
+      pos.push(x + Math.cos(a) * rr, y, z + Math.sin(a) * rr);
+      const s = Math.pow(Math.abs(Math.sin(a * 23 + ph[1])), 6);
+      c.copy(granite).lerp(streak, s * 0.7);
+      if (t < 0.3 + 0.1 * Math.sin(a * 5)) c.copy(forest);
+      if (Math.sin(a) < -0.3 && t > 0.3) c.lerp(rim, 0.25 * (t - 0.3)); // warm edge facing the sunset
+      c.lerp(horizon, 0.3);
+      col.push(c.r, c.g, c.b);
+    }
+  }
+  for (let i = 0; i < rings; i++) for (let j = 0; j < segs; j++) {
+    const a0 = i * (segs + 1) + j, b0 = a0 + segs + 1;
+    idx.push(a0, b0, a0 + 1, a0 + 1, b0, b0 + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g.toNonIndexed();
+}
+
+/** Facade detail on the def's long walls (the street front, the beco side, the samba hall) and the hall's bunting:
+ *  concrete columns and slab bands (merged into the map's concrete batch), AC units, pipes and meter boxes and
+ *  pennant strings (one vertex-coloured mesh). */
+function buildFacades(ctx: MapDecorateContext): void {
+  const S = favelaSurfaces();
+  const B = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, m: THREE.Material = S.concrete) => ctx.batch.add(m, worldBox(x0, y0, z0, x1, y1, z1));
+  const bits = flatBin!;
+  const r = rng(77);
+  // Bottom street, north side (house fronts at z 30, facing +Z): a column at every change of house, the first-floor
+  // slab edge running along the whole row, and the clutter of self-built fronts.
+  const zf = 30.15;
+  for (const x of [-11, -3, 2, 9, 16.5, 24, 30]) B(x - 0.16, T0, zf - 0.02, x + 0.16, T0 + 3.7, zf + 0.1);
+  B(-18, T0 + 3.42, zf - 0.02, 36, T0 + 3.7, zf + 0.26);
+  for (const [x, y] of [[-9.4, T0 + 2.5], [-1.2, T0 + 2.6], [11.4, T0 + 2.55], [19.6, T0 + 2.5], [27.6, T0 + 2.6], [33.2, T0 + 2.5]] as const) {
+    bits.box(x - 0.36, y, zf, x + 0.36, y + 0.46, zf + 0.3, 0xdcd8cf); // AC unit
+    bits.box(x - 0.2, y + 0.1, zf + 0.3, x + 0.2, y + 0.36, zf + 0.31, 0x3a3a38);
+    bits.box(x + 0.3, T0, zf + 0.02, x + 0.33, y, zf + 0.05, 0x9c9c98); // drain line
+  }
+  for (const x of [-17.2, -4.2, 7.8, 15.8, 29.2, 35.2]) bits.box(x, T0, zf, x + 0.1, T0 + 3.7, zf + 0.1, 0x9c9c98); // downpipes
+  for (const x of [-12.4, 1.2, 10.2, 23.2]) { bits.box(x, T0 + 1.3, zf, x + 0.34, T0 + 1.8, zf + 0.14, 0xe8e6e0); bits.box(x + 0.15, T0 + 1.8, zf + 0.05, x + 0.18, T0 + 3.4, zf + 0.08, 0x2a2a2a); }
+  // Beco east side (the house rows' west walls at x -13.6, facing -X): columns + slab bands at each row's floor.
+  const xb = -13.75;
+  for (const z of [8, 16, 24, 30]) B(xb - 0.1, T0, z - 0.16, xb + 0.02, T3, z + 0.16);
+  for (const y of [T1 + 3.5, T2 + 3.5]) B(xb - 0.22, y - 0.25, 3, xb + 0.02, y, 30);
+  for (const [z, y] of [[26.5, T0 + 2.4], [12.5, T2 + 2.2], [20.5, T1 + 2.6]] as const) bits.box(xb - 0.3, y, z - 0.36, xb, y + 0.46, z + 0.36, 0xdcd8cf);
+  // Samba hall: columns and a ring beam outside on the laje face, bunting strings under the roof inside.
+  for (const x of [2.15, 9, 16, 23, 29.85]) B(x - 0.18, T3, -23.85, x + 0.18, T5 + 0.3, -23.6);
+  B(2, T5 - 0.3, -23.85, 30, T5 + 0.3, -23.55);
+  const pennant = [0xe8327a, 0xf5c518, 0x12a89a, 0x1f5fc8, 0xf26a1b, 0x3cb043, 0xf2efe8];
+  for (let k = 0; k < 6; k++) {
+    const z0 = -38.5 + k * 2.6;
+    const a = new THREE.Vector3(2.3, T5 - 0.4, z0 + (r() - 0.5)), b = new THREE.Vector3(29.7, T5 - 0.4, z0 + 1.5 + (r() - 0.5));
+    const n = 44;
+    for (let i = 0; i < n; i++) {
+      const t0 = i / n, t1 = (i + 0.8) / n, sag = (t: number) => 1.1 * 4 * t * (1 - t);
+      const p0 = a.clone().lerp(b, t0), p1 = a.clone().lerp(b, t1);
+      p0.y -= sag(t0); p1.y -= sag(t1);
+      const tip = p0.clone().lerp(p1, 0.5); tip.y -= 0.32;
+      bits.tri(p0, p1, tip, pennant[(i + k) % pennant.length]);
+    }
+  }
+}
+
+/** The def's dressing props (DRESS_PROPS): one InstancedMesh per model mesh, so seven tables cost one draw call. */
+const SHADOW_PROPS = new Set(['fv_water_tower', 'fv_canopy', 'fv_transformer']);
+function buildDressProps(ctx: MapDecorateContext, mats: FvMats): void {
+  const byModel = new Map<string, DressProp[]>();
+  for (const p of DRESS_PROPS) { let a = byModel.get(p.model); if (!a) byModel.set(p.model, (a = [])); a.push(p); }
+  for (const [model, list] of byModel) {
+    void models.load(model).then((lm) => {
+      if (!lm) return;
+      const scene = lm.scene;
+      scene.updateMatrixWorld(true);
+      const size = new THREE.Box3().setFromObject(scene).getSize(new THREE.Vector3());
+      const id = model.replace(/^.*\//, '').replace(/\.glb$/, '');
+      const place = list.map((p) => {
+        const s = p.fitHeight ? p.fitHeight / Math.max(1e-3, size.y) : p.scale ?? 1;
+        return new THREE.Matrix4().compose(new THREE.Vector3(p.x, p.y, p.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.yaw), new THREE.Vector3(s, s, s));
+      });
+      scene.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const swap = (m: THREE.Material) => mats.byName.get(m.name) ?? m;
+        const mat = Array.isArray(mesh.material) ? mesh.material.map(swap) : swap(mesh.material);
+        const im = new THREE.InstancedMesh(mesh.geometry, mat, place.length);
+        const m4 = new THREE.Matrix4();
+        place.forEach((pm, i) => im.setMatrixAt(i, m4.multiplyMatrices(pm, mesh.matrixWorld)));
+        im.computeBoundingSphere();
+        im.castShadow = SHADOW_PROPS.has(id);
+        im.receiveShadow = true;
+        im.name = `fv:prop:${id}`;
+        ctx.root.add(im);
+      });
+    });
+  }
+}
+
 export function decorateFavela(ctx: MapDecorateContext): void {
   const mats = favelaMats(ctx);
   const root = ctx.root;
   Object.assign(anim, { cabins: [], peakCab: null, wheels: [], festoons: [], neon: mats.neon, floodHead: mats.floodHead, floodPools: [], sodium: mats.sodium, sodiumGlow: [], kites: [], upDone: false, lastRide: null, power: false });
+  cableBin = [];
+  flatBin = new FlatBits();
   buildTerrain(ctx);
   const dress = new KitMerger();
   buildHouses(ctx, dress);
@@ -515,6 +913,30 @@ export function decorateFavela(ctx: MapDecorateContext): void {
   ctx.world.add(33.85, T3, -7.7, 34.15, T3 + 3.2, -6.3, { solid: false });
   ctx.world.add(-41.8, T5, -60.15, -40.2, T5 + 4, -59.85, { solid: false });
   ctx.world.add(-16.15, T3 + 1.1, -18, -15.85, T3 + 3.2, -8, { solid: false });
+  // Fall guards over the see-through railings (bridge, lookout) and the railings themselves.
+  ctx.world.add(-16, T3 + 1.1, -22.16, -2, T3 + 3.2, -22.04, { solid: false });
+  ctx.world.add(-16, T3 + 1.1, -18.96, -2, T3 + 3.2, -18.84, { solid: false });
+  ctx.world.add(-45.6, T5 + 1.1, -35.06, -12, T5 + 3.2, -34.94, { solid: false });
+  const rails = flatBin!;
+  const railing = (x0: number, x1: number, z: number, y: number) => {
+    const n = Math.max(1, Math.round((x1 - x0) / 1.4));
+    for (let i = 0; i <= n; i++) { const x = x0 + ((x1 - x0) * i) / n; rails.box(x - 0.03, y, z - 0.03, x + 0.03, y + 1.08, z + 0.03, 0x3c4246); }
+    rails.box(x0, y + 1.04, z - 0.035, x1, y + 1.1, z + 0.035, 0x2f8a86);
+    rails.box(x0, y + 0.55, z - 0.02, x1, y + 0.59, z + 0.02, 0x3c4246);
+    rails.box(x0, y + 0.1, z - 0.02, x1, y + 0.14, z + 0.02, 0x3c4246);
+  };
+  railing(-16, -2, -22.1, T3); railing(-16, -2, -18.9, T3); railing(-45.6, -12, -35, T5);
+  // Pipe handrails up the stair alleys: the beco's two flights, the long escadaria and the station stair (wall-mounted).
+  const handSpans: [P3, P3, number][] = [];
+  const handrail = (x: number, z0: number, y0: number, z1: number, y1: number, dx: number) => {
+    handSpans.push([{ x, y: y0 + 0.95, z: z0 }, { x, y: y1 + 0.95, z: z1 }, 0]);
+    const n = Math.max(2, Math.round(Math.abs(z1 - z0) / 1.6));
+    for (let i = 0; i <= n; i++) { const t = i / n, z = z0 + (z1 - z0) * t, y = y0 + (y1 - y0) * t; rails.box(x - 0.02, y + 0.78, z - 0.02, x + 0.02, y + 0.95, z + 0.02, 0x3c4246); rails.box(Math.min(x, x + dx), y + 0.8, z - 0.015, Math.max(x, x + dx), y + 0.83, z + 0.015, 0x3c4246); }
+  };
+  handrail(-15.75, 30, T0, 21, T1, -0.12); handrail(-15.75, 17, T1, 8, T2, -0.12); handrail(-13.85, 30, T0, 21, T1, 0.12);
+  handrail(-47.75, -8, T2, -35, T5, -0.12); handrail(32.15, -26, T3, -44, T5, 0.12);
+  const hr = cables(handSpans, 0.025, mats.cable);
+  if (hr) root.add(hr);
 
   // ---- Cable car: pier + pylon in the ravine, cables, two cabins, drive wheels, the peak line ----
   dress.add('favela/fv_pylon.glb', PYLON.x, PYLON.top - 16, PYLON.z, Math.atan2(CABLE[3].x - CABLE[1].x, CABLE[3].z - CABLE[1].z) + Math.PI / 2);
@@ -603,6 +1025,13 @@ export function decorateFavela(ctx: MapDecorateContext): void {
     [{ x: 1, y: 20.5, z: 6 }, { x: 14, y: 22.5, z: -5 }, 1.2], [{ x: 14, y: 22.5, z: -5 }, { x: 32, y: 20.2, z: 5 }, 1.4], [{ x: 3, y: 20, z: -20 }, { x: 14, y: 22.5, z: -7 }, 1.1],
     [{ x: 14, y: 22.5, z: -7 }, { x: 31, y: 20.5, z: -21 }, 1.3], [{ x: -12, y: 10.8, z: 30.3 }, { x: 16, y: 10.6, z: 37.8 }, 1.1], [{ x: 16, y: 10.6, z: 30.3 }, { x: 34, y: 10.4, z: 37.8 }, 0.9],
     [{ x: -44, y: 21, z: -21.8 }, { x: -17, y: 20.6, z: -21.8 }, 1.4],
+    // samba hall: criss-cross strings under the roof
+    [{ x: 2.4, y: T5 - 0.7, z: -39 }, { x: 29.6, y: T5 - 0.7, z: -25 }, 1.0], [{ x: 2.4, y: T5 - 0.7, z: -25 }, { x: 29.6, y: T5 - 0.7, z: -39 }, 1.0],
+    [{ x: 2.4, y: T5 - 0.9, z: -32 }, { x: 29.6, y: T5 - 0.9, z: -32 }, 0.8],
+    // the escadaria (strung from lamp post to lamp post up the long stair) and across the mirante
+    [{ x: -46.8, y: T2 + 3.2, z: -9 }, { x: -46.8, y: 18.6, z: -18 }, 0.5], [{ x: -46.8, y: 18.6, z: -18 }, { x: -46.8, y: 22.6, z: -27 }, 0.5],
+    [{ x: -46.8, y: 22.6, z: -27 }, { x: -46.8, y: T5 + 3.3, z: -34.5 }, 0.4],
+    [{ x: -47.5, y: T5 + 3.6, z: -41 }, { x: -13, y: T5 + 3.4, z: -41 }, 1.4], [{ x: -47.5, y: T5 + 3.6, z: -53 }, { x: -13, y: T5 + 3.4, z: -53 }, 1.4],
   ];
   const fwire = cables(festoonSpans, 0.012, mats.cable);
   if (fwire) root.add(fwire);
@@ -612,15 +1041,17 @@ export function decorateFavela(ctx: MapDecorateContext): void {
     for (let d = 0.6; d < len; d += 0.9) { const t = d / len; bulbPts.push(new THREE.Vector3(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t - sag * 4 * t * (1 - t) - 0.08, a.z + (b.z - a.z) * t)); }
   }
   const palette = [0xffd28a, 0xff6a8a, 0x7ad8ff, 0xffe066, 0x9dff8a];
-  for (let p = 0; p < 3; p++) {
-    const mat = new THREE.MeshBasicMaterial({ color: 0x2a2420 });
-    const pts = bulbPts.filter((_, i) => i % 3 === p);
-    const im = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 6, 4), mat, pts.length);
+  {
+    // One instanced draw for every bulb; the chase is written into the instance colours each frame.
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const im = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 6, 4), mat, bulbPts.length);
     const m4 = new THREE.Matrix4();
-    pts.forEach((v3, i) => { im.setMatrixAt(i, m4.makeTranslation(v3.x, v3.y, v3.z)); im.setColorAt(i, new THREE.Color(palette[Math.floor(fr() * palette.length)])); });
+    const base: THREE.Color[] = [];
+    bulbPts.forEach((v3, i) => { im.setMatrixAt(i, m4.makeTranslation(v3.x, v3.y, v3.z)); const c = new THREE.Color(palette[Math.floor(fr() * palette.length)]); base.push(c); im.setColorAt(i, c); });
     im.name = 'fv:festoon';
+    im.computeBoundingSphere();
     root.add(im);
-    anim.festoons.push({ bulbs: im, mat, phase: p });
+    anim.festoons.push({ bulbs: im, mat, phase: 0, base });
   }
 
   // ---- Quadra floodlight masts (dark until the power comes on) + light pools on the pitch ----
@@ -649,20 +1080,42 @@ export function decorateFavela(ctx: MapDecorateContext): void {
   ring.position.set(-32, T2 + 0.02, 4);
   root.add(ring);
 
-  // ---- Street lamps (sodium) and the beco wall lamp ----
-  for (const [x, z] of [[-8, 30.6], [22, 30.6]] as const) {
-    dress.add('favela/fv_streetlamp.glb', x, T0, z, 0);
-    ctx.world.add(x - 0.1, T0, z - 0.1, x + 0.1, T0 + 6.4, z + 0.1, { surface: 'metal' });
-    const s = glowSprite(0xff9a3a, 2.6);
-    s.position.set(x, T0 + 6.1, z + 1.6);
-    root.add(s);
-    anim.sodiumGlow.push(s);
+  // ---- Lamp fixtures: sodium street lamps and wall lamps on every tier, each with a glow halo and a light pool
+  // on the ground (no real lights: the def's 12 point lights carry the actual illumination).
+  const sodiumPts: THREE.Vector3[] = [], lampPts: THREE.Vector3[] = [], sodiumPools: [number, number, number, number][] = [];
+  const streetLamp = (x: number, y: number, z: number, yaw: number) => {
+    dress.add('favela/fv_streetlamp.glb', x, y, z, yaw);
+    ctx.world.add(x - 0.1, y, z - 0.1, x + 0.1, y + 6.4, z + 0.1, { surface: 'metal' });
+    const hx = x + Math.sin(yaw) * 1.62, hz = z + Math.cos(yaw) * 1.62;
+    sodiumPts.push(new THREE.Vector3(hx, y + 6.18, hz));
+    sodiumPools.push([hx, y, hz, 9]);
+  };
+  streetLamp(-8, T0, 30.6, 0); streetLamp(22, T0, 30.6, 0); streetLamp(8.2, T0, 37.7, Math.PI); streetLamp(31, T0, 37.7, Math.PI); streetLamp(-12.5, T0, 37.7, Math.PI);
+  streetLamp(-17, T2, 14.6, Math.PI * 0.75); streetLamp(33.4, T3, -21, -Math.PI / 2); streetLamp(-1.6, T3, -12, Math.PI / 2); streetLamp(-13.4, T5, -43.4, Math.PI * 0.6);
+  // wall lamps: [x, y, z, yaw (bulb direction), sodium?, floor under it for the light pool (null: none)]
+  const wallLamps: [number, number, number, number, boolean, number | null][] = [
+    [-15.85, 12.6, 19, Math.PI / 2, true, T1], [-15.85, T0 + 3.6, 27.5, Math.PI / 2, false, becoY(27.5)], [-15.85, T2 + 2.8, 5.5, Math.PI / 2, false, T2],
+    [8, T3 + 3.1, -23.85, 0, true, T3], [25.5, T3 + 3.1, -23.85, 0, false, T3], [31.5, T3 + 2.6, -23.85, 0, false, T3],
+    [-47.85, 17.3, -14, Math.PI / 2, true, null], [-47.85, 20.8, -22, Math.PI / 2, false, null], [-47.85, 24.4, -30, Math.PI / 2, true, null],
+    [-40, T5 + 2.8, -59.85, 0, true, T5], [-26, T5 + 2.8, -59.85, 0, false, T5], [32.25, 20.3, -30, -Math.PI / 2, false, null], [32.25, 24.7, -40, -Math.PI / 2, true, null],
+    [26, T5 + 3, -59.85, 0, false, T5], [-8, T5 + 3, -59.85, 0, true, T5], [-39.85, T2 + 4.5, 15.7, Math.PI / 2, false, T2], [9.85, T0 + 2.6, 39.2, -Math.PI / 2, false, T0],
+  ];
+  for (const [x, y, z, yaw, sod, floorY] of wallLamps) {
+    dress.add('favela/fv_walllamp.glb', x, y, z, yaw);
+    const bx = x + Math.sin(yaw) * 0.45, bz = z + Math.cos(yaw) * 0.45;
+    (sod ? sodiumPts : lampPts).push(new THREE.Vector3(bx, y - 0.1, bz));
+    if (floorY !== null) sodiumPools.push([bx + Math.sin(yaw) * 0.9, floorY, bz + Math.cos(yaw) * 0.9, sod ? 6 : 4.5]);
   }
-  dress.add('favela/fv_walllamp.glb', -15.85, 12.6, 19, Math.PI / 2);
-  { const s = glowSprite(0xff9a3a, 1.6); s.position.set(-15.4, 12.5, 19); root.add(s); anim.sodiumGlow.push(s); }
+  for (const [p, c, sz] of [[glowPoints(ctx, sodiumPts, 0xff9a3a, 3.2), 0, 0], [glowPoints(ctx, lampPts, 0xffd08a, 2.0), 0, 0]] as const) {
+    void c; void sz;
+    if (p) anim.sodiumGlow.push(p.material as THREE.PointsMaterial);
+  }
+  poolMesh(ctx, sodiumPools, ctx.M.lightPoolWarm);
 
   // ---- Murals (as geometry): the samba hall's face over the laje, the quadra wall, the beco ----
   dress.add('favela/fv_mural_b.glb', 22.2, T3 + 1.3, -23.82, 0, undefined, 1);
+  dress.add('favela/fv_mural_a.glb', 16, T3 + 2.7, -39.82, 0, undefined, 1); // the samba stage backdrop (inside)
+  dress.add('favela/fv_mural_c.glb', 29.82, T3 + 1.6, -34.5, -Math.PI / 2, undefined, 0.9); // hall east wall, behind the rails
   dress.add('favela/fv_mural_a.glb', -47.82, T2 + 0.9, 3.5, Math.PI / 2, undefined, 1);
   dress.add('favela/fv_mural_c.glb', -15.82, T0 + 3.2, 25.6, Math.PI / 2, undefined, 0.9);
   dress.add('favela/fv_mural_b.glb', -24, T5 + 0.2, -59.82, 0, undefined, 0.8);
@@ -681,8 +1134,18 @@ export function decorateFavela(ctx: MapDecorateContext): void {
     neonGeos[k].push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.045, 5, false));
   };
   loop(22.2, T3 + 6.6, -23.8, 1.1, 1.1, 1); loop(22.2, T3 + 6.6, -23.8, 1.5, 1.5, 0); wave(17.5, 27, T3 + 6.9, -23.8, 0.25, 2); wave(8, 13.2, T3 + 4.4, -23.8, 0.3, 0);
-  loop(3, T0 + 3.2, 37.8, 0.6, 0.35, 0); wave(-3.4, 1.6, T0 + 3.25, 37.8, 0.12, 1); wave(4.4, 9.4, T0 + 3.25, 37.8, 0.12, 2);
-  neonGeos.forEach((gs, k) => { const g = gs.length ? mergeGeometries(gs, false) : null; if (g) { const m = new THREE.Mesh(g, mats.neon[k]); m.name = 'fv:neon'; root.add(m); } });
+  loop(3, T0 + 3.45, 37.8, 0.5, 0.2, 0); wave(-3.4, 1.6, T0 + 3.47, 37.8, 0.1, 1); wave(4.4, 9.4, T0 + 3.47, 37.8, 0.1, 2); // above the awning
+  {
+    const all: THREE.BufferGeometry[] = [];
+    neonGeos.forEach((gs, k) => gs.forEach((g) => {
+      const c = new THREE.Color([0xff3fbf, 0x2ef2ff, 0xffd23a][k]), n = g.attributes.position.count, a = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+      all.push(g);
+    }));
+    const g = all.length ? mergeGeometries(all, false) : null;
+    if (g) { const m = new THREE.Mesh(g, mats.neon[0]); m.name = 'fv:neon'; root.add(m); }
+  }
 
   // ---- Laundry lines, rebar stubs, grilles ----
   for (const [x, y, z, yaw] of [[8, T3, -3, 0.2], [26, T3 + 1.6, 0.5, 1.4], [-14.8, T1 + 1.6, 26, Math.PI / 2], [4, T0 + 1.9, 36.8, 0], [-30, T3 + 0.2, -20.4, 0], [-30, T5, -41, 0]] as const) dress.add('favela/fv_laundry.glb', x, y, z, yaw);
@@ -724,12 +1187,23 @@ export function decorateFavela(ctx: MapDecorateContext): void {
   const rowRoofs: [number, number, number, number][] = [[-13.2, 13.8, 27.2, T0 + 3.7], [-13.2, 13.8, 20.2, T1 + 3.7]];
   for (const [x0, x1, zc, y] of rowRoofs) {
     for (let x = x0 + 2.2; x < x1 - 2;) {
-      const h = HOUSES[[0, 2, 3, 5][Math.floor(sr() * 4)]];
-      if (y + h.h > (zc > 24 ? T1 + 7 : T2 + 5.5)) { x += 2; continue; }
-      dress.add(`favela/${h.id}.glb`, x, y, zc + (sr() - 0.5), sr() < 0.5 ? 0 : Math.PI, new THREE.Color(PASTEL[Math.floor(sr() * PASTEL.length)]));
-      x += h.w + 0.3 + sr() * 0.8;
+      const lim = zc > 24 ? T1 + 7 : T2 + 5.5;
+      const fits = HOUSES.filter((c) => y + c.top <= lim && c.d <= 5.4);
+      if (!fits.length) break;
+      const h = fits[Math.floor(sr() * fits.length)];
+      dress.add(`favela/${h.id}.glb`, x + h.w / 2 - 1.1, y, zc + (sr() - 0.5) * 0.6, 0, new THREE.Color(PASTEL[Math.floor(sr() * PASTEL.length)]), 1, undefined, sr() < 0.5, 0.35);
+      x += h.w + 0.2 + sr() * 0.6;
     }
   }
+  buildGreenery(dress);
+  buildStreetLife(ctx, dress);
+  buildFacades(ctx);
+  buildDressProps(ctx, mats);
+  flatBin.build(root, mats.byName.get('fv_flat')!);
+  flatBin = null;
+  const cg = cableBin.length ? mergeGeometries(cableBin, false) : null;
+  if (cg) { const cm2 = new THREE.Mesh(cg, mats.cable); cm2.name = 'fv:cables'; cm2.matrixAutoUpdate = false; root.add(cm2); }
+  cableBin = null;
   dress.build(root, mats, 'fv:dress');
 }
 
@@ -743,6 +1217,7 @@ function boxGeo(x0: number, y0: number, z0: number, x1: number, y1: number, z1: 
 // Per-frame: cabins (idle sway, rides), festoon chase, neon + floodlights on power, sodium buzz, kites
 // ------------------------------------------------------------------------------------------------------
 const tmp: P3 = { x: 0, y: 0, z: 0 }, tmp2: P3 = { x: 0, y: 0, z: 0 };
+const tmpC = new THREE.Color();
 function placeCabin(g: THREE.Group, path: P3[], u: number, time: number, sway = 0.02): void {
   pointAt(path, u, tmp);
   pointAt(path, Math.min(1, u + 0.01), tmp2);
@@ -788,18 +1263,20 @@ export function updateFavela(ctx: MapUpdateContext): void {
   const flood = power ? 3.2 : 0.18;
   anim.floodHead.color.setScalar(flood);
   for (const p of anim.floodPools) p.visible = power;
-  anim.festoons.forEach((f, i) => {
-    const on = power && Math.sin(time * 3 - i * 2.1) > -0.4;
-    f.mat.color.setScalar(on ? 2.2 : 0.12);
-  });
-  anim.neon.forEach((m, i) => {
-    const flick = Math.sin(time * 23 + i * 5) > 0.96 ? 0.35 : 1;
-    const base = [0xff3fbf, 0x2ef2ff, 0xffd23a][i];
-    m.color.setHex(base).multiplyScalar(power ? 2.4 * flick : 0.1);
+  for (const f of anim.festoons) {
+    const k = [0, 1, 2].map((p) => (power && Math.sin(time * 3 - p * 2.1) > -0.4 ? 2.2 : 0.12));
+    if (f.phase === (k[0] * 4 + k[1] * 2 + k[2]) && f.bulbs.instanceColor) continue; // unchanged since last frame
+    f.phase = k[0] * 4 + k[1] * 2 + k[2];
+    for (let i = 0; i < f.base.length; i++) { tmpC.copy(f.base[i]).multiplyScalar(k[i % 3]); f.bulbs.setColorAt(i, tmpC); }
+    if (f.bulbs.instanceColor) f.bulbs.instanceColor.needsUpdate = true;
+  }
+  anim.neon.forEach((m) => {
+    const flick = Math.sin(time * 23) > 0.96 ? 0.35 : 1;
+    m.color.setScalar(power ? 2.4 * flick : 0.1);
   });
   const buzz = Math.sin(time * 41) * Math.sin(time * 3.3) > 0.9 ? 0.45 : 1;
   anim.sodium.color.setHex(0xff9a3a).multiplyScalar(2.6 * buzz);
-  for (const s of anim.sodiumGlow) (s.material as THREE.SpriteMaterial).opacity = 0.75 * buzz;
+  for (const m of anim.sodiumGlow) m.opacity = 0.8 * buzz;
   anim.kites.forEach((k, i) => { k.rotation.z = Math.sin(time * 1.7 + i) * 0.25; k.rotation.x = Math.sin(time * 1.1 + i * 2) * 0.12; });
   void CABIN_H; void T0;
 }
