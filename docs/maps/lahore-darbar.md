@@ -1,10 +1,10 @@
 # MAP — "Lahore Darbar" (Zombies)
 
 *The court of the Sikh Empire at dusk, c. 1830s: Lahore Fort, then through the Roshnai Gate into the haveli maze of the
-walled city.* Map id `lahore_darbar`. Code in `src/zombies/maps/lahore/`, assets in `public/models/lahore/`.
+walled city.* Map id `lahore-darbar` (play: `/?mode=zombies&map=lahore-darbar`). Code in `src/zombies/maps/lahore/`, assets in `public/models/lahore/`.
 
-> Status: design v2 (court + haveli). The generated top-down plan is `docs/maps/lahore-darbar.svg`. It is rebuilt
-> from the map data by `node scripts/lahore-plan.mjs`, so it cannot drift from the code.
+> Status: built and playable (court + haveli). The top-down plan `docs/maps/lahore-darbar.svg` is generated from the map
+> data by `LAHORE_PLAN=1 npx vitest run tests/lahore-map.test.ts`, so it cannot drift from the code.
 
 ## 0. Respect rules (non-negotiable, and enforced by the validator where possible)
 
@@ -85,26 +85,111 @@ Doors (cost, kind):
 (`d` = debris; every other entry is a carved door.)
 
 Three alternative routes lead into the haveli half: Roshnai, Wazir → lanes, and the basement tunnel. Two routes lead up into the
-fort's upper level: the Hathi Pol, and the Diwan-e-Khas stair. Every zone except the armoury and (until the tunnel) the
-vault sits on at least one loop.
+fort's upper level: the Hathi Pol, and the Diwan-e-Khas stair. The Naqqar Khana can be entered from the lanes or dropped
+into from the rooftops.
 
-## 4. Top-down plan (coarse ASCII; the exact SVG is generated)
+The door graph has exactly three one-door zones, and each is deliberate (the tests enforce this):
+- the armoury holds the Pack-a-Punch, so going in is high risk and high reward;
+- the Sheesh Mahal holds the Hammerfall perk, and its pillared hall is a circle you can train around;
+- the ramparts can be left one way by dropping into the Top Khana.
+
+The vault is a dead end until the 2000-point tunnel opens.
+
+## 4. Top-down plan
+
+The exact plan is [`lahore-darbar.svg`](lahore-darbar.svg). It is generated from the layout data with
+`LAHORE_PLAN=1 npx vitest run tests/lahore-map.test.ts` and shows every level, wall, rail, door (with cost), window, stair
+arrow, jump, ladder, box/perk/PaP/power spot and egg object.
+
+The ASCII view below is also generated from the data. Each character is 2 × 2 m, north is up, and it shows the top-most
+walkable layer. The digits and `A–D` are zone numbers: `A` = 10 KUCHA, `B` = 11 NAQQAR KHANA, `C` = 12 KOTHAY and `D` = 13
+TEHKHANA. `/` is a stair, `~` is basement (y 0, under masonry), `+` is a door, and blank space is solid masonry or outside.
 
 ```
- z     x: -60      -44        -18   0    14    30         60         90
- -70        +------- SHEESH MAHAL (U) -------+
- -58   RAMP |  Naulakha   SHAH BURJ QUAD (U)  Diwan-e-Khas |
- -46   PARTS|[Hathi Pol  |______jharokha________|           | VAULT(B)|TEHKHANA(B)
- -40   (U)  | landing U] |   DIWAN-E-AAM HALL (P)          |  ↑stair |   ↑ stair
-       |    |  ramp      |                      |Khas stair| TOSHA-  |  north lane ───────────────┐
- -24   |    |  G→U  SILAH KHANA (G)  D-E-A QUAD (G)         | KHANA   |A │ H1 WAZIR   │B│ H2 NAQQAR │E│
- -10   |    |        |  (jaali) |      gate      |         |  hall   |  │ (pipal)    │ │ KHANA     │ │
-  -6   |    +--------+---------+-------[]-------+---------+         |  │            │ │  drum(P)  │ │
-       | drop  TOP KHANA (G)      HAZURI BAGH (G)                     |  ├─mid lane───┼chowk        │ │
-  8    |       great gun           baradari (P)   ==ROSHNAI GATE==== A|  │ H3 roofs(R)│ │ roofs (R) │ │
-  20   +---- Musamman Burj (R) ---------------------------+            |  └────── south lane ──────────┘
-  36                                                                     (ladder south lane → roofs)
+
+
+
+               55555555555555
+               55555555555555
+               55555555555555
+               55555555555555
+               55555555555555
+               555555++555555
+   666666++4444444444++4444444444444444
+   666666++4444444444444444444444444444
+   666666++4444444444444444444444444444
+   666    44444444444444444444444444444
+   666    44444444444444444444444444444
+   666111++4//4444444444444444444444444
+   666111++4//4444444444444444444444444~~~~~~~~~~~~~~~~~
+   666111++44444444444444444444444//444~~~~~~~~~~~~~~~~~
+   6661111444444444444444444444444//444~~~~~~~++~~~~~~~~
+   666///              22222224442222//~~~~~~~++~~~~~~~~
+   666///              22222224442222//~~~~~~~++~~~~~~~~
+   666///              22222222222222//~~~~~~~~~~~~~~~~~
+   666///              22222222222222//~~~~~~~~~~~~~~~~~
+   666///              22222222222222++    ~~~ ~~~~~~~~~
+   666/// 7777777777777222222////2222++    ~~~        ~~
+   666/// 7777777777777222222////222222    ~~~        ~~
+   666/// 77777777777772222222222222222    ~~~        ++
+   666/// 7777777777777222222222222222233333333  AAAAA++AAAAAAAAAAAAAAAAAAAA
+   666/// 7777777777777222222222222222233333333  ++AAAAAAAAAAAAAAAAAAAAAAAAA
+   666/// 7777777777777222222222222222++3333333  8899999999999ABBBBBBBBBBBAA
+   666/// 7777777777777222222222222222++3333333  8899999999999ABBBBBBBBBBBAA
+   666/// 7777777777777222222222222222++3333333  88999/////999ABB//BBBBBBBAA
+   666/// 7777777777777222222222222222233333333  88999/////999ABB//BBBBBBBAA
+   666/// 7777777777777222222222222222233333333  889999999999+ABB//BBBBBBBAA
+   666/// 7777777777777       222                8+9999999999+ABB//BBBBBBBAA
+   666/// 77777+++77777       +++                8+99999999999ABB//B//BBBBAA
+   666111111111+++111110000000+++000000          8899999999+++ABBBBBBBBBBBAA
+   666111111111111111110000000000000000          8899999999+++ABBBBBBBBBBBAA
+   666111111111111111110000000000000000          8899999999///ABBBBBBBBBBBAA
+   666111111111111111110000000//0000000          8899999999///ABBBBB//BBBBAA
+   666111111111111111110000000000000000          88CCCCCCCC///ABBBBB//BBBBAA
+   666111111111111111110000000000000000          88CCCCCCCCCCCAA++BBBBBBBBAA
+   666111111111111111110000/000000//000          88  AAAAAAAAAAA++BBBBBBBBAA
+   666111111111111111110000/000000//00++88888888888  AAAAAAAAAAAABBBBBBBBBAA
+   66611111111111111111000000000000000++88888888888CCCCCCCCCCCAAABBBBBBBBBAA
+   6661111111111111111++00000000000000++88888888888CCCCCCCCCCCA  BBBBBBB++AA
+   6661111111111111111++000000//0000000          88CCCCCCCCCCCACCCCCCCCC//AA
+   666111111111111111110000000//0000000          88CCCCCCCCCCCACCCCCCCCC//AA
+   666111111111111111110000000000000000          88CCCCCCCCCCCACCCCCCCCC//AA
+   //                                            88CCCCCCCCCCCACCCCCCCCCCCAA
+   //                                            88CCCCCCCCCCCACCCCCCCCCCCAA
+   //                                            88CCCCCCCCCCCACCCCCCCCCCCAA
+   //                                            88CCCCCCCCCCCACCCCCCCCCCCAA
+  66666                                          88CCCCCCCCCCCACCCCCCCCCCCAA
+  66666                                          88CCCCCCCCCCCACCCCCCCCCCCAA
+  66666                                          ++CCCCCCCCCCCACCCCCCCCCCCAA
+  66666                                          AAAAAAAAAAAAAAAAAAAAAAAAAAA
+  66666
+
+
 ```
+
+What the ASCII view shows:
+- **Left column (`6`):** the rampart walk at y 7.2. Its south end (bottom left) climbs to the Musamman Burj top at y 10.2.
+- **Row of `1`s under `4`:** the Hathi Pol landing. The long `///` strip under it is the 34 m elephant stair down into the
+  Top Khana.
+- **`7`:** the Silah Khana. Its east wall is the jaali screen onto the Diwan-e-Aam (`2`).
+- **`4`:** the Shah Burj covers the whole upper court. The Sheesh Mahal (`5`) sits north of it, and the Diwan-e-Khas stair
+  (`//` beside `2`) comes up from the Diwan-e-Aam.
+- **`3` and `~`:** the Toshakhana hall, with its stair down to the vault. The vault connects east to the tehkhana (`~` block),
+  whose stair (`++` below it) comes up into the north lane of the Kucha.
+- **Right half:**
+  - The ring of `A` lanes surrounds the Wazir haveli (`9`, with its stair `/////`), the Naqqar Khana (`B`, with the drum
+    pavilion and its stairs `//`) and the rooftops (`C`).
+  - The Roshnai Gate tunnel (`8`) enters from the Hazuri Bagh (`0`).
+
+### Levels in play
+
+| Level | y | Zones on it | Connections |
+|---|---|---|---|
+| Basement | 0 | vault (3) and tehkhana (13) | Tosha stair (8 m) down from the treasury hall. Tehkhana stair (7 m) up to the north lane. The old tunnel door (2000) joins them. |
+| Ground | 3 | Hazuri Bagh, Top Khana, Diwan-e-Aam quad, Silah Khana, gate tunnels, lanes, haveli courtyards | Carved doors and debris. |
+| Plinths | 4.2 | baradari, Diwan-e-Aam hall, drum pavilion | 3-step marble stairs. You can mantle the 1.2 m edges and jump down; zombies take the stairs. |
+| Upper | 7.2 / 8.4 | Shah Burj, Naulakha and Diwan-e-Khas (8.4), Sheesh Mahal, ramparts, haveli galleries, jharokha | Hathi Pol (34 m), Diwan-e-Khas stair (10 m), and two haveli courtyard stairs (10 m each). Rails give one-way drops, each with a zombie drop link. |
+| Roofs | 10.2 | kothay (house tops), Musamman Burj top | Stairs up from the Wazir and Naqqar galleries, and a ladder from the south lane. There are 3 m jump gaps over the middle lane and lane B (two-way jump links). Low parapets let you drop into the lanes. |
 
 ## 5. Why it plays well (design rationale)
 
@@ -227,3 +312,59 @@ Procedural WebAudio in the game's style:
   - Not used: flag-khalsa (religious), burj-tower (it is a pole, not a tower), lotus-blossom (1.4 MB, reads black) and candle-holder.
 - **Budget:** at most 40 MB total for the map. It is loaded progressively: the shell geometry is procedural (it costs nothing
   to download), then the props stream in by zone distance.
+
+## 11. Implementation (as built)
+
+| Piece | File | Notes |
+|---|---|---|
+| Layout data | `src/zombies/maps/lahore/layout.ts` | Areas on 4 layers, stairs, 18 doors, 38 windows, 8 spawn points, spots, egg objects. All rects are integer metres. |
+| Rasteriser | `src/zombies/maps/lahore/raster.ts` | Paints areas on a 1 m grid. It fills everything else inside the built REGIONS with solid mass (supports, ceilings, the skyline), then classifies every grid edge once as open, wall, rail, low parapet, parapet + invisible wall, or mass face. Walls are merged into runs. It carves window pockets and emits drop links along rails and face runs for dressing. Pure; tested. |
+| Map def | `src/zombies/maps/lahore/def.ts` | Turns the raster into a `ZombiesMapDef` (rooms, walls, boxes, stairs, links, ladders, doors, windows, machines, egg, lighting, flavor, machine skins). |
+| Materials | `src/zombies/maps/lahore/materials.ts` | Canvas-generated tileable PBR sets, so no download: red sandstone ashlar, Makrana marble, pietra-dura inlay, Nanakshahi brick, ochre/indigo lime plaster, lane paving, roof terrace, teak, and the Sheesh Mahal mirror mosaic (its emissive glitter rises after power). They are reached through `MatSpec.custom`. |
+| Decorate | `src/zombies/maps/lahore/decorate.ts` | Details below. |
+| Plan | `src/zombies/maps/lahore/plan.ts` | SVG generator. |
+| Audio | `src/audio/Audio.ts` (`setMapAmbience('lahore')`) | A tanpura-like drone (Sa, Pa, Sa′ with slow beating and a jawari filter sweep), dusk bird chirps, and distant naqqara pairs every 20–40 s. Once the power is on: a triple drum strike, a brighter drone, and a slow processional naqqara march. |
+
+What `decorate.ts` does:
+- **Instanced kit placement.** Placements are grouped per model, material remap and 40 m cell, one InstancedMesh per primitive, then
+  distance-culled at 105 m.
+- **Facade dressing from the raster's face runs.** Fort courts get blind cusped arcades. Haveli lanes get shuttered windows,
+  carved balconies and lanterns.
+- **Set pieces** placed by hand:
+  - the baradari, the 40-pillared hall and the jharokha
+  - the Naulakha bangla roof, the Diwan-e-Khas and the Sheesh Mahal mirror panels
+  - the ramparts, merlons, burj and state standards
+  - the drum pavilion chhatri, the chowk, the kite terraces and kites, the tehkhana cistern
+- **Pooled light rig.** Hundreds of lamp anchors (torches, lanterns, chandeliers, diyas, forge, mirror glints) get additive glow
+  points. Eight real point lights are re-assigned to the nearest active anchors every 0.25 s.
+- **Procedural pipal.** The Meshy tree was dark and spiky, so it was replaced.
+- **Dusk skyline and setting-sun glow.**
+
+Engine additions (generic, on this branch):
+- `MatSpec.custom` plus `ZombiesMapEntry.materials()`: a bespoke material library per map.
+- `BoxDef.mat: null`: collider-only boxes, used for invisible parapet walls and jaali screens.
+- `def.machineModels`: per-map skins for the box, perks, Pack-a-Punch and power, loaded by path.
+- `def.flavor`: HUD, prompt and game-over strings.
+- `EggReward.allPerks` and `EggReward.weapon`.
+- `MapUpdateContext.player`.
+- Box spots honour `y`.
+- The dev API gains `teleport(x, z, yaw, y)`, `zDef`, `zEgg` and `sceneStats`.
+- The audio engine gains per-map ambience beds.
+
+Tests: `tests/lahore-map.test.ts` (18) covers:
+- the raster compiles cleanly, and the raster and def zone queries agree;
+- the def validates with no errors and no warnings;
+- 14 zones, 18 doors, a spawn source in every zone, all six floor heights present, ladders, jump and drop links;
+- every zone is unlockable, and the only dead ends are the deliberate three (armoury, Sheesh Mahal, ramparts);
+- alternative routes exist into each half;
+- the power is at least 3 doors deep in the haveli and the Pack-a-Punch is in the court;
+- machines spread across zones and levels;
+- door costs rise outward;
+- the egg runs start to finish;
+- the respect rules hold on the sources (no relics, no Khalsa flag, no figures, no religious sites or named people, generic
+  zombies).
+
+E2E:
+- `e2e/lahore-play.mjs` buys every door by walking up to it, then checks perks with and without power, the naqqara power,
+  box spin and take, the forge upgrade, egg steps 1–2, and fights a few rounds.
+- `e2e/lahore-tour.mjs` screenshots every zone before and after power.

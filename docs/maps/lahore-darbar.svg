@@ -225,11 +225,17 @@
 <line x1="737.0" y1="415.0" x2="891.0" y2="415.0" stroke="#f4ecd8" stroke-width="2"/>
 <line x1="961.0" y1="450.0" x2="982.0" y2="450.0" stroke="#58d68d" stroke-width="1.6" stroke-dasharray="3 2"/>
 <line x1="1010.0" y1="450.0" x2="1038.0" y2="450.0" stroke="#58d68d" stroke-width="1.6" stroke-dasharray="3 2"/>
-<line x1="772.0" y1="450.0" x2="814.0" y2="450.0" stroke="#58d68d" stroke-width="1.6" stroke-dasharray="3 2"/>
-<line x1="814.0" y1="450.0" x2="842.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
+<line x1="793.0" y1="450.0" x2="814.0" y2="450.0" stroke="#58d68d" stroke-width="1.6" stroke-dasharray="3 2"/>
+<line x1="765.0" y1="450.0" x2="772.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
+<line x1="786.0" y1="450.0" x2="793.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
 <line x1="982.0" y1="450.0" x2="1010.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
+<line x1="772.0" y1="450.0" x2="786.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
+<line x1="814.0" y1="450.0" x2="821.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
+<line x1="821.0" y1="450.0" x2="828.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
+<line x1="828.0" y1="450.0" x2="835.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
+<line x1="835.0" y1="450.0" x2="842.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
 <line x1="842.0" y1="450.0" x2="849.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
-<line x1="814.0" y1="450.0" x2="842.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
+<line x1="786.0" y1="450.0" x2="793.0" y2="450.0" stroke="#f4ecd8" stroke-width="2"/>
 <line x1="380.0" y1="492.0" x2="408.0" y2="492.0" stroke="#f4ecd8" stroke-width="2"/>
 <line x1="534.0" y1="492.0" x2="562.0" y2="492.0" stroke="#f4ecd8" stroke-width="2"/>
 <line x1="170.0" y1="520.0" x2="352.0" y2="520.0" stroke="#f4ecd8" stroke-width="2"/>
@@ -551,7 +557,7 @@
 <line x1="640.8" y1="660.0" x2="651.3" y2="660.0" stroke="#e74c3c" stroke-width="5"/>
 <line x1="716.0" y1="542.8" x2="716.0" y2="553.3" stroke="#e74c3c" stroke-width="5"/>
 <line x1="716.0" y1="724.8" x2="716.0" y2="735.3" stroke="#e74c3c" stroke-width="5"/>
-<line x1="822.8" y1="450.0" x2="833.3" y2="450.0" stroke="#e74c3c" stroke-width="5"/>
+<line x1="773.8" y1="450.0" x2="784.3" y2="450.0" stroke="#e74c3c" stroke-width="5"/>
 <line x1="856.0" y1="542.8" x2="856.0" y2="553.3" stroke="#e74c3c" stroke-width="5"/>
 <line x1="892.8" y1="394.0" x2="903.3" y2="394.0" stroke="#e74c3c" stroke-width="5"/>
 <line x1="1018.8" y1="394.0" x2="1029.3" y2="394.0" stroke="#e74c3c" stroke-width="5"/>
@@ -566,7 +572,7 @@
 <line x1="724.8" y1="240.0" x2="735.3" y2="240.0" stroke="#e74c3c" stroke-width="5"/>
 <line x1="814.0" y1="276.8" x2="814.0" y2="287.3" stroke="#e74c3c" stroke-width="5"/>
 <circle cx="464.0" cy="618.0" r="8" fill="#7fe0ff" stroke="#000"/><text x="464.0" y="622.0" font-size="10" font-weight="bold" text-anchor="middle" fill="#000">?</text>
-<circle cx="366.0" cy="317.0" r="8" fill="#7fe0ff" stroke="#000"/><text x="366.0" y="321.0" font-size="10" font-weight="bold" text-anchor="middle" fill="#000">?</text>
+<circle cx="520.0" cy="291.8" r="8" fill="#7fe0ff" stroke="#000"/><text x="520.0" y="295.8" font-size="10" font-weight="bold" text-anchor="middle" fill="#000">?</text>
 <circle cx="632.0" cy="245.6" r="8" fill="#7fe0ff" stroke="#000"/><text x="632.0" y="249.6" font-size="10" font-weight="bold" text-anchor="middle" fill="#000">?</text>
 <circle cx="915.5" cy="640.4" r="8" fill="#7fe0ff" stroke="#000"/><text x="915.5" y="644.4" font-size="10" font-weight="bold" text-anchor="middle" fill="#000">?</text>
 <circle cx="814.0" cy="780.4" r="8" fill="#7fe0ff" stroke="#000"/><text x="814.0" y="784.4" font-size="10" font-weight="bold" text-anchor="middle" fill="#000">?</text>
@@ -591,9 +597,9 @@
 <rect x="783.0" y="602.2" width="6" height="6" fill="#fdfefe" stroke="#000"/>
 <rect x="938.2" y="545.0" width="6" height="6" fill="#fdfefe" stroke="#000"/>
 <rect x="727.0" y="340.8" width="6" height="6" fill="#fdfefe" stroke="#000"/>
-<path d="M241.8,94.0 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>
-<path d="M434.3,122.0 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>
-<path d="M282.0,67.8 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>
+<path d="M246.3,94.0 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>
+<path d="M429.7,118.5 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>
+<path d="M282.0,72.3 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>
 <path d="M758.0,244.5 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>
 <path d="M761.5,762.5 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>
 <path d="M751.0,423.0 l5,6 l-5,6 l-5,-6z" fill="#ff5dd8" stroke="#000"/>

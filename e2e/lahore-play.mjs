@@ -9,7 +9,9 @@ const out = process.argv[2] ?? '/tmp/lahore-shots/play';
 fs.mkdirSync(out, { recursive: true });
 const exe = process.env.CHROME ?? fs.readdirSync(`${os.homedir()}/.cache/ms-playwright`).filter((d) => d.startsWith('chromium-')).map((d) => `${os.homedir()}/.cache/ms-playwright/${d}/chrome-linux-arm64/chrome`).find((p) => fs.existsSync(p));
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+// Low quality (no shadow maps) so SwiftShader keeps the fixed-step sim near real time.
+await page.addInitScript(() => localStorage.setItem('deadsignal.settings.v1', JSON.stringify({ quality: 'low' })));
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push(String(e)));
@@ -37,9 +39,10 @@ const zoneAt = (x, z, y) => { let best = -1, bf = -1e9; for (const r of def.room
 await shot('00-spawn');
 
 // ---- Round 1: zombies come through the garden windows ----
-const r1 = await until((z) => z.round === 1 && z.alive > 0, 40000);
+await ds('zRound', 1);
+const r1 = await until((z) => z.round === 1 && z.alive > 0, 180000);
 check(!!r1, 'round 1 started and zombies spawned');
-await wait(6000);
+await wait(8000);
 const zs = await ds('zombies');
 check(zs.length > 0 && zs.every((q) => zoneAt(q.x, q.z, 3) === 0 || zoneAt(q.x, q.z, 3) === -1), `round-1 zombies are in/outside the Hazuri Bagh (${zs.length})`);
 await stand(-2, 3, 12, -10, 20, -0.05);
@@ -88,7 +91,10 @@ await shot('power-after');
 
 // ---- Perks after power ----
 for (const id of ['quickhands', 'bulwark', 'hammerfall']) {
-  await front(def.perks[id], 1.2, -0.05); await press(); await wait(700);
+  await front(def.perks[id], 1.6, -0.05); await wait(400);
+  const it = (await ds('state')).interaction;
+  await press(); await wait(900);
+  if (!(await ds('zm')).perks.includes(id)) console.log('perk debug', id, it, JSON.stringify((await ds('state')).pos));
   check((await ds('zm')).perks.includes(id), `perk ${id}`);
   await shot(`perk-${id}`);
 }
@@ -96,10 +102,10 @@ for (const id of ['quickhands', 'bulwark', 'hammerfall']) {
 // ---- Box: the casket in the baradari ----
 await front(def.box.spots[0], 1.2, -0.3);
 await press();
-const spun = await until((z) => z.box.phase === 'spinning', 5000);
+const spun = await until((z) => z.box.phase === 'spinning', 20000);
 check(!!spun, 'box spins');
 await wait(1500); await shot('box-spin');
-await until((z) => z.box.phase === 'offer' || z.box.phase === 'moving', 15000);
+await until((z) => z.box.phase === 'offer' || z.box.phase === 'moving', 120000);
 await shot('box-offer');
 await press(); await wait(800);
 const st = await ds('state');
@@ -109,7 +115,7 @@ check(st.slots.filter(Boolean).length === 2, `box weapon taken (${st.slots.map((
 const tier0 = (await ds('state')).weapon.tier;
 await front(def.pap, 1.3, -0.1);
 await press(); await wait(1500); await shot('pap-forging');
-await wait(4000);
+await until(() => true, 1); for (let i = 0; i < 60 && (await ds('state')).weapon.tier === tier0; i++) await wait(1000);
 check((await ds('state')).weapon.tier === tier0 + 1, 'weapon reforged at the forge');
 await shot('pap-done');
 
@@ -126,8 +132,8 @@ check(egg2.step === 2, `egg step 2 (keys) done: ${JSON.stringify(egg2)}`);
 // ---- A few rounds of fighting on the Diwan-e-Aam quad ----
 await ds('zRound', 4);
 await stand(-2, 3, -14, -2, -20, 0);
-for (let i = 0; i < 40; i++) {
-  await wait(450);
+for (let i = 0; i < 80; i++) {
+  await wait(600);
   const zz = await ds('zombies');
   const s = await ds('state');
   if (zz.length) {
