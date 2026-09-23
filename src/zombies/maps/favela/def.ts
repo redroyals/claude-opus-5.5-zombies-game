@@ -11,38 +11,42 @@ const [T0, T1, T2, T3, T4, T5] = T;
 export const Z = { street: 0, beco: 1, houses: 2, laje: 3, quadra: 4, samba: 5, station: 6, mirante: 7, power: 8 } as const;
 
 // ---- Materials ------------------------------------------------------------------------------------
-const paint = (color: number): MatSpec => ({ color, texture: 'plaster', roughness: 0.93 });
+// Every surface resolves to the map's procedural library (materials.ts, `custom` keys); color/texture are the fallback.
+const paint = (color: number, name: string): MatSpec => ({ color, texture: 'plaster', roughness: 0.93, custom: `fv:paint:${name}` });
 export const PAINT = {
-  terracotta: paint(0xc9785a), teal: paint(0x5fa39a), yellow: paint(0xd9b653), pink: paint(0xc47a92),
-  green: paint(0x86a860), blue: paint(0x6f8fbf), cream: paint(0xd8cfbd), lilac: paint(0x9a86b8),
+  terracotta: paint(0xc9785a, 'terracotta'), teal: paint(0x5fa39a, 'teal'), yellow: paint(0xd9b653, 'yellow'), pink: paint(0xc47a92, 'pink'),
+  green: paint(0x86a860, 'green'), blue: paint(0x6f8fbf, 'blue'), cream: paint(0xd8cfbd, 'cream'), lilac: paint(0x9a86b8, 'lilac'),
 };
+const BRICK: MatSpec = { color: 0xffffff, texture: 'brick', roughness: 0.9, custom: 'fv:brick' };
+const BRICK_DARK: MatSpec = { color: 0x9a9090, texture: 'brick', roughness: 0.92, custom: 'fv:brickDark' };
+const CONC: MatSpec = { color: 0xd8d6d0, texture: 'concrete', roughness: 0.92, custom: 'fv:concrete' };
 const ASPHALT = 'asphalt' as const;
-const SLAB: MatSpec = { color: 0x9a968e, texture: 'concrete', roughness: 0.95 };
+const SLAB: MatSpec = { color: 0x9a968e, texture: 'concrete', roughness: 0.95, custom: 'fv:slab' };
 const TILE_FLOOR: MatSpec = { color: 0xb5a58a, texture: 'sidewalk', roughness: 0.8 };
-const CEIL: MatSpec = { color: 0x57514a, texture: 'plaster', roughness: 0.97 };
-const COURT: MatSpec = { color: 0x3f6f78, texture: 'concrete', roughness: 0.85 };
+const CEIL: MatSpec = { color: 0x57514a, texture: 'plaster', roughness: 0.97, custom: 'fv:ceiling' };
+const COURT: MatSpec = { color: 0x5a8e96, texture: 'concrete', roughness: 0.85 };
 
 // ---- Helpers --------------------------------------------------------------------------------------
 const room = (zone: number, name: string, x0: number, z0: number, x1: number, z1: number, floor: number, ceiling: number | null = null, extra: Partial<RoomDef> = {}): RoomDef =>
   ({ zone, name, rect: { x0, z0, x1, z1 }, floor, ceiling, skirting: false, beams: false, floorMat: SLAB, ceilingMat: SLAB, ...extra });
-const wall = (axis: 'x' | 'z', at: number, a0: number, a1: number, y0: number, y1: number, mat: WallDef['mat'] = 'brick', extra: Partial<WallDef> = {}): WallDef =>
+const wall = (axis: 'x' | 'z', at: number, a0: number, a1: number, y0: number, y1: number, mat: WallDef['mat'] = BRICK, extra: Partial<WallDef> = {}): WallDef =>
   ({ axis, at, a0, a1, y0, y1, mat, ...extra });
 /** Low parapet (1.1 m) over a drop. */
 const parapet = (axis: 'x' | 'z', at: number, a0: number, a1: number, y: number, extra: Partial<WallDef> = {}): WallDef =>
-  wall(axis, at, a0, a1, y, y + 1.1, 'concrete', { thickness: 0.25, ...extra });
+  wall(axis, at, a0, a1, y, y + 1.1, CONC, { thickness: 0.25, ...extra });
 const floorBox = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, mat: BoxDef['mat'] = SLAB): BoxDef =>
   ({ box: [x0, y0, z0, x1, y1, z1], mat, tile: 2, collide: 'floor' });
-const solid = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, mat: BoxDef['mat'] = 'brick', tile = 2): BoxDef =>
+const solid = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, mat: BoxDef['mat'] = BRICK, tile = 2): BoxDef =>
   ({ box: [x0, y0, z0, x1, y1, z1], mat, tile });
 const vis = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, mat: BoxDef['mat'], tile = 1): BoxDef =>
   ({ box: [x0, y0, z0, x1, y1, z1], mat, tile, collide: 'none' });
 /** Walled yard on the ground (y 0) where climbing zombies spawn, open on the side facing the map. */
 function yard(x0: number, z0: number, x1: number, z1: number, open: '+x' | '-x' | '+z' | '-z', h: number): BoxDef[] {
   const t = 0.3, out: BoxDef[] = [];
-  if (open !== '-x') out.push(solid(x0 - t, 0, z0 - t, x0, h, z1 + t, 'brickDark'));
-  if (open !== '+x') out.push(solid(x1, 0, z0 - t, x1 + t, h, z1 + t, 'brickDark'));
-  if (open !== '-z') out.push(solid(x0 - t, 0, z0 - t, x1 + t, h, z0, 'brickDark'));
-  if (open !== '+z') out.push(solid(x0 - t, 0, z1, x1 + t, h, z1 + t, 'brickDark'));
+  if (open !== '-x') out.push(solid(x0 - t, 0, z0 - t, x0, h, z1 + t, BRICK_DARK));
+  if (open !== '+x') out.push(solid(x1, 0, z0 - t, x1 + t, h, z1 + t, BRICK_DARK));
+  if (open !== '-z') out.push(solid(x0 - t, 0, z0 - t, x1 + t, h, z0, BRICK_DARK));
+  if (open !== '+z') out.push(solid(x0 - t, 0, z1, x1 + t, h, z1 + t, BRICK_DARK));
   return out;
 }
 /** Beco flight 1 height at z (rises from T0 at z 30 to T1 at z 21). */
@@ -181,9 +185,12 @@ const WINDOWS: WindowDef[] = [
 // ---- Walls ------------------------------------------------------------------------------------------
 const WALLS: WallDef[] = [
   // Street: house fronts to the north (with the beco mouth and the house door cut out), end walls, south parapets
-  wall('x', 30, -18, 36, T0, T0 + 3.7, PAINT.terracotta),
-  wall('z', -18, 30, 38, T0, T0 + 5, 'brick'),
-  wall('z', 36, 30, 38, T0, T0 + 5, 'brick'),
+  // (split into house fronts of different colours; no segment boundary falls inside a door)
+  // (only the map's eight paints: every extra material is one more draw call per batch chunk)
+  ...([[-18, -11, PAINT.yellow], [-11, -3, PAINT.blue], [-3, 2, PAINT.cream], [2, 9, PAINT.terracotta], [9, 16.5, PAINT.green],
+    [16.5, 24, PAINT.pink], [24, 30, PAINT.teal], [30, 36, PAINT.lilac]] as const).map(([a0, a1, m]) => wall('x', 30, a0, a1, T0, T0 + 3.7, m)),
+  wall('z', -18, 30, 38, T0, T0 + 5, BRICK),
+  wall('z', 36, 30, 38, T0, T0 + 5, BRICK),
   parapet('x', 38, -18, -4, T0),
   parapet('x', 38, 10, 23, T0), parapet('x', 38, 24.6, 36, T0),
   // Lanchonete: open shop front on the street, back windows over the slope
@@ -192,10 +199,10 @@ const WALLS: WallDef[] = [
   wall('z', -4, 38, 46, T0, T0 + 3.7, PAINT.yellow),
   wall('z', 10, 38, 46, T0, T0 + 3.7, PAINT.yellow),
   // Beco: west wall (low along flight 1 so roof zombies can drop in), tall where it faces the quadra; east = house rows
-  wall('z', -16, 21, 30, T0, T0 + 6.6, 'brick'),
-  wall('z', -16, 3, 21, T0, T3, 'brick'),
-  wall('z', -13.6, 3, 30, T0, T3, PAINT.pink),
-  wall('x', 3, -16, -13.6, T2, T3, 'brick'),
+  wall('z', -16, 21, 30, T0, T0 + 6.6, BRICK),
+  wall('z', -16, 3, 21, T0, T3, BRICK),
+  wall('z', -13.6, 3, 16, T0, T3, PAINT.teal), wall('z', -13.6, 16, 24, T0, T3, PAINT.pink), wall('z', -13.6, 24, 30, T0, T3, PAINT.cream),
+  wall('x', 3, -16, -13.6, T2, T3, BRICK),
   // Row A (T0): A1 | A2 divider, east wall, stairwell enclosure
   wall('z', 0, 24, 30, T0, T0 + 3.4, PAINT.cream, { openings: [{ a: 26.8, b: 29, y0: T0, y1: T0 + 2.4 }] }),
   wall('z', 0, 24, 26.4, T0 + 3.4, T1 + 3.7, PAINT.cream),
@@ -218,57 +225,56 @@ const WALLS: WallDef[] = [
   parapet('x', 8, -2, 1, T3), parapet('x', 8, 14, 34, T3),
   parapet('z', 34, -24, -7.7, T3), parapet('z', 34, -6.3, 8, T3),
   parapet('x', -24, -2, 2, T3),
-  wall('x', -24, 30, 34, T3, T4, 'brick'),
+  wall('x', -24, 30, 34, T3, T4, BRICK),
   // Bridge rails
-  parapet('x', -22.1, -16, -2, T3, { thickness: 0.12, mat: 'steel' }), parapet('x', -18.9, -16, -2, T3, { thickness: 0.12, mat: 'steel' }),
+  // (the bridge rails and the lookout rail are invisible collider boxes in BOXES; decorate draws see-through railings)
   // Samba hall shell
   wall('x', -24, 2, 30, T3, T5 + 0.3, PAINT.lilac),
   wall('x', -40, 2, 30, T3, T5 + 0.3, PAINT.lilac),
   wall('z', 2, -40, -24, T3, T5 + 0.3, PAINT.lilac),
   wall('z', 30, -40, -24, T3, T5 + 0.3, PAINT.lilac),
   // Station stair enclosure
-  wall('z', 32.4, -44, -24, T3, T5 + 1.1, 'brick'),
-  wall('z', 30, -44, -40, T3, T5 + 1.1, 'brick'),
+  wall('z', 32.4, -44, -24, T3, T5 + 1.1, BRICK),
+  wall('z', 30, -44, -40, T3, T5 + 1.1, BRICK),
   // Quadra: east over the ravine / beco, south retaining parapet (climb gap), west retaining wall, base station
   parapet('z', -16, -8, 3, T2),
   parapet('x', 16, -48, -30, T2), parapet('x', 16, -28.6, -16, T2),
-  wall('z', -48, -8, 8, T2, T2 + 6, 'concrete'),
-  wall('z', -48, 8, 16, T2, T2 + 6, 'brickDark'),
-  wall('x', 8, -48, -40, T2, T2 + 6, 'brickDark', { openings: [{ a: -46.6, b: -41.4, y0: T2 + 0.6, y1: T2 + 5.8 }] }),
-  wall('z', -40, 8, 16, T2, T2 + 6, 'brickDark', { openings: [{ a: 8.6, b: 15.4, y0: T2, y1: T2 + 4.2 }] }),
+  wall('z', -48, -8, 8, T2, T2 + 6, CONC),
+  wall('z', -48, 8, 16, T2, T2 + 6, BRICK_DARK),
+  wall('x', 8, -48, -40, T2, T2 + 6, BRICK_DARK, { openings: [{ a: -46.6, b: -41.4, y0: T2 + 0.6, y1: T2 + 5.8 }] }),
+  wall('z', -40, 8, 16, T2, T2 + 6, BRICK_DARK, { openings: [{ a: 8.6, b: 15.4, y0: T2, y1: T2 + 4.2 }] }),
   // Stands: sides, the corner pocket's north face, the walkway's north/west walls, the bridge end
-  wall('z', -40, -18, -8, T2, T3 + 1.1, 'concrete', { thickness: 0.25 }),
+  wall('z', -40, -18, -8, T2, T3 + 1.1, CONC, { thickness: 0.25 }),
   parapet('z', -16, -18, -8, T2, { y1: T3 + 1.1 } as Partial<WallDef>),
-  wall('x', -18, -45.6, -40, T2, T3, 'concrete'),
-  wall('x', -22, -44, -16, T3, T3 + 3, 'brick'),
-  wall('z', -44, -22, -18, T3, T3 + 3, 'brick'),
-  wall('z', -16, -22, -18, T3, T3 + 3, 'brick'),
+  wall('x', -18, -45.6, -40, T2, T3, CONC),
+  wall('x', -22, -44, -16, T3, T3 + 3, BRICK),
+  wall('z', -44, -22, -18, T3, T3 + 3, BRICK),
+  wall('z', -16, -22, -18, T3, T3 + 3, BRICK),
   // Escadaria walls
-  wall('z', -48, -35, -8, T2, T5 + 1.5, 'concrete'),
+  wall('z', -48, -35, -8, T2, T5 + 1.5, CONC),
   wall('z', -45.6, -35, -8, T2, T5 + 1.1, PAINT.blue, { thickness: 0.25 }),
   // Mirante: west/north walls, east wall shared with the substation, lookout railing to the south
-  wall('z', -48, -60, -35, T5, T5 + 4, 'brick'),
-  wall('x', -60, -48, -12, T5, T5 + 4, 'brick', { openings: [{ a: -41.8, b: -40.2, y0: T5, y1: T5 + 4 }] }),
-  wall('z', -12, -60, -44, T5, T5 + 4, 'concrete'),
+  wall('z', -48, -60, -35, T5, T5 + 4, BRICK),
+  wall('x', -60, -48, -12, T5, T5 + 4, BRICK, { openings: [{ a: -41.8, b: -40.2, y0: T5, y1: T5 + 4 }] }),
+  wall('z', -12, -60, -44, T5, T5 + 4, CONC),
   parapet('z', -12, -44, -35, T5),
-  parapet('x', -35, -45.6, -12, T5, { mat: 'steel', thickness: 0.12 }),
   // Substation: ravine-edge fence, north wall, east wall to the station (debris gap)
   parapet('x', -44, -12, 4, T5),
-  wall('x', -60, -12, 4, T5, T5 + 4, 'concrete'),
-  wall('z', 4, -60, -44, T5, T5 + 4, 'concrete'),
+  wall('x', -60, -12, 4, T5, T5 + 4, CONC),
+  wall('z', 4, -60, -44, T5, T5 + 4, CONC),
   // Station: south parapet (stair arrives at x 30..32.4), east + north walls
   parapet('x', -44, 4, 30, T5), parapet('x', -44, 32.4, 34, T5),
-  wall('z', 34, -60, -44, T5, T5 + 4, 'brick'),
-  wall('x', -60, 4, 34, T5, T5 + 4, 'brick'),
+  wall('z', 34, -60, -44, T5, T5 + 4, BRICK),
+  wall('x', -60, 4, 34, T5, T5 + 4, BRICK),
 ];
 
 // ---- Stairs ------------------------------------------------------------------------------------------
 const STAIRS: StairDef[] = [
   { rect: { x0: -16, z0: 21, x1: -13.6, z1: 30 }, dir: '-z', y0: T0, y1: T1, steps: 12, mat: SLAB, nosing: null },
   { rect: { x0: -16, z0: 8, x1: -13.6, z1: 17 }, dir: '-z', y0: T1, y1: T2, steps: 12, mat: SLAB, nosing: null },
-  { rect: { x0: 2, z0: 24.2, x1: 11, z1: 26.2 }, dir: '+x', y0: T0, y1: T1, steps: 12, mat: 'concrete', nosing: null, rail: 'right' },
-  { rect: { x0: -1, z0: 16.2, x1: 8, z1: 18.4 }, dir: '-x', y0: T1, y1: T2, steps: 12, mat: 'concrete', nosing: null, rail: 'left' },
-  { rect: { x0: 2, z0: 8.2, x1: 11, z1: 10.4 }, dir: '+x', y0: T2, y1: T3, steps: 12, mat: 'concrete', nosing: null, rail: 'right' },
+  { rect: { x0: 2, z0: 24.2, x1: 11, z1: 26.2 }, dir: '+x', y0: T0, y1: T1, steps: 12, mat: CONC, nosing: null, rail: 'right' },
+  { rect: { x0: -1, z0: 16.2, x1: 8, z1: 18.4 }, dir: '-x', y0: T1, y1: T2, steps: 12, mat: CONC, nosing: null, rail: 'left' },
+  { rect: { x0: 2, z0: 8.2, x1: 11, z1: 10.4 }, dir: '+x', y0: T2, y1: T3, steps: 12, mat: CONC, nosing: null, rail: 'right' },
   { rect: { x0: -40, z0: -18, x1: -16, z1: -8 }, dir: '-z', y0: T2, y1: T3, steps: 10, mat: PAINT.blue, nosing: 'white' },
   { rect: { x0: -48, z0: -35, x1: -45.6, z1: -8 }, dir: '-z', y0: T2, y1: T5, steps: 36, mat: PAINT.yellow, nosing: 'white' },
   { rect: { x0: 30, z0: -44, x1: 32.4, z1: -26 }, dir: '-z', y0: T3, y1: T5, steps: 24, mat: SLAB, nosing: 'hazardYellow' },
@@ -277,10 +283,15 @@ const STAIRS: StairDef[] = [
 
 // ---- Raised floors, landings, the bridge deck, spawn ledges and the water tower --------------------
 const BOXES: BoxDef[] = [
+  // Railings (see-through, drawn by decorate): the bridge rails and the mirante lookout rail. Same footprint as the
+  // 0.12 m steel parapets they replace; decorate adds the movement-only fall guards above them.
+  { box: [-16, T3, -22.16, -2, T3 + 1.1, -22.04], mat: null, surface: 'metal' },
+  { box: [-16, T3, -18.96, -2, T3 + 1.1, -18.84], mat: null, surface: 'metal' },
+  { box: [-45.6, T5, -35.06, -12, T5 + 1.1, -34.94], mat: null, surface: 'metal' },
   // Stairwell top landings
-  floorBox(11, T0, 24, 14, T1, 26.4, 'concrete'),
-  floorBox(-3, T1, 16, -1, T2, 18.6, 'concrete'),
-  floorBox(11, T2, 8, 14, T3, 10.6, 'concrete'),
+  floorBox(11, T0, 24, 14, T1, 26.4, CONC),
+  floorBox(-3, T1, 16, -1, T2, 18.6, CONC),
+  floorBox(11, T2, 8, 14, T3, 10.6, CONC),
   // Samba stage
   floorBox(6, T3, -40, 26, T3 + 1.2, -36, { color: 0x6a4a34, texture: 'wood', roughness: 0.7 }),
   // Bridge deck and trestles down into the ravine
@@ -312,7 +323,7 @@ const BOXES: BoxDef[] = [
   { box: [0.3, T0, 43.4, 3.5, T0 + 1.05, 45.2], mat: 'white', tile: 1, collide: 'solid' },
   // The summit (easter-egg ride destination) and the ravine pylon's pier
   floorBox(PEAK.x0, PEAK.y - 6, PEAK.z0, PEAK.x1, PEAK.y, PEAK.z1, 'dirt'),
-  solid(PYLON.x - 1.6, 0, PYLON.z - 1.6, PYLON.x + 1.6, PYLON.top - 16, PYLON.z + 1.6, 'concrete'),
+  solid(PYLON.x - 1.6, 0, PYLON.z - 1.6, PYLON.x + 1.6, PYLON.top - 16, PYLON.z + 1.6, CONC),
 ];
 
 // ---- Nav links: climbs (ladder kind, one way up), drops off roofs and laje vaults ------------------
@@ -381,16 +392,19 @@ const LAMPS: LampDef[] = [
   { x: -30, y: T5 + 5, z: -46, range: 30, pre: { color: 0x8aa0d8, intensity: 34, flicker: 'none' }, post: { color: 0xc0d0ff, intensity: 34, flicker: 'none' }, fixture: 'none' },
 ];
 
-// ---- Props (GLBs; colliders authored here) -------------------------------------------------------------
+// ---- Dressing props (GLBs; colliders authored here) ---------------------------------------------------
+// Drawn by decorate as ONE InstancedMesh per model (a prop per draw call was the biggest single cost of the
+// wide views); their colliders are plain invisible boxes, identical to the PropDef footprints they replaced.
 const F = (m: string) => `favela/${m}.glb`;
-/** Props with a generated LOD1 twin (`<id>.lod1.glb`, a quarter of the triangles) swap to it beyond 28 m. */
-const HAS_LOD = new Set(['fv_water_tower', 'fv_motorbike', 'fv_bullwheel', 'fv_transformer', 'fv_bar_counter', 'fv_goal', 'fv_costume_rack', 'fv_drums', 'fv_fridge', 'fv_wires', 'fv_speakers', 'fv_table_chairs']);
-const prop = (model: string, x: number, y: number, z: number, yaw = 0, collider?: PropDef['collider'], extra: Partial<PropDef> = {}): PropDef =>
-  ({ model: F(model), x, y, z, yaw, collider, fallback: false, ...(HAS_LOD.has(model) ? { lod: { model: F(`${model}.lod1`), distance: 28 } } : {}), ...extra });
-const PROPS: PropDef[] = [
+export interface DressProp { model: string; x: number; y: number; z: number; yaw: number; collider?: { w: number; d: number; h: number }; scale?: number; fitHeight?: number }
+const prop = (model: string, x: number, y: number, z: number, yaw = 0, collider?: DressProp['collider'], extra: Partial<DressProp> = {}): DressProp =>
+  ({ model: F(model), x, y, z, yaw, collider, ...extra });
+export const DRESS_PROPS: DressProp[] = [
   // Street + lanchonete
   prop('fv_bar_counter', 1.9, T0, 44.3, Math.PI, undefined),
   prop('fv_motorbike', 12.5, T0, 32.2, 0.35, { w: 0.8, d: 2.0, h: 1.2 }),
+  prop('fv_motorbike', -6.2, T0, 37.1, 1.35, { w: 0.8, d: 2.0, h: 1.2 }),
+  prop('fv_motorbike', -37.4, T2, 14.6, 0.2, { w: 0.8, d: 2.0, h: 1.2 }),
   prop('fv_table_chairs', -10.5, T0, 36.3, 0.4, { w: 1.3, d: 1.3, h: 0.9 }),
   prop('fv_table_chairs', 26.5, T0, 36.4, 1.9, { w: 1.3, d: 1.3, h: 0.9 }),
   prop('fv_barrel', -16.9, T0, 31.1, 0, { w: 0.6, d: 0.6, h: 0.9 }),
@@ -401,7 +415,7 @@ const PROPS: PropDef[] = [
   prop('fv_table_chairs', 7, T1, 21.8, 0.7, { w: 1.3, d: 1.3, h: 0.9 }),
   prop('fv_barrel', 12.9, T2, 15.2, 0, { w: 0.6, d: 0.6, h: 0.9 }),
   // Laje: the water tower landmark, tanks, dishes, a table
-  prop('fv_water_tower', TOWER.x, T3, TOWER.z, 0, undefined, { fit: { height: 9 } }),
+  prop('fv_water_tower', TOWER.x, T3, TOWER.z, 0, undefined, { fitHeight: 9 }),
   prop('fv_water_tank', 28, T3 + 0.8, -18, 0, { w: 1.6, d: 1.6, h: 1.05 }),
   prop('fv_water_tank', 7.5, T3 + 0.8, -17.5, 0, { w: 1.6, d: 1.6, h: 1.05 }),
   prop('fv_water_tank', 32.2, T3, -22.4, 0, { w: 1.6, d: 1.6, h: 1.05 }),
@@ -435,6 +449,14 @@ const PROPS: PropDef[] = [
   prop('fv_table_chairs', -22, T5, -38.5, 0.8, { w: 1.3, d: 1.3, h: 0.9 }),
   prop('fv_table_chairs', -35, T5, -38.8, -0.4, { w: 1.3, d: 1.3, h: 0.9 }),
 ];
+/** The dressing props' colliders, exactly as the engine would have built them from PropDef footprints. */
+const DRESS_COLLIDERS: BoxDef[] = DRESS_PROPS.filter((p) => p.collider).map((p) => {
+  const { w, d, h } = p.collider!;
+  const c = Math.abs(Math.cos(p.yaw)), sn = Math.abs(Math.sin(p.yaw));
+  const hx = (w * c + d * sn) / 2, hz = (w * sn + d * c) / 2;
+  return { box: [p.x - hx, p.y, p.z - hz, p.x + hx, p.y + h, p.z + hz], mat: null, surface: 'metal' };
+});
+const PROPS: PropDef[] = [];
 
 export const FAVELA: ZombiesMapDef = {
   id: 'favela',
@@ -450,7 +472,7 @@ export const FAVELA: ZombiesMapDef = {
   startZone: Z.street,
   rooms: ROOMS,
   walls: WALLS,
-  boxes: BOXES,
+  boxes: [...BOXES, ...DRESS_COLLIDERS],
   stairs: STAIRS,
   ladders: [{ bottom: { x: TOWER.x, y: T3, z: TOWER.z + 2.9 }, top: { x: TOWER.x, y: TOWER.top, z: TOWER.z + 1.2 }, mat: 'steel' }],
   links: LINKS,
@@ -525,11 +547,11 @@ export const FAVELA: ZombiesMapDef = {
     sky: { top: 0x121638, horizon: 0xf0884a, stars: true, moon: false },
     fogColor: 0x6b5060,
     fogDensity: 0.011,
-    hemi: 0.7,
+    hemi: 1.05,
     sun: 1.0,
     sunColor: 0xff9a5a,
     sunDir: [-0.35, 0.18, 0.92],
-    postPower: { hemi: 0.6 },
+    postPower: { hemi: 0.9 },
     lamps: LAMPS,
   },
   audio: { ambience: 'relay' },
