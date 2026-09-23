@@ -29,6 +29,8 @@ export type TexName = 'concrete' | 'brick' | 'plaster' | 'wood' | 'metalPanel' |
 export interface MatSpec {
   color: number; roughness?: number; metalness?: number; texture?: TexName;
   emissive?: number; emissiveIntensity?: number; opacity?: number; doubleSided?: boolean;
+  /** Key into the map entry's `materials()` library (bespoke textured materials); the fields above are the fallback. */
+  custom?: string;
 }
 export type MatRef = MatName | MatSpec;
 
@@ -190,19 +192,22 @@ export interface EggReward {
   powerup?: PowerUpKind;
   /** Hand the player a weapon (e.g. a wonder weapon on a pedestal). */
   weapon?: WeaponId;
+  /** Grant every perk this map has (ignores the perk limit). */
+  allPerks?: boolean;
 }
-export interface EggDef { name: string; steps: EggStepDef[]; reward: EggReward }
 
 /**
- * Per-map machine models (paths under /models, e.g. 'favela/perk_fv_bulwark.glb'). Omitted entries use the stock
- * models. `foot` overrides a perk's collider footprint [width along its X, depth along its Z] to match the model.
+ * Per-map machine models (paths under /models, e.g. 'favela/perk_fv_bulwark.glb', or bare file names resolved
+ * via the manifest). Omitted entries use the stock models. A perk may give `foot` [width along its X, depth along
+ * its Z] to match its collider to the model. Gameplay is unchanged.
  */
 export interface MachineModels {
   box?: string;
   pap?: string;
   power?: string;
-  perks?: Partial<Record<PerkId, { model: string; foot?: [number, number] }>>;
+  perks?: Partial<Record<PerkId, string | { model: string; foot?: [number, number] }>>;
 }
+export interface EggDef { name: string; steps: EggStepDef[]; reward: EggReward }
 
 /**
  * A ride: press E at `at` to be carried along `path` (feet positions, first point near `at`) in `seconds`.
@@ -277,14 +282,14 @@ export interface ZombiesMapDef {
   startWeapon?: WeaponId;
   powerups?: PowerUpRules;
   egg?: EggDef;
-  /** Map-specific machine models (see MachineModels). */
-  machines?: MachineModels;
   /** Cable cars, ziplines, slides (see RideDef). */
   rides?: RideDef[];
   lighting: LightingDef;
   audio?: { ambience?: string };
   /** HUD/flavour strings. */
-  flavor?: { powerHint?: string; bossTitle?: string; gameOverSub?: string };
+  flavor?: { powerHint?: string; powerPrompt?: string; powerOnHint?: string; bossTitle?: string; gameOverSub?: string };
+  /** Map-specific machine models (see MachineModels). */
+  machines?: MachineModels;
   /** Model paths (under /models) to preload when the map is selected. */
   assets?: string[];
 }

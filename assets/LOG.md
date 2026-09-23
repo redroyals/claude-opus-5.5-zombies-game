@@ -46,4 +46,8 @@ Meshy start balance 9570 (2026-09-22). Budget: spend <= 4000, script floor 5800 
 - Blender kit (0 credits): `tools/blender/favela_kit.py` -> 23 pieces (6 background houses, pole, lamps, floodlight, pylon, ladder,
   railing, tin roof, rebar, grille, kite, laundry, 3 murals-as-geometry, station canopy, goal frame), meshopt via
   `node scripts/compress-kit.mjs --dir public/models/favela`.
-- Favela ledger after stage 2 + retextures: **710 / 1,200**. public/models/favela = 11 MB.
+- Favela ledger after stage 2 + retextures: **710 / 1,200**. public/models/favela = 9.1 MB (48 GLBs incl. 12 LOD1 twins).
+
+- 2026-09-23 (zcore) no Meshy spend. Crawler legless variant = collapse the GLB leg chains at runtime (LeftUpLeg/RightUpLeg
+  scale 0) instead of a new asset. Zombie distance LODs generated locally: `node scripts/zombie-lods.mjs` ->
+  public/models/zombies/z_*_lod1.glb (geometry-only, meshopt simplify error 0.06: ~14.5k -> ~6.2k tris; boss 11.2k).

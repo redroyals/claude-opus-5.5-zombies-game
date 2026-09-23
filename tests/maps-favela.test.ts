@@ -112,8 +112,9 @@ describe('favela: layout', () => {
   });
   it('uses the street-art machines with footprints that match the models', () => {
     for (const id of ['lifeline', 'bulwark', 'quickhands', 'hammerfall'] as const) {
-      expect(def.machines!.perks![id]!.model).toMatch(/^favela\/perk_fv_/);
-      expect(def.machines!.perks![id]!.foot).toHaveLength(2);
+      const m = def.machines!.perks![id] as { model: string; foot?: [number, number] };
+      expect(m.model).toMatch(/^favela\/perk_fv_/);
+      expect(m.foot).toHaveLength(2);
     }
     expect(def.machines!.box).toBe('favela/fv_mystery_box.glb');
   });

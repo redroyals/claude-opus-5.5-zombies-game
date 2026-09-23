@@ -28,6 +28,7 @@ import type { CollisionWorld } from '../world/Collision';
 import { ZHud } from '../ui/ZHud';
 import { ZombiesMode, type ZInteraction } from '../zombies/ZombiesMode';
 import { MAPS, getMap, mapFromUrl } from '../zombies/maps';
+import { DOWN } from '../zombies/down';
 import { Input } from './Input';
 import { loadBest, loadSettings, recordBest, saveSettings, type Settings } from './Settings';
 
@@ -101,6 +102,7 @@ export class Game {
   private meleeKill = false;
   private fogSaved: { density: number; color: number; hemi: number; sun: number; sunColor: number } | null = null;
   private atmoPower = false;
+  private atmoBlackout = false;
 
   constructor(container: HTMLElement, onProgress: (p: number, label: string) => void) {
     this.settings = loadSettings();
@@ -179,15 +181,17 @@ export class Game {
     const f = this.fogSaved;
     const L = this.zm.def.lighting;
     const pp = power ? L.postPower : undefined;
-    fog.density = zombies ? pp?.fogDensity ?? L.fogDensity : f.density;
+    const dark = zombies && this.zm.blackout;
+    fog.density = zombies ? (pp?.fogDensity ?? L.fogDensity) * (dark ? 1.9 : 1) : f.density;
     fog.color.setHex(zombies ? L.fogColor : f.color);
     if (R.scene.background instanceof THREE.Color) R.scene.background.setHex(zombies ? L.background : f.color);
-    R.hemi.intensity = zombies ? pp?.hemi ?? L.hemi : f.hemi;
+    R.hemi.intensity = zombies ? (pp?.hemi ?? L.hemi) * (dark ? 0.4 : 1) : f.hemi;
     R.sun.intensity = zombies ? pp?.sun ?? L.sun : f.sun;
     R.sun.color.setHex(zombies && L.sunColor !== undefined ? L.sunColor : f.sunColor);
     R.sunDir = zombies && L.sunDir ? L.sunDir : null;
     R.setSkyVisible(!(zombies && L.sky));
     this.atmoPower = power;
+    this.atmoBlackout = dark;
   }
 
   /** Select the Zombies map (takes effect immediately on the title screen, else on the next deploy). */
@@ -429,7 +433,7 @@ export class Game {
     const p = this.player;
     const cam = this.renderer.camera;
     cam.position.set(p.pos.x, p.eyeY, p.pos.z);
-    this.camEuler.set(p.pitch, p.yaw, 0, 'YXZ');
+    this.camEuler.set(p.pitch + this.weapons.swayPitch, p.yaw + this.weapons.swayYaw, 0, 'YXZ');
     cam.quaternion.setFromEuler(this.camEuler);
     this.camQuat.copy(cam.quaternion);
     cam.updateMatrixWorld();
@@ -464,7 +468,9 @@ export class Game {
     const plating = v.plateT > 0;
 
     // Movement
-    const ev = p.update(dt, input, world, { canSprintExtra: !input.fireHeld && !plating, speedMult: plating ? 0.65 : 1 });
+    const downed = zmode && !!this.zm.down;
+    if (downed) { input.consume('jump'); input.consume('crouch'); p.crouched = true; }
+    const ev = p.update(dt, input, world, { canSprintExtra: !input.fireHeld && !plating && !downed, speedMult: downed ? DOWN.crawlSpeed : plating ? 0.65 : 1 });
     if (ev.footstep) this.audio.footstep(this.surfaceUnder(), p.sprinting, p.crouched);
     if (ev.landed > 6) this.audio.land();
     for (const z of this.enemies.zombies) {
@@ -521,7 +527,7 @@ export class Game {
     const fl = Math.hypot(fwd.x, fwd.z) || 1;
     if (this.mode === 'zombies') {
       this.zm.update(dt, { x: p.pos.x, y: p.pos.y, z: p.pos.z }, input.isHeld('interact'));
-      if (this.zm.power !== this.atmoPower) this.applyAtmosphere(true, this.zm.power);
+      if (this.zm.power !== this.atmoPower || this.zm.blackout !== this.atmoBlackout) this.applyAtmosphere(true, this.zm.power);
       // Rides (cable car, zipline, slide) carry the player: pin the feet to the ride and drop momentum.
       const rp = this.zm.ridePos;
       if (rp) { p.pos = { x: rp.x, y: rp.y, z: rp.z }; p.vel = { x: 0, y: 0, z: 0 }; p.grounded = true; }
@@ -561,8 +567,13 @@ export class Game {
       this.hud.toast('AMMO RECOVERED', '', '', 1.2);
     }
 
-    // Defeat checks
-    if (!v.alive && this.mode === 'zombies') this.zm.onDowned(v);
+    // Downed / last stand / bleed-out (Zombies), then defeat checks
+    let bledOut = false;
+    if (zmode && this.zm.down && this.zm.updateDown(dt, v) === 'bledout') bledOut = true;
+    if (!v.alive && zmode && !bledOut) this.zm.beginDown(v);
+    if (bledOut) v.alive = false;
+    const di = zmode ? this.zm.downInfo : null;
+    this.hud.centerMessage(di ? `${di.label}  ${Math.ceil(di.left)}` : null);
     if (!v.alive) this.onDeath();
     else if (this.mission.outcome === 'timeout') this.onTimeout();
   }
@@ -645,7 +656,7 @@ export class Game {
   }
 
   private updateInteraction(): void {
-    const it = this.findInteraction();
+    const it = this.mode === 'zombies' && this.zm.down ? null : this.findInteraction();
     this.currentInteraction = it;
     const pressed = this.input.consume('interact');
     if (!it) {
@@ -807,6 +818,13 @@ export class Game {
   private onPlayerHit(dmg: number, fromX: number, fromZ: number, heavy: boolean): void {
     if (this.state !== 'playing' || this.godMode) return;
     const v = this.player.vitals;
+    if (this.mode === 'zombies' && this.zm.down) {
+      // Down already: hits eat the bleed-out timer instead of health.
+      this.zm.hitDown();
+      this.hud.damageFrom(fromX, fromZ, heavy);
+      this.audio.hurt(heavy);
+      return;
+    }
     const r = applyDamage(v, dmg);
     this.hud.damageFrom(fromX, fromZ, heavy);
     if (r.armorBroke) {
@@ -977,7 +995,7 @@ export class Game {
     // World animation
     const animDt = this.state === 'paused' ? 0 : dt;
     if (this.state !== 'paused') {
-      this.enemies.animate(animDt, cam.position.x, cam.position.z);
+      this.enemies.animate(animDt, cam.position.x, cam.position.z, cam);
       this.level.update(this.realTime, animDt);
       this.interact.update(animDt, this.realTime);
       this.fx.update(animDt);
@@ -1023,7 +1041,7 @@ export class Game {
     // Post-processing grade uniforms
     const g = this.renderer.grade.uniforms;
     g.uDamage.value = this.state === 'playing' || this.state === 'dying' ? Math.max(this.hud.damageVignette, this.state === 'dying' ? 0.8 : 0) : 0;
-    g.uLowHealth.value = this.state === 'playing' ? Math.max(0, 1 - p.vitals.health / 40) : this.state === 'dying' ? 1 : 0;
+    g.uLowHealth.value = this.state === 'playing' ? (this.mode === 'zombies' && this.zm.down ? 1 : Math.max(0, 1 - p.vitals.health / 40)) : this.state === 'dying' ? 1 : 0;
     const toxic = this.state === 'playing' && this.mission.inContamination(p.pos.x, p.pos.z);
     g.uToxic.value += ((toxic ? 1 : 0) - g.uToxic.value) * Math.min(1, dt * 3);
 
@@ -1087,9 +1105,9 @@ export class Game {
     if (zmode) {
       const r = this.zm.rounds;
       contracts.length = 0;
-      contracts.push({ title: this.zm.def.name.toUpperCase(), tag: r.spec.special ? 'SCUTTLERS' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
+      contracts.push({ title: this.zm.def.name.toUpperCase(), tag: r.spec.special ? 'SCUTTLERS' : r.spec.blackout ? 'BLACKOUT' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
         sub: r.phase === 'break' ? `Next round in ${Math.ceil(r.timer)}s` : `${r.toSpawn + this.enemies.aliveCount} remaining`, state: 'active' });
-      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? 'Reforger + perks live' : this.zm.def.flavor?.powerHint ?? 'Find the power switch', state: this.zm.power ? 'done' : 'active' });
+      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? this.zm.def.flavor?.powerOnHint ?? 'Reforger + perks live' : this.zm.def.flavor?.powerHint ?? 'Find the power switch', state: this.zm.power ? 'done' : 'active' });
       this.zhud.update(dt, { round: r.round, points: this.zm.zp.points, perks: this.zm.zp.perks, pups: this.zm.activePowerUps, zone: this.zm.zoneName({ x: p.pos.x, y: p.pos.y, z: p.pos.z }) });
     }
     const boss = zmode ? this.enemies.boss : null;
@@ -1213,10 +1231,16 @@ export class Game {
         zombies: this.enemies.aliveCount, stats: { ...this.mission.stats }, weaponStats: { ...this.weapons.stats }, station: this.station,
         interaction: this.currentInteraction?.kind ?? null,
       }),
-      zombies: () => this.enemies.zombies.filter((z) => z.alive).map((z) => ({ type: z.type, x: +z.pos.x.toFixed(2), z: +z.pos.z.toFixed(2), y: +z.pos.y.toFixed(2), state: z.state, hp: Math.round(z.hp), elite: z.elite })),
+      zombies: () => this.enemies.zombies.filter((z) => z.alive).map((z) => ({ type: z.type, x: +z.pos.x.toFixed(2), z: +z.pos.z.toFixed(2), y: +z.pos.y.toFixed(2), state: z.state, hp: Math.round(z.hp), elite: z.elite, caps: z.hitValid ? Array.from(z.hitSegs.slice(0, z.hitCount * 7)).map((v) => +v.toFixed(2)) : null })),
       spawnZombie: (type: 'shambler' | 'runner' | 'armored', x: number, z: number, state: 'idle' | 'chase' = 'chase') => this.enemies.spawn(type, regionAt(z), x, z, state),
-      clearZombies: () => { for (const z of this.enemies.zombies) if (z.alive && !z.elite) { z.alive = false; z.state = 'dead'; z.deathT = 99; } },
+      clearZombies: (all?: boolean) => { for (const z of this.enemies.zombies) if (z.alive && (all || !z.elite)) { z.alive = false; z.state = 'dead'; z.deathT = 99; } },
       damagePlayer: (n: number) => this.onPlayerHit(n, this.player.pos.x + 1, this.player.pos.z, false),
+      aimRay: () => {
+        const c = this.renderer.camera; const f = new THREE.Vector3(0, 0, -1).applyQuaternion(c.quaternion);
+        const w = this.world.raycast(c.position.x, c.position.y, c.position.z, f.x, f.y, f.z, 200);
+        const z = this.enemies.raycast(c.position.x, c.position.y, c.position.z, f.x, f.y, f.z, w ? w.dist : 200);
+        return { cam: c.position.toArray(), dir: f.toArray(), world: w ? { dist: w.dist, s: w.box?.surface ?? 'ground' } : null, zombie: z ? { dist: z.dist, part: z.part, type: z.z.type } : null };
+      },
       frameStats: () => {
         const a = [...this.frameTimes].sort((x, y) => x - y);
         const avg = a.reduce((s, x) => s + x, 0) / Math.max(1, a.length);
@@ -1246,6 +1270,7 @@ export class Game {
       zTier: (t: number) => { const w = this.weapons.active; if (w) { w.tier = t; this.weapons.syncModel(); } },
       zDrop: (k: 'max_ammo' | 'insta_kill' | 'double_points' | 'nuke' | 'carpenter') => { const p = this.player.pos; (this.zm as unknown as { dropPowerUp(k: string, x: number, y: number, z: number): void }).dropPowerUp(k, p.x, p.y, p.z - 2.5); },
       zSpawn: (type: 'shambler' | 'runner' | 'brute' | 'crawler' | 'fast' | 'boss', x: number, z: number, y?: number) => this.enemies.spawn(type, 'low', x, z, 'chase', y),
+      vm: () => this.vm.debugInfo(),
       zMap: (id?: string) => { if (id) this.setZombiesMap(id); return this.zm.def.id; },
       godMode: (on: boolean) => { this.godMode = on; },
       elite: () => this.enemies.elite && { x: this.enemies.elite.pos.x, z: this.enemies.elite.pos.z, hp: this.enemies.elite.hp, helmet: this.enemies.elite.helmetHp, alive: this.enemies.elite.alive, state: this.enemies.elite.state },

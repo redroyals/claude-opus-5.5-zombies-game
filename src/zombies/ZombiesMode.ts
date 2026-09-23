@@ -12,7 +12,7 @@ import type { Materials } from '../render/materials';
 import type { Vitals } from '../player/Vitals';
 import { WEAPON_MODS, applyUpgrade, createWeapon, effectiveStats, refillAmmo } from '../weapons/WeaponState';
 import {
-  BOX_PRICE, PAP_SECONDS, PERKS, WALL_BUYS, awardHit, awardKill, bossHpForRound, boxReel, createBox, createRoundState, createZPlayer, goDown,
+  SPRINTER_SPEED_MULT, BOX_PRICE, PAP_SECONDS, PERKS, WALL_BUYS, awardHit, awardKill, bossHpForRound, boxReel, createBox, createRoundState, createZPlayer,
   papName, papPrice, perkMods, pickZombieType, pullBox, roundBonus, stepBox, stepRounds, takeBoxOffer, tryBuyPerk, tryPap, trySpend, wallBuyPrice,
   wonderBonus, type BoxState, type PerkId, type RoundState, type SpendResult, type WallBuyKey, type ZPlayer,
 } from './rules';
@@ -25,6 +25,7 @@ import {
 } from './powerups';
 import { PERK_ORDER, frontOf, perkEntries, topologyOf, zoneAt, type RideDef, type Spot, type ZombiesMapDef } from './mapdef';
 import { rideBlock, ridePosition, type RideCtx } from './rides';
+import { DOWN, beginDown, downStatus, hitWhileDown, lastStandPick, stepDown, type DownState } from './down';
 import { createEggRun, currentStep, eggCollect, eggInteract, eggKill, pendingObjects, stepProgress, type EggEvent, type EggRun } from './egg';
 import { getMap, type ZombiesMapEntry } from './maps';
 import { ZombiesMap } from './ZombiesMap';
@@ -80,7 +81,12 @@ export class ZombiesMode {
   pu: PowerUpState = createPowerUps();
   egg!: EggRun;
   power = false;
+  /** Lights-out round in progress. */
+  blackout = false;
   lifelineBuys = 0;
+  /** Non-null while the player is downed (last stand). */
+  down: DownState | null = null;
+  private lastStand: { slots: Loadout['slots']; active: 0 | 1 } | null = null;
   stats: ZRunStats = { round: 0, kills: 0, headshots: 0, points: 0, doors: 0, time: 0, downs: 0 };
   /** Points earned this run (not spent). */
   private earned = 0;
@@ -117,16 +123,17 @@ export class ZombiesMode {
       const def = entry.def;
       const root = new THREE.Group();
       root.add(map.root);
-      const ground = (x: number, z: number, y = 0) => map.world.groundHeight(x, z, 0.3, y + 3.2);
-      const mm = def.machines;
-      const cache = new CacheView(def.box.spots, (x, z) => ground(x, z), mm?.box);
+      // Machines stand on the floor their spot names (the world already contains their own colliders).
+      const ground = () => 0;
+      const mm = def.machines ?? {};
+      const perkModels = Object.fromEntries(Object.entries(mm.perks ?? {}).map(([k, v]) => [k, typeof v === 'string' ? v : v!.model]));
+      const cache = new CacheView(def.box.spots, ground, mm.box);
       root.add(cache.group);
-      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0, mm?.pap) : null;
+      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0, mm.pap) : null;
       if (reforger) root.add(reforger.root);
-      const perkModels = Object.fromEntries(Object.entries(mm?.perks ?? {}).map(([k, v]) => [k, v!.model])) as Partial<Record<PerkId, string>>;
-      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), (x, z) => ground(x, z), perkModels);
+      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), ground, perkModels);
       root.add(perks.group);
-      const powerSwitch = def.power ? new PowerSwitchView(def.power, mm?.power) : null;
+      const powerSwitch = def.power ? new PowerSwitchView(def.power, mm.power) : null;
       if (powerSwitch) root.add(powerSwitch.root);
       for (const s of def.wallBuys) root.add(buildChalk(s.key, s.x, (s.y ?? 0) + 1.7, s.z, s.face));
       b = { map, root, cache, reforger, perks, powerSwitch };
@@ -156,12 +163,15 @@ export class ZombiesMode {
     this.pu = createPowerUps();
     this.egg = createEggRun(this.def.egg);
     this.power = !this.def.power;
+    this.blackout = false;
     this.lifelineBuys = 0;
     this.stats = { round: 0, kills: 0, headshots: 0, points: 0, doors: 0, time: 0, downs: 0 };
     this.earned = 0;
     this.papPending = null;
     this.ride = null;
     this.rideCool.clear();
+    this.down = null;
+    this.lastStand = null;
     for (const p of this.pickups) p.root.removeFromParent();
     this.pickups = [];
     for (const v of this.vortices) v.mesh.removeFromParent();
@@ -229,7 +239,8 @@ export class ZombiesMode {
       onRoundStart(this.pu);
       onRoundStartZones(this.zones);
       const sp = this.rounds.spec;
-      this.host.toast(`ROUND ${ev.started}`, 'big', sp.special ? 'THE SCUTTLERS ARE COMING · FAST AND HUNGRY' : ev.boss ? 'THE WARDEN WALKS TONIGHT' : '', 3.5);
+      this.blackout = sp.blackout;
+      this.host.toast(`ROUND ${ev.started}`, 'big', sp.special ? 'THE SCUTTLERS ARE COMING · FAST AND HUNGRY' : sp.blackout ? 'BLACKOUT · THE LIGHTS ARE GONE' : ev.boss ? 'THE WARDEN WALKS TONIGHT' : '', 3.5);
       this.host.audio.roundSting(true);
       if (ev.boss) this.spawnBoss(player);
     }
@@ -238,7 +249,8 @@ export class ZombiesMode {
       this.addPoints(b);
       this.host.toast(`ROUND ${ev.ended} SURVIVED`, 'good', `+${b}`, 2.5);
       this.host.audio.roundSting(false);
-      if (this.rounds.spec.special) this.dropPowerUp('max_ammo', player.x, player.y, player.z - 1.5);
+      if (this.rounds.spec.special || this.rounds.spec.blackout) this.dropPowerUp('max_ammo', player.x, player.y, player.z - 1.5);
+      this.blackout = false;
     }
     for (let i = 0; i < ev.spawn; i++) this.spawnOne(player);
 
@@ -270,7 +282,7 @@ export class ZombiesMode {
         this.ride = null;
       }
     }
-    this.map.update(this.time, dt, this.power, { ride: this.ride ? { id: this.ride.def.id, t: Math.min(1, this.ride.t / this.ride.def.seconds) } : null, egg: this.egg.complete, eggStep: this.egg.step });
+    this.map.update(this.time, dt, this.power, this.blackout, { player, ride: this.ride ? { id: this.ride.def.id, t: Math.min(1, this.ride.t / this.ride.def.seconds) } : null, egg: this.egg.complete, eggStep: this.egg.step });
 
     // Perk jingles when standing near a lit machine
     this.jingleT -= dt;
@@ -364,6 +376,7 @@ export class ZombiesMode {
         z.entryPhase = 'approach';
       }
     }
+    if (type === 'runner' && this.rnd() < spec.sprinterFrac) { z.speed *= SPRINTER_SPEED_MULT; z.sprinter = true; }
     z.maxHp *= spec.hpMult;
     z.hp = z.maxHp;
     z.reward = 0;
@@ -474,20 +487,59 @@ export class ZombiesMode {
     return (Object.keys(this.pu.timers) as PowerUpKind[]).map((k) => ({ kind: k, t: this.pu.timers[k] ?? 0 }));
   }
 
-  /** Returns true if the player was saved by Lifeline. Perks are lost either way. */
-  onDowned(v: Vitals): boolean {
+  /** Health reached zero: go down into last stand (perks are lost). */
+  beginDown(v: Vitals): void {
     this.stats.downs++;
-    const saved = goDown(this.zp);
+    this.down = beginDown(this.zp, 1);
     this.applyMods();
-    if (saved) {
-      v.alive = true;
-      v.health = PLAYER.maxHealth;
+    v.alive = true;
+    v.health = 1;
+    v.sinceDamage = 0;
+    // Last stand: the best pistol you carry, else a stock sidearm.
+    const l = this.host.loadout();
+    this.lastStand = { slots: [...l.slots] as Loadout['slots'], active: l.active };
+    const pick = lastStandPick(l.slots.map((w) => w?.id ?? null));
+    if (pick.slot >= 0) l.slots = [l.slots[pick.slot], null];
+    else { const w = createWeapon(pick.weapon); w.reserve = WEAPONS[pick.weapon].magSize * 3; l.slots = [w, null]; }
+    l.active = 0;
+    this.host.syncWeapons();
+    this.host.toast(this.down.selfRevive !== null ? 'DOWN · LIFELINE KICKS IN' : 'YOU ARE DOWN', 'bad', this.down.selfRevive !== null ? 'Hold on…' : 'Last stand · perks lost', 2.5);
+    this.host.sound('alert');
+  }
+
+  /** A zombie landed a hit while you are down. */
+  hitDown(): void { if (this.down) hitWhileDown(this.down); }
+
+  /** Tick the downed state. Returns 'bledout' when the run is over. */
+  updateDown(dt: number, v: Vitals): 'revived' | 'bledout' | null {
+    if (!this.down) return null;
+    const e = stepDown(this.down, dt);
+    if (e === 'revived') {
+      this.down = null;
+      this.restoreLastStand();
+      v.health = PLAYER.maxHealth * DOWN.reviveHealth;
       v.sinceDamage = 0;
       this.host.toast('LIFELINE · SELF-REVIVED', 'big', 'Perks lost', 3);
       // Knock back nearby zombies so the revive is not instantly undone.
       for (const z of this.host.enemies.zombies) if (z.alive && !z.elite && z.entry < 0) z.setState('stagger');
+    } else if (e === 'bledout') {
+      this.down = null;
+      this.restoreLastStand();
     }
-    return saved;
+    return e;
+  }
+
+  /** HUD countdown while down. */
+  get downInfo(): { label: string; left: number; frac: number } | null { return this.down ? downStatus(this.down) : null; }
+
+  private restoreLastStand(): void {
+    const ls = this.lastStand;
+    if (!ls) return;
+    this.lastStand = null;
+    const l = this.host.loadout();
+    l.slots = ls.slots;
+    l.active = ls.active;
+    this.host.syncWeapons();
   }
 
   // --------------------------------------------------------------------------------------
@@ -615,7 +667,7 @@ export class ZombiesMode {
         const price = w ? papPrice(w.tier, UPGRADE_TIERS.length - 1) : null;
         return price === null ? 'Reforger <span class="denied">WEAPON MAXED</span>' : `<kbd>E</kbd> Reforge ${w ? WEAPONS[w.id].shortName : ''} → ${w ? papName(w.id, WEAPONS[w.id].name, w.tier + 1) : ''} <span class="cost">${price}</span>`;
       }
-      case 'power': return this.power ? 'Power is on' : '<kbd>E</kbd> Throw the main breaker';
+      case 'power': return this.power ? 'Power is on' : `<kbd>E</kbd> ${this.def.flavor?.powerPrompt ?? 'Throw the main breaker'}`;
       case 'perk': {
         const d = PERKS[it.id];
         if (this.zp.perks.includes(it.id)) return `${d.name} <span class="denied">OWNED</span>`;
@@ -804,6 +856,10 @@ export class ZombiesMode {
     if (rw.refillAmmo) for (const s of l.slots) if (s) refillAmmo(s);
     if (rw.points) this.addPoints(rw.points);
     if (rw.powerup) this.dropPowerUp(rw.powerup, ...this.eggDropPos());
+    if (rw.allPerks) {
+      for (const [id] of perkEntries(this.def)) if (!this.zp.perks.includes(id)) this.zp.perks.push(id);
+      this.applyMods();
+    }
     if (rw.weapon) this.giveWeapon(rw.weapon);
   }
 

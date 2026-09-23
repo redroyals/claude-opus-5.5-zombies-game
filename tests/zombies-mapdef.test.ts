@@ -201,6 +201,18 @@ describe('easter egg step machine', () => {
 });
 
 describe('compile', () => {
+  it('mat: null boxes collide but draw nothing; perk footprints can be overridden per map', () => {
+    const d = clone(EXAMPLE_HOUSE);
+    d.boxes = [...(d.boxes ?? []), { box: [8, 0, 6, 9, 2, 7], mat: null }];
+    d.machines = { perks: { quickhands: { model: 'x/perk.glb', foot: [1.5, 1.5] } } };
+    const cm = compileMap(d);
+    const inv = cm.boxes.find((b) => b.box[0] === 8 && b.box[2] === 6)!;
+    expect(inv.mat).toBeNull();
+    expect(inv.collide).toBe('solid');
+    const qh = cm.machines.find((m) => m.box[0] < 7 && m.box[3] > 7 && m.box[4] === 2.2)!;
+    expect(qh.box[3] - qh.box[0]).toBeCloseTo(1.5, 6);
+    expect(validateMapDef(d).ok).toBe(true);
+  });
   it('cuts door and window openings out of walls', () => {
     const cm = compileMap(NIGHTFALL);
     // Wall x@z=18 (lobby south) has two windows at x=-3.6 and 3.6: a sill below and lintel above each.

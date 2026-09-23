@@ -21,18 +21,24 @@ export interface MapDecorateContext {
 
 export interface MapUpdateContext {
   time: number; dt: number; power: boolean;
-  /** The ride the player is on (RideDef id) and its progress 0..1, or null. */
-  ride?: { id: string; t: number } | null;
+  /** Player feet position (for proximity effects, light pools). */
+  player?: { x: number; y: number; z: number };
+  /** Lights-out round in progress. */
+  blackout?: boolean;
   /** True once the map's easter egg is complete. */
   egg?: boolean;
   /** Index of the easter egg's current step (steps before it are done). */
   eggStep?: number;
+  /** The ride the player is on (RideDef id) and its progress 0..1, or null. */
+  ride?: { id: string; t: number } | null;
 }
 
 export interface ZombiesMapEntry {
   def: ZombiesMapDef;
   /** Optional procedural dressing, run once when the map is built. */
   decorate?: (ctx: MapDecorateContext) => void;
+  /** Optional bespoke material library, built before the geometry; MatSpec `custom` keys resolve here. */
+  materials?: () => Record<string, THREE.Material>;
   /** Optional per-frame hook (animated set dressing). Keep it cheap. */
   update?: (ctx: MapUpdateContext) => void;
   /** Loadable via ?map=<id> but not shown on the title screen (examples, test maps). */

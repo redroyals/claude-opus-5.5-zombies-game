@@ -83,7 +83,7 @@ Room options: `floorMat`, `ceilingMat`, `beams` (material or `false`), `support:
 ### Walls, static geometry
 ```ts
 walls: [{ axis: 'x', at: 18, a0: -22, a1: 24, y0: 0, y1: 5.4, mat: 'brick' }],  // along X at z = 18
-boxes: [{ box: [x0, y0, z0, x1, y1, z1], mat: 'wood', collide: 'solid', surface: 'wood' }],
+boxes: [{ box: [x0, y0, z0, x1, y1, z1], mat: 'wood', collide: 'solid', surface: 'wood' }],  // mat: null = invisible collider
 quads: [{ rect, y, mat }],                 // flat visual planes (rugs, water, paint)
 cylinders: [{ x, z, r, h, mat }],          // drums, columns (box collider)
 props: [{ model: 'zombies/generator.glb', x, z, yaw, fit: { height: 1.8 }, collider: { w, d, h },
@@ -99,6 +99,9 @@ ground: { mat: 'dirt', tile: 6 },          // outdoor ground plane (visual)
   `'none'` (visual only).
 - Materials: any name in `MATERIAL_NAMES` (`'brick'`, `'plaster'`, `'metalDark'`, `'container0..5'`,
   `'glassPane'`, ...) or an inline spec `{ color: 0xc8a060, roughness: 0.6, texture: 'plaster', emissive }`.
+  Bespoke textured materials: add `materials: () => ({ marble: new THREE.MeshStandardMaterial(...) })` to the
+  registry entry and reference them as `{ custom: 'marble', color: 0xeeeeee }` (the other fields are the fallback).
+- `mat: null` on a box gives a collider with no mesh — use it for the solid core of a GLB prop that draws itself.
 - Props load asynchronously; their **collider is authored in data** (`w` along local X, `d` along local Z),
   and a box stand-in shows until (or if never) the GLB loads. Use GLBs from `public/models/` (see
   `public/models/manifest.json`), e.g. the kit pieces `zombies/kit_wall.glb`, `kit_floor.glb`, `kit_stairs.glb`,
@@ -141,23 +144,13 @@ pap:   { x, z, face, y? } | null,
 power: { x, z, face, y? } | null,        // null = power on from the start
 wallBuys: [{ key: 'smg_wren', x, z, face, y? }],   // key from WALL_BUYS (src/zombies/rules.ts)
 startWeapon?: 'pi_warden',
+machines?: { box: 'lahore/box.glb', pap, power, perks: { bulwark: 'x.glb' | { model: 'x.glb', foot: [w, d] } } },
 powerups?: { exclude?: ['carpenter'], maxPerRound?: 4, dropChanceMult?: 1 },
 ```
+`machines` reskins the machines per map (gameplay unchanged); `foot` resizes a perk's collider to its model.
 `face` is the direction the front of the machine faces; the player stands in front of it. Machine
 footprints come from the models (`PERK_FOOT` in `mapcompile.ts`), so the validator checks the spot in front is
 reachable. **Give `y` for anything on an upper floor.**
-
-### Map-specific machines
-```ts
-machines: {
-  box: 'favela/fv_mystery_box.glb',          // needs `lid` + `body` nodes (tools/blender/split_lid.py)
-  pap: 'favela/fv_reforger.glb',
-  power?: 'mymap/switch.glb',                 // a `lever` node animates if present
-  perks: { bulwark: { model: 'favela/perk_fv_bulwark.glb', foot: [0.88, 0.84] } },   // foot = collider w x d
-},
-```
-Omitted entries use the stock machines. `foot` replaces `PERK_FOOT` for that perk, so the collider, the
-validator's stand-point check and the model agree.
 
 ### Rides (cable cars, ziplines, slides)
 ```ts
@@ -173,10 +166,6 @@ ride for the way back. Pure rules live in `src/zombies/rides.ts` (`rideBlock`, `
 `update(ctx)` hook receives `ctx.ride = { id, t }` (progress 0..1) to animate the vehicle, plus `ctx.egg` (complete) and `ctx.eggStep`.
 Test ride clearance against the compiled colliders (see `tests/maps-favela.test.ts`).
 
-### Invisible colliders
-`boxes: [{ box: [...], mat: null, collide: 'solid' | 'floor' }]` collides without drawing anything. Use it for
-the solid core of a GLB prop that draws itself (a water tower, canopy columns, a walkable tank roof).
-
 ### Easter egg (generic step machine)
 ```ts
 egg: {
@@ -186,7 +175,8 @@ egg: {
     { kind: 'kill', zone: 3, count: 12, requiresPower: true, toast: 'Feed the sanctum' },
     { kind: 'collect', objects: [{ x, y, z, model: 'zombies/relic.glb' }] },   // walk over to pick up
   ],
-  reward: { title: 'THE DIAMOND WAKES', sub: '...', points: 2500, reforge: true, refillAmmo: true, powerup: 'double_points', weapon?: 'ww_arc' },
+  reward: { title: 'THE DIAMOND WAKES', sub: '...', points: 2500, reforge: true, refillAmmo: true, powerup: 'double_points',
+            allPerks: true, weapon: 'ww_arc' },
 }
 ```
 Steps run in order; only the current step's objects are visible. `ordered` interact steps reset on a wrong
@@ -205,7 +195,8 @@ lighting: {
   lights?: [{ x, y, z, color, intensity, range }],       // constant lights (moonlight, fire)
 },
 audio?: { ambience: 'relay' },                           // reserved: every map uses the relay bed for now
-flavor?: { powerHint: 'The breaker is in the Power Room', bossTitle: 'THE WARDEN · RELAY GUARDIAN', gameOverSub: '...' },
+flavor?: { powerHint: 'The breaker is in the Power Room', powerPrompt: 'Throw the main breaker', powerOnHint: 'Reforger + perks live',
+           bossTitle: 'THE WARDEN · RELAY GUARDIAN', gameOverSub: '...' },
 assets?: ['zombies/kit_door.glb', ...],                   // preloaded when the map is built
 ```
 Flicker styles: `'none'`, `'faulty'` (dim, stuttering, bulb dark), `'buzz'` (mostly on, occasional dips).
@@ -220,7 +211,8 @@ export function decorateLahore(ctx: MapDecorateContext): void {
 ```
 Anything solid you add in `decorate` must also get a collider in `ctx.world` (the nav is built after the hook
 runs, but the **validator only sees the def**, so prefer data for anything gameplay-relevant).
-An `update(ctx)` hook can animate set dressing (keep it cheap).
+An `update(ctx)` hook can animate set dressing (keep it cheap). `ctx` carries `time`, `dt`, `power`, `blackout`
+(lights-out round), `player` (feet position) and `egg` (easter egg complete).
 
 ## What the validator checks
 
@@ -297,6 +289,13 @@ room with stairs and an overlook, ten windows, a three-radio easter egg) and the
 (Rio · Ridgelight: six terrace tiers, staging rooms for climb and drop spawns, rides, per-map machines, and a hillside
 `decorate` that merges every static kit piece per material). `node scripts/map-svg.mjs <def.ts> <EXPORT> out.svg`
 draws any def as a plan and a side elevation.
+
+## Rounds a map should expect
+
+Every 5th round is a Scuttler round (fast, fragile), every 8th a Warden round (boss spawns from a window, or the
+first spawn point if the map has no windows), and rounds 13, 23, 33 ... are **blackouts**: every lamp drops to
+a dim red flicker (`lamps[].pre` at 25 %), the fog thickens and the hemisphere light dims, so make sure a map is
+still readable at that level. From round 10 a share of runners sprint (x1.3).
 
 ## Runtime API notes
 

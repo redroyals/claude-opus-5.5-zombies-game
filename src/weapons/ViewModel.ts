@@ -5,6 +5,7 @@ import { WEAPONS, weaponArch, type WeaponDef, type WeaponId } from '../config';
 import { models, findNode } from '../render/ModelRegistry';
 import type { TextureLib } from '../render/textures';
 import type { ReloadPhase } from './WeaponState';
+import { viewmodelFit } from './vmfit';
 
 interface WeaponModel {
   id: WeaponId;
@@ -32,7 +33,7 @@ interface WeaponModel {
 }
 
 /** Optional per-weapon placement data from public/models/weapons/frames.json (all in viewmodel metres, gun forward = -Z). */
-interface FrameData { scale?: number; position?: number[]; rotation?: number[]; muzzle?: number[]; sight?: number[]; length?: number; mounts?: Record<string, number[]> }
+interface FrameData { scale?: number; position?: number[]; rotation?: number[]; muzzle?: number[]; sight?: number[]; length?: number; mounts?: Record<string, number[]>; vm?: { scale?: number; hip?: number[] } }
 
 export interface ViewState {
   id: WeaponId;
@@ -92,6 +93,8 @@ export class ViewModel {
   private camoTex: THREE.CanvasTexture;
   private time = 0;
   private frames: Record<string, FrameData> = {};
+  /** Weapon frames load asynchronously; GLBs are attached only once they are known (else they draw unfitted). */
+  private framesReady: Promise<void>;
 
   constructor(tex: TextureLib) {
     this.tex = tex;
@@ -117,11 +120,12 @@ export class ViewModel {
     this.polymer = new THREE.MeshStandardMaterial({ color: 0x34373a, roughness: 0.7, metalness: 0.1, map: tex.grime });
     this.wood = new THREE.MeshStandardMaterial({ color: 0x8a5a36, roughness: 0.6, map: tex.wood.map });
 
+    this.framesReady = models.json<{ weapons?: Record<string, FrameData> }>('weapons/frames.json').then((f) => { if (f?.weapons) this.frames = f.weapons; });
     this.camoTex = this.buildCamo();
     for (const id of ['rifle', 'pistol', 'shotgun'] as WeaponId[]) this.ensure(id);
     this.knife = this.buildKnife();
     this.camera.add(this.knife);
-    void models.json<{ weapons?: Record<string, FrameData> }>('weapons/frames.json').then((f) => { if (f?.weapons) this.frames = f.weapons; });
+
 
     this.plate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.025), new THREE.MeshStandardMaterial({ color: 0x3d4238, roughness: 0.6, metalness: 0.4, map: tex.grime }));
     this.plate.visible = false;
@@ -145,7 +149,7 @@ export class ViewModel {
     this.setTier(id, 0);
     const mid = def.modelId ?? id;
     const model = m;
-    models.whenAvailable(`weapons/${mid}.glb`, (lm) => this.attachGlb(model, models.instance(lm), mid));
+    models.whenAvailable(`weapons/${mid}.glb`, (lm) => { void this.framesReady.then(() => this.attachGlb(model, models.instance(lm), mid)); });
     return m;
   }
 
@@ -162,9 +166,11 @@ export class ViewModel {
     const arch = weaponArch(m.id);
     // Right-hand grip point on the procedural rig (the glove wraps around this).
     const gripAt = arch === 'pistol' ? new THREE.Vector3(0, -0.035, 0.03) : arch === 'shotgun' ? new THREE.Vector3(0, -0.02, 0.085) : new THREE.Vector3(0, -0.025, 0.045);
+    const fit = f.length ? viewmodelFit(f, WEAPONS[m.id].cls ?? (arch === 'pistol' ? 'pistol' : arch === 'shotgun' ? 'shotgun' : 'ar'), mid) : null;
     if (grip || f.length) {
       holder.position.copy(gripAt);
-      if (f.scale) obj.scale.setScalar(f.scale);
+      obj.scale.setScalar(fit ? fit.scale : f.scale ?? 1);
+      if (fit) m.hip.set(fit.hip[0], fit.hip[1], fit.hip[2]);
     } else {
       const box = new THREE.Box3().setFromObject(obj);
       const size = box.getSize(new THREE.Vector3());
@@ -202,13 +208,37 @@ export class ViewModel {
     const optic = findNode(obj, 'mount_optic');
     if (f.sight) m.sight.fromArray(f.sight);
     else if (optic) { const o = local(optic); m.sight.set(0, o.y + (arch === 'pistol' ? 0.012 : 0.025), o.z + 0.1); }
+    if (fit) m.sight.y += fit.adsLift;
     // Support hand under the handguard / on the pump.
     const under = findNode(obj, 'mount_under');
-    if (under && arch === 'rifle') {
+    if (under && arch !== 'pistol') {
       const u = local(under);
-      m.leftHand.position.set(0, u.y - 0.06, u.z + 0.06);
-      m.leftHome.copy(m.leftHand.position);
+      const target = new THREE.Vector3(0, u.y - 0.055, fit?.support ? holder.position.z + fit.support[2] : u.z + 0.05);
+      if (m.leftHand.parent === m.root) {
+        m.leftHand.position.copy(target);
+        m.leftHome.copy(target);
+      } else if (m.leftHand.parent === m.mover) {
+        // Hand rides on the pump: move the pump so the hand lands on the handguard.
+        m.mover.position.copy(target).sub(m.leftHand.position);
+        m.moverHome.copy(m.mover.position);
+      }
     }
+    // Authored GLB materials are tuned for daylight; keep metals from going black in dark interiors.
+    holder.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mesh.material = mats.map((mt) => {
+        const sm = mt as THREE.MeshStandardMaterial;
+        if (!sm.isMeshStandardMaterial) return mt;
+        const c = sm.clone();
+        c.metalness = Math.min(c.metalness, 0.55);
+        c.roughness = Math.max(c.roughness, 0.32);
+        c.envMapIntensity = 1.3;
+        return c;
+      }) as unknown as THREE.Material;
+      if (mats.length === 1) mesh.material = (mesh.material as unknown as THREE.Material[])[0];
+    });
     const mag = findNode(obj, 'mount_mag');
     if (mag) { const g = local(mag); m.magHome.set(g.x, g.y + 0.02, g.z); m.mag.position.copy(m.magHome); }
     m.glb = holder;
@@ -654,6 +684,15 @@ export class ViewModel {
     this.flashLight.intensity = 3;
   }
 
+  /** Debug: camera-space positions of the rig, support hand and muzzle, plus the camera FOV. */
+  debugInfo(): Record<string, number[] | number | string> {
+    const m = this.current;
+    if (!m) return {};
+    this.camera.updateMatrixWorld(true);
+    const cs = (o: THREE.Object3D) => this.camera.worldToLocal(o.getWorldPosition(new THREE.Vector3())).toArray().map((v) => +v.toFixed(3));
+    return { id: m.id, fov: this.camera.fov, rig: this.rig.position.toArray().map((v) => +v.toFixed(3)), left: cs(m.leftHand), muzzle: cs(m.muzzle), hip: m.hip.toArray() };
+  }
+
   /** Muzzle position in camera space (used to place world-space tracers). */
   muzzleCameraSpace(out: THREE.Vector3): THREE.Vector3 {
     if (!this.current) return out.set(0.1, -0.1, -0.6);
@@ -686,11 +725,16 @@ export class ViewModel {
     }
     m.root.visible = true;
     // Springs (critically-damped-ish)
+    // Sub-stepped so a slow frame (low fps, tab hitch) cannot blow the explicit spring up.
     const k = 170, d = 20;
-    this.kickV += (-k * this.kick - d * this.kickV) * dt;
-    this.kick += this.kickV * dt;
-    this.kickRotV += (-k * this.kickRot - d * this.kickRotV) * dt;
-    this.kickRot += this.kickRotV * dt;
+    for (let left = Math.min(dt, 0.25); left > 1e-6;) {
+      const h = Math.min(left, 1 / 120);
+      left -= h;
+      this.kickV += (-k * this.kick - d * this.kickV) * h;
+      this.kick += this.kickV * h;
+      this.kickRotV += (-k * this.kickRot - d * this.kickRotV) * h;
+      this.kickRot += this.kickRotV * h;
+    }
     const motion = s.reducedMotion ? 0.35 : 1;
     // Sway from look input (lagging)
     const tx = THREE.MathUtils.clamp(-s.lookDX * 0.0009, -0.06, 0.06) * motion;

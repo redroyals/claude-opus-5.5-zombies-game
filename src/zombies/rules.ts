@@ -41,7 +41,7 @@ export function crawlerFractionForRound(n: number): number {
 /** A boss ("the Warden") joins every 8th round (8, 16, 24 ...). Not on special rounds. */
 export const BOSS_ROUND_EVERY = 8;
 export function isBossRound(n: number): boolean {
-  return n >= BOSS_ROUND_EVERY && n % BOSS_ROUND_EVERY === 0 && !isSpecialRound(n);
+  return n >= BOSS_ROUND_EVERY && n % BOSS_ROUND_EVERY === 0 && !isSpecialRound(n) && !isBlackoutRound(n);
 }
 /** Boss HP scales with the round; brutal but finite. */
 export function bossHpForRound(n: number): number {
@@ -51,6 +51,20 @@ export function bossHpForRound(n: number): number {
 /** Every 5th round from 5 is a "hound" style special round: fewer, fast, fragile ("the Scuttlers"). */
 export function isSpecialRound(n: number): boolean {
   return n >= 5 && n % 5 === 0;
+}
+
+/** Sprinters: a share of the runners go flat out from round 10 (speed x1.3). */
+export function sprinterFractionForRound(n: number): number {
+  return n < 10 ? 0 : Math.min(0.6, 0.12 + (n - 10) * 0.05);
+}
+export const SPRINTER_SPEED_MULT = 1.3;
+
+/**
+ * Blackout rounds (13, 23, 33 ...): the lights die, the fog rolls in and every zombie runs. Weaker than a
+ * normal round per zombie; ends with a Max Ammo like the Scuttler rounds.
+ */
+export function isBlackoutRound(n: number): boolean {
+  return n >= 13 && n % 10 === 3 && !isSpecialRound(n);
 }
 
 /** Seconds between spawns inside a round. */
@@ -68,20 +82,27 @@ export interface RoundSpec {
   crawlerFrac: number;
   boss: boolean;
   interval: number;
+  /** Share of runners that sprint. */
+  sprinterFrac: number;
+  /** Lights-out round. */
+  blackout: boolean;
 }
 
 export function roundSpec(n: number, players = 1): RoundSpec {
   const special = isSpecialRound(n);
+  const blackout = isBlackoutRound(n);
   return {
     round: n,
     special,
     total: special ? Math.min(6 + n, 24) * Math.max(1, Math.min(4, players)) : zombieCountForRound(n, players),
-    hpMult: special ? zombieHpMultForRound(n) * 0.45 : zombieHpMultForRound(n),
-    runnerFrac: special ? 1 : runnerFractionForRound(n),
-    armoredFrac: special ? 0 : armoredFractionForRound(n),
-    crawlerFrac: special ? 0 : crawlerFractionForRound(n),
+    hpMult: special ? zombieHpMultForRound(n) * 0.45 : blackout ? zombieHpMultForRound(n) * 0.8 : zombieHpMultForRound(n),
+    runnerFrac: special || blackout ? 1 : runnerFractionForRound(n),
+    armoredFrac: special || blackout ? 0 : armoredFractionForRound(n),
+    crawlerFrac: special || blackout ? 0 : crawlerFractionForRound(n),
     boss: isBossRound(n),
     interval: special ? 0.6 : spawnIntervalForRound(n),
+    sprinterFrac: special ? 0 : blackout ? Math.max(0.35, sprinterFractionForRound(n)) : sprinterFractionForRound(n),
+    blackout,
   };
 }
 
