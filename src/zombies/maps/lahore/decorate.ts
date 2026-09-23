@@ -4,13 +4,16 @@
 import * as THREE from 'three';
 import { models, type LoadedModel } from '../../../render/ModelRegistry';
 import type { MapDecorateContext, MapUpdateContext } from '../types';
-import { B, G, P, R, U, U2, type Surf } from './layout';
+import { BOX_SPOTS, B, DOORS, G, P, PAP_SPOT, PERK_SPOTS, R, U, U2, WALL_BUY_SPOTS, WINDOWS, type Side, type Surf } from './layout';
+import { LAHORE_RASTER } from './def';
+import { AREAS, type AreaDef } from './layout';
+import { GRID, GRID_W } from './raster';
 import { kitSlot, lahoreMaterials, type LahoreMaterials } from './materials';
 
 // ------------------------------------------------------------------------------------------------
 // Instanced placement: every (model, material-remap) pair becomes one InstancedMesh per primitive.
 // ------------------------------------------------------------------------------------------------
-interface KitOpts { stone?: Surf; trim?: Surf; matte?: boolean; shadow?: boolean }
+interface KitOpts { stone?: Surf; trim?: Surf; matte?: boolean; shadow?: boolean; bright?: number }
 interface Batch { path: string; opts: KitOpts; mats: THREE.Matrix4[] }
 const batches = new Map<string, Batch>();
 let root: THREE.Group | null = null;
@@ -18,7 +21,9 @@ let world: MapDecorateContext['world'] | null = null;
 let LM: LahoreMaterials;
 
 function put(path: string, x: number, y: number, z: number, yaw = 0, scale: number | [number, number, number] = 1, opts: KitOpts = {}): void {
-  const key = `${path}|${opts.stone ?? ''}|${opts.trim ?? ''}|${opts.matte ? 1 : 0}`;
+  // Spatial cells (40 m) keep each InstancedMesh's bounds small enough for frustum/shadow culling.
+  const cell = `${Math.floor(x / 40)},${Math.floor(z / 40)}`;
+  const key = `${path}|${opts.stone ?? ''}|${opts.trim ?? ''}|${opts.matte ? 1 : 0}|${opts.bright ?? 1}|${cell}`;
   let b = batches.get(key);
   if (!b) batches.set(key, (b = { path, opts, mats: [] }));
   const s = typeof scale === 'number' ? [scale, scale, scale] : scale;
@@ -38,6 +43,7 @@ function remap(mat: THREE.Material, o: KitOpts): THREE.Material {
   if (o.matte && (mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
     const m = (mat as THREE.MeshStandardMaterial).clone();
     if (!m.metalnessMap) m.metalness = Math.min(m.metalness, 0.15);
+    if (o.bright) m.color.multiplyScalar(o.bright);
     return m;
   }
   return mat;
@@ -55,13 +61,26 @@ function realise(b: Batch, lm: LoadedModel): void {
     const im = new THREE.InstancedMesh(mesh.geometry, mat, b.mats.length);
     b.mats.forEach((m, i) => im.setMatrixAt(i, tmp.multiplyMatrices(m, mesh.matrixWorld)));
     im.instanceMatrix.needsUpdate = true;
-    im.castShadow = b.opts.shadow !== false;
+    im.castShadow = b.opts.shadow ?? SHADOW_CASTERS.test(b.path);
     im.receiveShadow = true;
     im.computeBoundingSphere();
     im.frustumCulled = true;
+    im.userData.center = cellCenter(b.mats);
+    instanced.push(im);
     root!.add(im);
   });
 }
+
+const instanced: THREE.InstancedMesh[] = [];
+let cullT = 0;
+function cellCenter(ms: THREE.Matrix4[]): THREE.Vector3 {
+  const c = new THREE.Vector3(), p = new THREE.Vector3();
+  for (const m of ms) c.add(p.setFromMatrixPosition(m));
+  return c.multiplyScalar(1 / Math.max(1, ms.length));
+}
+
+/** Only big silhouettes cast sun shadows (the shadow pass is the expensive half of the frame). */
+const SHADOW_CASTERS = /kit_(column|arch_span|chhatri|burj|bangla_roof|baradari_roof|jharokha)|great_gun/;
 
 function flushBatches(): void {
   for (const b of batches.values()) void models.load(b.path).then((lm) => { if (lm) realise(b, lm); });
@@ -74,12 +93,12 @@ type LampKind = 'torch' | 'lantern' | 'chandelier' | 'diya' | 'forge' | 'mirror'
 interface Anchor { x: number; y: number; z: number; kind: LampKind }
 const anchors: Anchor[] = [];
 const LAMP: Record<LampKind, { color: number; pre: number; post: number; range: number; glow: number }> = {
-  torch: { color: 0xff8a3a, pre: 16, post: 20, range: 14, glow: 1.1 },
-  lantern: { color: 0xffb060, pre: 8, post: 22, range: 12, glow: 0.8 },
-  chandelier: { color: 0xffd9a0, pre: 0, post: 60, range: 22, glow: 1.8 },
-  diya: { color: 0xffa040, pre: 0, post: 0, range: 0, glow: 0.35 },
-  forge: { color: 0xff5a1a, pre: 6, post: 28, range: 10, glow: 1.4 },
-  mirror: { color: 0xcfe6ff, pre: 0, post: 14, range: 14, glow: 0 },
+  torch: { color: 0xff8a3a, pre: 40, post: 45, range: 15, glow: 1.6 },
+  lantern: { color: 0xffb060, pre: 22, post: 45, range: 13, glow: 1.2 },
+  chandelier: { color: 0xffd9a0, pre: 0, post: 110, range: 24, glow: 2.4 },
+  diya: { color: 0xffa040, pre: 0, post: 0, range: 0, glow: 0.9 },
+  forge: { color: 0xff5a1a, pre: 20, post: 70, range: 11, glow: 2 },
+  mirror: { color: 0xcfe6ff, pre: 0, post: 40, range: 15, glow: 0 },
 };
 const lamp = (x: number, y: number, z: number, kind: LampKind) => anchors.push({ x, y, z, kind });
 
@@ -114,7 +133,7 @@ function glowPoints(list: Anchor[], tex: THREE.Texture): THREE.Points {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.BufferAttribute(colr, 3));
   g.userData.base = colr.slice();
-  const m = new THREE.PointsMaterial({ size: 1.1, map: tex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true, fog: true });
+  const m = new THREE.PointsMaterial({ size: 0.42, map: tex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true, fog: true });
   const p = new THREE.Points(g, m);
   p.frustumCulled = false;
   return p;
@@ -164,11 +183,11 @@ function diyaRow(x0: number, z0: number, x1: number, z1: number, y: number, ever
 }
 
 function prop(name: string, x: number, y: number, z: number, yaw = 0, s = 1, collider?: [number, number, number]): void {
-  put(PR(name), x, y, z, yaw, s, { matte: true });
+  put(PR(name), x, y, z, yaw, s, { matte: true, shadow: s * 2 > 3 });
   if (collider) col(x, y, z, collider[0] * s, collider[1] * s, collider[2] * s, yaw);
 }
 function reuse(name: string, x: number, y: number, z: number, yaw = 0, s = 1, collider?: [number, number, number]): void {
-  put(`lahore/reuse/${name}.glb`, x, y, z, yaw, s, { matte: true });
+  put(`lahore/reuse/${name}.glb`, x, y, z, yaw, s, { matte: true, shadow: false });
   if (collider) col(x, y, z, collider[0] * s, collider[1] * s, collider[2] * s, yaw);
 }
 
@@ -178,6 +197,7 @@ export function decorateLahore(ctx: MapDecorateContext): void {
   world = ctx.world;
   LM = lahoreMaterials();
   batches.clear();
+  instanced.length = 0;
   anchors.length = 0;
   kites.length = 0;
   pool.length = 0;
@@ -320,30 +340,18 @@ export function decorateLahore(ctx: MapDecorateContext): void {
   }
   skyline(ctx);
   flushBatches();
+  // Barricade planks are many small meshes: keep them out of the sun's shadow pass.
+  ctx.root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.geometry?.type === 'BoxGeometry' && (m.material as THREE.Material).type === 'MeshStandardMaterial') m.castShadow = false; });
   lastPower = false;
 }
 
 // ================= HAVELI DISTRICT =================
 function hav(ctx: MapDecorateContext): void {
-  // Lane facades: shuttered windows and carved balconies on the block faces above the lanes.
-  const facade = (axis: 'x' | 'z', at: number, a0: number, a1: number, yaw: number, balconies = true) => {
-    let i = 0;
-    for (let a = a0 + 2; a < a1 - 1.5; a += 4, i++) {
-      const x = axis === 'x' ? a : at, z = axis === 'x' ? at : a;
-      put(K('shutter_window'), x, G + 1.2 + (i % 2) * 0.2, z, yaw, 1, {});
-      if (balconies && i % 3 === 1) put(K('wood_balcony'), x, U - 0.4, z, yaw, 1, {});
-      else put(K('shutter_window'), x, U + 0.6, z, yaw, 1, {});
-      if (i % 4 === 2) lamp(x + Math.sin(yaw) * 0.4, G + 3.1, z + Math.cos(yaw) * 0.4, 'lantern');
-    }
-  };
-  facade('z', 37.05, -20, 33, HP); // lane A, east side (Wazir / H3 blocks)
-  facade('x', -21.05, 38, 84, 0); // north lane, south side
-  facade('x', 32.95, 38, 84, Math.PI); // south lane, north side
-  facade('z', 58.95, -20, 1, -HP); facade('z', 62.05, 13, 33, HP); facade('z', 83.95, -20, 33, -HP, false);
-  facade('z', 33.95, -20, 33, -HP, false); // lane A, west side (fort wall)
+  facades();
+  wallDressing();
   torchesOnWall('x', -23.8, 40, 86, G, 0, 11);
   // Wazir courtyard: the giant pipal (landmark), charpai, pots, galleries with wooden pillars
-  prop('pipal_tree', 50, G, -6, 0.6, 1); col(50, G, -6, 1.6, 1.6, 6);
+  pipal(ctx, 50, G, -6); col(50, G, -6, 1.4, 1.4, 6);
   prop('charpai', 46.5, G, -1.2, 0, 1, [2.0, 1.0, 0.6]);
   prop('matka_pots', 52.8, G, -14.8, 0, 1, [1.0, 1.0, 1.0]);
   for (let x = 45; x <= 54; x += 3) put(K('pillar_wood'), x, U, -16.15, 0, 0.8, {});
@@ -402,6 +410,117 @@ function hav(ctx: MapDecorateContext): void {
 }
 
 let cypressMat: THREE.Material | null = null;
+/** Is a point on a wall line too close to something mounted on or standing against it? */
+function busy(x: number, y: number, z: number, r: number): boolean {
+  for (const d of DOORS) {
+    const mid = (d.a0 + d.a1) / 2, half = (d.a1 - d.a0) / 2;
+    const [dx, dz] = d.axis === 'x' ? [mid, d.at] : [d.at, mid];
+    if (Math.abs(d.y0 - y) < 1 && Math.hypot(dx - x, dz - z) < half + r) return true;
+  }
+  for (const w of WINDOWS) if (Math.abs(w.floor - y) < 1 && Math.hypot(w.x - x, w.z - z) < 1.2 + r) return true;
+  for (const w of WALL_BUY_SPOTS) if (Math.abs(w.y - y) < 1 && Math.hypot(w.x - x, w.z - z) < 1 + r) return true;
+  for (const s of [...Object.values(PERK_SPOTS), PAP_SPOT, ...BOX_SPOTS]) if (Math.abs(s.y - y) < 1 && Math.hypot(s.x - x, s.z - z) < 1.6 + r) return true;
+  return false;
+}
+
+const FORT_COURTS = new Set(['bagh', 'topkhana', 'aam_quad', 'burj_quad', 'tosha_hall', 'armoury', 'vault', 'hathi_landing', 'gate_alamgiri']);
+const HAVELI_LANES = new Set(['lane_a', 'lanes', 'chowk', 'roshnai_gate']);
+const HAVELI_COURTS = new Set(['wazir_court', 'naqqar_court']);
+const sideVec = (s: Side): [number, number] => (s === '+x' ? [1, 0] : s === '-x' ? [-1, 0] : s === '+z' ? [0, 1] : [0, -1]);
+
+/** Dress every mass face that bounds a court or lane: blind cusped arcades in the fort, windows and balconies in the havelis. */
+function facades(): void {
+  for (const f of LAHORE_RASTER.faces) {
+    const [sx, sz] = sideVec(f.side);
+    const yaw = Math.atan2(-sx, -sz); // face the area
+    const len = f.a1 - f.a0;
+    const fort = FORT_COURTS.has(f.area), lane = HAVELI_LANES.has(f.area), court = HAVELI_COURTS.has(f.area);
+    if (!fort && !lane && !court) continue;
+    const step = fort ? 3.6 : 4;
+    const n = Math.floor(len / step);
+    if (n < 1) continue;
+    const pad = (len - n * step) / 2;
+    for (let i = 0; i < n; i++) {
+      const a = f.a0 + pad + step * (i + 0.5);
+      const x = f.axis === 'x' ? a : f.at - sx * 0.02, z = f.axis === 'x' ? f.at - sz * 0.02 : a;
+      if (busy(x, f.y, z, step / 2)) continue;
+      if (fort) {
+        const stone: Surf = f.area === 'bagh' ? 'brick' : f.area === 'burj_quad' ? 'marble' : 'sandstone';
+        put(K('arch_bay'), x, f.y, z, yaw, [1.2, f.area === 'vault' ? 0.85 : 1.2, 0.8], { stone, trim: stone === 'marble' ? 'inlay' : 'marble', shadow: false });
+      } else {
+        put(K('shutter_window'), x, f.y + 1.1, z, yaw, 1, { shadow: false });
+        if (lane) {
+          if (i % 3 === 1) put(K('wood_balcony'), x, U - 0.3, z, yaw, 1);
+          else put(K('shutter_window'), x, U + 0.5, z, yaw, 1, { shadow: false });
+          if (i % 4 === 2) lamp(x - sx * 0.45, f.y + 3.0, z - sz * 0.45, 'lantern');
+        }
+      }
+    }
+  }
+}
+
+/** Tall zone-boundary walls get the same court dressing on whichever side faces a fort court. */
+function wallDressing(): void {
+  const R = LAHORE_RASTER;
+  for (const w of R.walls) {
+    if (w.kind !== 'wall' || w.y1 - w.y0 < 4 || w.a1 - w.a0 < 3.6) continue;
+    for (const sgn of [-1, 1]) {
+      const mid = (w.a0 + w.a1) / 2;
+      const px = w.axis === 'x' ? mid : w.at + sgn * 0.5, pz = w.axis === 'x' ? w.at + sgn * 0.5 : mid;
+      const i = Math.floor(px - GRID.minX), j = Math.floor(pz - GRID.minZ);
+      let area: AreaDef | null = null;
+      for (const L of ['G', 'U'] as const) {
+        const k = R.grid[L][j * GRID_W + i];
+        if (k >= 0 && Math.abs(AREAS[k].floor - w.y0) < 1.3 && !AREAS[k].stair) area = AREAS[k];
+      }
+      if (!area || !FORT_COURTS.has(area.id) || area.ceiling !== null) continue;
+      const yaw = w.axis === 'x' ? (sgn > 0 ? 0 : Math.PI) : (sgn > 0 ? HP : -HP);
+      const n = Math.floor((w.a1 - w.a0) / 3.6), pad = (w.a1 - w.a0 - n * 3.6) / 2;
+      for (let q = 0; q < n; q++) {
+        const a = w.a0 + pad + 3.6 * (q + 0.5);
+        const x = w.axis === 'x' ? a : w.at + sgn * 0.17, z = w.axis === 'x' ? w.at + sgn * 0.17 : a;
+        if (busy(x, area.floor, z, 1.8)) continue;
+        const stone: Surf = area.id === 'bagh' ? 'brick' : area.id === 'burj_quad' ? 'marble' : 'sandstone';
+        put(K('arch_bay'), x, area.floor, z, yaw, [1.2, 1.2, 0.8], { stone, trim: stone === 'marble' ? 'inlay' : 'marble', shadow: false });
+      }
+    }
+  }
+}
+
+/** Procedural pipal (sacred fig look-alike without religious framing): flared trunk, limbs and a broad canopy of leaf clumps. */
+function pipal(ctx: MapDecorateContext, x: number, y: number, z: number): void {
+  const bark = new THREE.MeshStandardMaterial({ color: 0x6a5a48, roughness: 0.95 });
+  const leafA = new THREE.MeshStandardMaterial({ color: 0x3f6a2c, roughness: 0.85, flatShading: true });
+  const leafB = new THREE.MeshStandardMaterial({ color: 0x5a8a3a, roughness: 0.85, flatShading: true });
+  const trunk = new THREE.CylinderGeometry(0.55, 1.1, 5.5, 10, 4);
+  trunk.translate(x, y + 2.75, z);
+  ctx.batch.add(bark, trunk);
+  let s = 5;
+  const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + rnd() * 0.5, L = 3.5 + rnd() * 2;
+    const limb = new THREE.CylinderGeometry(0.16, 0.34, L, 6);
+    limb.translate(0, L / 2, 0);
+    limb.rotateZ(-0.9 - rnd() * 0.3);
+    limb.rotateY(a);
+    limb.translate(x, y + 4.4 + rnd() * 0.8, z);
+    ctx.batch.add(bark, limb);
+    for (let r = 0; r < 3; r++) { // aerial roots
+      const root = new THREE.CylinderGeometry(0.04, 0.06, 4 + rnd() * 2, 4);
+      const rr = 2.2 + rnd() * 2.5, ra = a + (rnd() - 0.5) * 0.6;
+      root.translate(x + Math.cos(ra) * rr, y + 3.2 + rnd(), z + Math.sin(ra) * rr);
+      ctx.batch.add(bark, root);
+    }
+  }
+  for (let i = 0; i < 46; i++) {
+    const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * 6.2;
+    const blob = new THREE.IcosahedronGeometry(1.4 + rnd() * 1.3, 0);
+    blob.scale(1, 0.7, 1);
+    blob.translate(x + Math.cos(a) * r, y + 7 + rnd() * 2.6 - r * 0.18, z + Math.sin(a) * r);
+    ctx.batch.add(i % 3 ? leafA : leafB, blob);
+  }
+}
+
 function cypress(ctx: MapDecorateContext, x: number, y: number, z: number): void {
   const g = new THREE.ConeGeometry(0.8, 6, 8);
   g.translate(x, y + 3, z);
@@ -484,6 +603,15 @@ export function updateLahore(u: MapUpdateContext): void {
     sl.light.color.setHex(L.color);
     sl.light.distance = L.range;
     sl.light.intensity = (power ? L.post : L.pre) * flick;
+  }
+  // Distance cull the instanced dressing (the fog hides it anyway).
+  cullT -= u.dt;
+  if (p && cullT <= 0) {
+    cullT = 0.5;
+    for (const im of instanced) {
+      const c = im.userData.center as THREE.Vector3;
+      im.visible = Math.hypot(c.x - p.x, c.z - p.z) < 105;
+    }
   }
   for (const k of kites) {
     k.m.position.set(k.x + Math.sin(time * 0.4 + k.ph) * 3, k.y + Math.sin(time * 0.9 + k.ph) * 1.2, k.z + Math.cos(time * 0.3 + k.ph) * 2);

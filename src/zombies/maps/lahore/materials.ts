@@ -223,7 +223,7 @@ export function lahoreMaterials(): LahoreMaterials {
     surf,
     brass: new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 1, roughness: 0.32, name: 'lh:brass' }),
     iron: new THREE.MeshStandardMaterial({ color: 0x3a3634, metalness: 0.8, roughness: 0.55, name: 'lh:iron' }),
-    woodPaint: new THREE.MeshStandardMaterial({ color: 0x3f6b4f, roughness: 0.75, map: set('wood').map, name: 'lh:woodPaint' }),
+    woodPaint: new THREE.MeshStandardMaterial({ color: 0x4f8a64, roughness: 0.7, name: 'lh:woodPaint' }),
     cloth: new THREE.MeshStandardMaterial({ color: 0x8a1f24, roughness: 0.95, name: 'lh:cloth' }),
     paper: new THREE.MeshStandardMaterial({ color: 0xe8d8a0, roughness: 0.9, side: THREE.DoubleSide, name: 'lh:paper' }),
     water: new THREE.MeshStandardMaterial({ color: 0x1c3a40, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.85, name: 'lh:water' }),

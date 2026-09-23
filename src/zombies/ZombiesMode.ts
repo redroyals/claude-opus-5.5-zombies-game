@@ -598,7 +598,7 @@ export class ZombiesMode {
         const price = w ? papPrice(w.tier, UPGRADE_TIERS.length - 1) : null;
         return price === null ? 'Reforger <span class="denied">WEAPON MAXED</span>' : `<kbd>E</kbd> Reforge ${w ? WEAPONS[w.id].shortName : ''} → ${w ? papName(w.id, WEAPONS[w.id].name, w.tier + 1) : ''} <span class="cost">${price}</span>`;
       }
-      case 'power': return this.power ? 'Power is on' : '<kbd>E</kbd> Throw the main breaker';
+      case 'power': return this.power ? 'Power is on' : `<kbd>E</kbd> ${this.def.flavor?.powerPrompt ?? 'Throw the main breaker'}`;
       case 'perk': {
         const d = PERKS[it.id];
         if (this.zp.perks.includes(it.id)) return `${d.name} <span class="denied">OWNED</span>`;

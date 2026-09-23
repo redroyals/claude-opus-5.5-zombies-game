@@ -101,7 +101,8 @@ async function compress(src, out, maxBytes, tex) {
 async function one(a) {
   const src = path.join(ROOT, 'assets/raw', a.cat, `${a.id}.glb`);
   if (!fs.existsSync(src)) return null;
-  const [maxBytes, tris, tex] = BUDGET[a.cat];
+  const [maxBytes, catTris, tex] = BUDGET[a.cat];
+  const tris = a.tris ?? catTris;
   const outDir = path.join(ROOT, OUTDIR[a.cat]); fs.mkdirSync(outDir, { recursive: true });
   const out = path.join(outDir, `${a.id}.glb`);
   const work = path.join(ROOT, 'assets/work', a.cat); fs.mkdirSync(work, { recursive: true });

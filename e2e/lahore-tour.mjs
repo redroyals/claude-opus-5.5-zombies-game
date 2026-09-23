@@ -6,6 +6,9 @@ import fs from 'node:fs';
 
 const out = process.argv[2] ?? '/tmp/lahore-shots';
 const quick = process.argv.includes('--quick');
+const onlyArg = process.argv.find((a) => a.startsWith('--only='));
+const only = onlyArg ? onlyArg.slice(7).split(',') : null;
+const prePost = process.argv.find((a) => a.startsWith('--phase='))?.slice(8) ?? 'both';
 fs.mkdirSync(out, { recursive: true });
 const exe = process.env.CHROME ?? fs.readdirSync(`${os.homedir()}/.cache/ms-playwright`).filter((d) => d.startsWith('chromium-')).map((d) => `${os.homedir()}/.cache/ms-playwright/${d}/chrome-linux-arm64/chrome`).find((p) => fs.existsSync(p));
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
@@ -52,6 +55,7 @@ const VIEWS = [
 ];
 async function tour(tag) {
   for (const [n, x, y, z, yaw, pitch] of VIEWS) {
+    if (only && !only.some((o) => n.startsWith(o))) continue;
     await ds('teleport', x, z, yaw + Math.PI, y);
     await ds('look', yaw + Math.PI, pitch);
     await shot(`${n}-${tag}`);
@@ -63,10 +67,10 @@ const DOORS = ['bagh_topkhana', 'bagh_alamgiri', 'bagh_roshnai', 'topkhana_armou
 if (process.argv.includes('--closed')) await tour('closed');
 for (const d of DOORS) await ds('zOpen', d);
 console.log(JSON.stringify(await ds('zm')));
-await tour('pre');
+if (prePost !== 'post') await tour('pre');
 await ds('zPower');
 await wait(1500);
-await tour('post');
+if (prePost !== 'pre') await tour('post');
 console.log('frame', JSON.stringify(await ds('frameStats')));
 console.log('errors', errors.slice(0, 10));
 await browser.close();

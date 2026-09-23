@@ -248,6 +248,8 @@ export interface ZombiesMapDef {
   audio?: { ambience?: string };
   /** Model paths (under /models) to preload when the map is selected. */
   assets?: string[];
+  /** Map-specific strings for the HUD and prompts. */
+  flavor?: { powerHint?: string; powerPrompt?: string; powerOnHint?: string; bossTitle?: string; gameOverSub?: string };
   /** Per-map machine skins (paths under /models, or bare file names resolved via the manifest). Gameplay is unchanged. */
   machineModels?: MachineModels;
 }

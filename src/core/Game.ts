@@ -885,6 +885,7 @@ export class Game {
     this.hud.show(false);
     if (this.mode === 'zombies') {
       this.zhud.show(false);
+      this.zhud.setGameOverSub(this.zm.def.flavor?.gameOverSub ?? `${this.zm.def.name.toUpperCase()} · SIGNAL LOST`);
       this.zhud.showGameOver({ ...this.zm.stats });
       (document.getElementById('fade') as HTMLElement).style.opacity = '0';
       return;
@@ -1083,9 +1084,9 @@ export class Game {
     if (zmode) {
       const r = this.zm.rounds;
       contracts.length = 0;
-      contracts.push({ title: 'NIGHTFALL RELAY', tag: r.spec.special ? 'SCUTTLERS' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
+      contracts.push({ title: this.zm.def.name.toUpperCase(), tag: r.spec.special ? 'SCUTTLERS' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
         sub: r.phase === 'break' ? `Next round in ${Math.ceil(r.timer)}s` : `${r.toSpawn + this.enemies.aliveCount} remaining`, state: 'active' });
-      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? 'Reforger + perks live' : 'The breaker is in the Power Room', state: this.zm.power ? 'done' : 'active' });
+      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? this.zm.def.flavor?.powerOnHint ?? 'Reforger + perks live' : this.zm.def.flavor?.powerHint ?? 'The breaker is in the Power Room', state: this.zm.power ? 'done' : 'active' });
       this.zhud.update(dt, { round: r.round, points: this.zm.zp.points, perks: this.zm.zp.perks, pups: this.zm.activePowerUps, zone: this.zm.zoneName({ x: p.pos.x, y: p.pos.y, z: p.pos.z }) });
     }
     const boss = zmode ? this.enemies.boss : null;
@@ -1213,6 +1214,18 @@ export class Game {
       spawnZombie: (type: 'shambler' | 'runner' | 'armored', x: number, z: number, state: 'idle' | 'chase' = 'chase') => this.enemies.spawn(type, regionAt(z), x, z, state),
       clearZombies: () => { for (const z of this.enemies.zombies) if (z.alive && !z.elite) { z.alive = false; z.state = 'dead'; z.deathT = 99; } },
       damagePlayer: (n: number) => this.onPlayerHit(n, this.player.pos.x + 1, this.player.pos.z, false),
+      sceneStats: () => {
+        const by: Record<string, number> = {};
+        let n = 0;
+        this.renderer.scene.traverseVisible((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh && !(o as THREE.Points).isPoints) return;
+          n++;
+          const k = (m as unknown as THREE.InstancedMesh).isInstancedMesh ? 'instanced' : (o as THREE.Points).isPoints ? 'points' : m.geometry?.type ?? 'mesh';
+          by[k] = (by[k] ?? 0) + 1;
+        });
+        return { visibleDrawables: n, by, lights: this.renderer.scene.children.length, shadows: this.renderer.renderer.shadowMap.enabled };
+      },
       frameStats: () => {
         const a = [...this.frameTimes].sort((x, y) => x - y);
         const avg = a.reduce((s, x) => s + x, 0) / Math.max(1, a.length);
@@ -1233,6 +1246,8 @@ export class Game {
           doors: [...z.zones.opened], pu: z.activePowerUps, stats: { ...z.stats }, alive: this.enemies.aliveCount, boss: !!this.enemies.boss?.alive, zone: z.zoneName({ ...this.player.pos }) };
       },
       zPoints: (n: number) => { this.zm.zp.points += n; },
+      zDef: () => JSON.parse(JSON.stringify(this.zm.def)) as unknown,
+      zEgg: () => ({ ...(this.zm as unknown as { egg: object }).egg }),
       zPower: () => this.zm.use({ kind: 'power' }),
       zOpen: (id: string) => { this.zm.zp.points += 5000; this.zm.use({ kind: 'door', id }); },
       zGive: (id: WeaponId) => { (this.zm as unknown as { giveWeapon(i: WeaponId): void }).giveWeapon(id); },

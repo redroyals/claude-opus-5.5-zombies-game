@@ -14,12 +14,15 @@ export type WallKind = 'wall' | 'rail' | 'low' | 'parapet' | 'invisible' | 'jaal
 export interface WallRun { axis: 'x' | 'z'; at: number; a0: number; a1: number; y0: number; y1: number; surf: Surf; kind: WallKind }
 export interface MassBox { x0: number; z0: number; x1: number; z1: number; y0: number; y1: number; surf: Surf; floor: boolean }
 export interface RoomRect { area: AreaDef; x0: number; z0: number; x1: number; z1: number }
+/** A run of mass face bounding an area (for facade dressing): `side` points from the area into the mass. */
+export interface FaceRun { area: string; zone: number; axis: 'x' | 'z'; at: number; a0: number; a1: number; y: number; side: Side }
 export interface LinkSpec { from: [number, number, number]; to: [number, number, number]; kind: 'drop' | 'jump'; twoWay?: boolean }
 export interface Raster {
   masses: MassBox[];
   walls: WallRun[];
   rooms: RoomRect[];
   links: LinkSpec[];
+  faces: FaceRun[];
   /** Per-layer cell -> area index (for tests, the plan renderer and zone queries). */
   grid: Record<Layer, Int16Array>;
   problems: string[];
@@ -179,6 +182,7 @@ export function rasterize(): Raster {
     e.pieces.push(p);
   };
   const links: LinkSpec[] = [];
+  const faceCells: FaceRun[] = [];
   const seenLinks = new Set<string>();
   const dropFor = (a: AreaDef, side: Side, at: number, along: number) =>
     a.drops?.find((d) => d.side === side && Math.abs(d.at - at) < 0.01 && along + 0.5 >= d.a0 - EPS && along + 0.5 <= d.a1 + EPS);
@@ -242,7 +246,7 @@ export function rasterize(): Raster {
           continue;
         }
         const m = massTopAt(ni, nj, f);
-        if (m.covered) continue; // a mass face closes it
+        if (m.covered) { if (!a.stair) faceCells.push({ area: a.id, zone: a.zone, axis, at, a0: along, a1: along + 1, y: f, side }); continue; } // a mass face closes it
         if (a.parapet) {
           addPiece(axis, at, along, { y0: f, y1: f + 1.1, surf: a.wallSurf, kind: 'parapet' });
           addPiece(axis, at, along, { y0: f + 1.1, y1: f + 3.5, surf: a.wallSurf, kind: 'invisible' });
@@ -325,7 +329,14 @@ export function rasterize(): Raster {
       .reduce((s, w) => s + Math.min(w.a1, a1) - Math.max(w.a0, a0), 0) >= a1 - a0 - 0.01;
   for (const d of DOORS) if (!wallCovers(d.axis, d.at, d.a0, d.a1, d.y0, d.y0 + DOOR_H)) problems.push(`door ${d.id} not on a full wall`);
 
-  return { masses, walls, rooms, links, grid, problems };
+  faceCells.sort((p, q) => (p.area < q.area ? -1 : p.area > q.area ? 1 : p.side < q.side ? -1 : p.side > q.side ? 1 : p.at - q.at || p.a0 - q.a0));
+  const faces: FaceRun[] = [];
+  for (const f of faceCells) {
+    const l = faces[faces.length - 1];
+    if (l && l.area === f.area && l.side === f.side && l.at === f.at && l.y === f.y && Math.abs(l.a1 - f.a0) < 0.01) l.a1 = f.a1;
+    else faces.push({ ...f });
+  }
+  return { masses, walls, rooms, links, faces, grid, problems };
 
   function axisAlong(di: number, ex: number, ez: number): number { return di !== 0 ? ez : ex; }
 }

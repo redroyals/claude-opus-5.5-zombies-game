@@ -63,7 +63,7 @@ export class ZHud {
     this.points = this.root.querySelector('#zpoints')!;
     this.over = document.createElement('div');
     this.over.id = 'zover';
-    this.over.innerHTML = '<h1 id="zover-title"></h1><div class="sub">NIGHTFALL RELAY · SIGNAL LOST</div><div class="grid" id="zover-grid"></div><div class="btns"><button class="btn primary" id="zover-again">PLAY AGAIN</button><button class="btn" id="zover-menu">MAIN MENU</button></div>';
+    this.over.innerHTML = '<h1 id="zover-title"></h1><div class="sub" id="zover-sub">NIGHTFALL RELAY · SIGNAL LOST</div><div class="grid" id="zover-grid"></div><div class="btns"><button class="btn primary" id="zover-again">PLAY AGAIN</button><button class="btn" id="zover-menu">MAIN MENU</button></div>';
     document.body.appendChild(this.over);
     this.over.querySelector('#zover-again')!.addEventListener('click', () => { this.showGameOver(null); onRestart(); });
     this.over.querySelector('#zover-menu')!.addEventListener('click', () => { this.showGameOver(null); onMenu(); });
@@ -108,6 +108,9 @@ export class ZHud {
     }
     if (this.zone.textContent !== f.zone) this.zone.textContent = f.zone;
   }
+
+  /** Sub-title under the game-over headline (per map). */
+  setGameOverSub(text: string): void { this.over.querySelector('#zover-sub')!.textContent = text; }
 
   showGameOver(s: ZRunStats | null): void {
     this.over.classList.toggle('on', !!s);
