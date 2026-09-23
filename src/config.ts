@@ -264,7 +264,7 @@ export const ZOMBIES: Record<ZombieType, ZombieDef> = {
   brute: { hp: 420, speed: [1.6, 1.9], damage: 38, attackRange: 1.7, windup: 0.7, attackCooldown: 1.5, reward: 0, scale: 1.22, helmetHp: 120, bodyArmorMult: 0.6, staggerThreshold: 200 },
   crawler: { hp: 90, speed: [0.8, 1.1], damage: 12, attackRange: 1.2, windup: 0.45, attackCooldown: 1.1, reward: 0, scale: 1, helmetHp: 0, bodyArmorMult: 1, staggerThreshold: 80 },
   fast: { hp: 70, speed: [5.6, 6.3], damage: 10, attackRange: 1.35, windup: 0.25, attackCooldown: 0.8, reward: 0, scale: 0.92, helmetHp: 0, bodyArmorMult: 1, staggerThreshold: 60 },
-  boss: { hp: 6000, speed: [2.4, 2.6], damage: 55, attackRange: 2.4, windup: 0.85, attackCooldown: 1.8, reward: 0, scale: 1.5, helmetHp: 600, bodyArmorMult: 0.75, staggerThreshold: 99999 },
+  boss: { hp: 6000, speed: [2.4, 2.6], damage: 55, attackRange: 2.4, windup: 0.85, attackCooldown: 1.8, reward: 0, scale: 1.6, helmetHp: 600, bodyArmorMult: 0.75, staggerThreshold: 99999 },
 };
 
 export interface RegionDef {

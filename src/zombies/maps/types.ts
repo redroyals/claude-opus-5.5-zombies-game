@@ -29,4 +29,6 @@ export interface ZombiesMapEntry {
   materials?: () => Record<string, THREE.Material>;
   /** Optional per-frame hook (animated set dressing). Keep it cheap. */
   update?: (ctx: MapUpdateContext) => void;
+  /** Loadable via ?map=<id> but not shown on the title screen (examples, test maps). */
+  hidden?: boolean;
 }

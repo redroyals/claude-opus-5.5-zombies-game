@@ -21,6 +21,7 @@ const CSS = `
 .zpup.blink { animation: zblink .25s steps(2) infinite; }
 @keyframes zblink { 50% { opacity:.25 } }
 #zzone { position:absolute; top:24px; left:50%; transform:translateX(-50%); font:700 13px monospace; letter-spacing:.3em; color:#c8b89a; opacity:.8; }
+#zzone.below { top:62px; }
 #zpoints { position:absolute; left:34px; bottom:100px; font:900 30px Georgia, serif; color:#f0d890; text-shadow:0 0 10px rgba(0,0,0,.8); }
 #hud.zmode .hud-tr, #hud.zmode .region-row, #hud.zmode .salvage, #hud.zmode .armor-row, #hud.zmode .inv:first-child { display:none !important; }
 #zover { position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; flex-direction:column;
@@ -63,17 +64,27 @@ export class ZHud {
     this.points = this.root.querySelector('#zpoints')!;
     this.over = document.createElement('div');
     this.over.id = 'zover';
-    this.over.innerHTML = '<h1 id="zover-title"></h1><div class="sub" id="zover-sub">NIGHTFALL RELAY · SIGNAL LOST</div><div class="grid" id="zover-grid"></div><div class="btns"><button class="btn primary" id="zover-again">PLAY AGAIN</button><button class="btn" id="zover-menu">MAIN MENU</button></div>';
+    this.over.innerHTML = '<h1 id="zover-title"></h1><div class="sub" id="zover-sub"></div><div class="grid" id="zover-grid"></div><div class="btns"><button class="btn primary" id="zover-again">PLAY AGAIN</button><button class="btn" id="zover-menu">MAIN MENU</button></div>';
     document.body.appendChild(this.over);
     this.over.querySelector('#zover-again')!.addEventListener('click', () => { this.showGameOver(null); onRestart(); });
     this.over.querySelector('#zover-menu')!.addEventListener('click', () => { this.showGameOver(null); onMenu(); });
   }
 
+  /** Map flavour for the boss bar and the game-over screen. */
+  setMap(name: string, flavor: { bossTitle?: string; gameOverSub?: string } = {}): void {
+    this.bossTitle = flavor.bossTitle ?? 'THE WARDEN';
+    this.overSub = flavor.gameOverSub ?? `${name.toUpperCase()} · OVERRUN`;
+    (this.over.querySelector('#zover-sub') as HTMLElement).textContent = this.overSub;
+  }
+
+  private bossTitle = 'THE WARDEN';
+  private overSub = '';
+
   show(on: boolean): void {
     this.root.classList.toggle('on', on);
     document.getElementById('hud')!.classList.toggle('zmode', on);
     const bn = document.querySelector('#boss .boss-name');
-    if (bn) bn.textContent = on ? 'THE WARDEN · RELAY GUARDIAN' : 'WARDEN-9 · ELITE INFECTED';
+    if (bn) bn.textContent = on ? this.bossTitle : 'WARDEN-9 · ELITE INFECTED';
     if (!on) this.lastRound = -1;
   }
 
@@ -107,10 +118,9 @@ export class ZHud {
       }).join('');
     }
     if (this.zone.textContent !== f.zone) this.zone.textContent = f.zone;
+    // Drop the zone label under the boss bar while it is up.
+    this.zone.classList.toggle('below', (document.getElementById('boss')?.style.display ?? 'none') === 'block');
   }
-
-  /** Sub-title under the game-over headline (per map). */
-  setGameOverSub(text: string): void { this.over.querySelector('#zover-sub')!.textContent = text; }
 
   showGameOver(s: ZRunStats | null): void {
     this.over.classList.toggle('on', !!s);

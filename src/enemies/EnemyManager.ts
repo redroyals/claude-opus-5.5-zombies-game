@@ -12,6 +12,8 @@ import type { FlowOut, NavGrid, NavLink } from '../world/NavGrid';
 import { models, findNode, type LoadedModel } from '../render/ModelRegistry';
 import { crawlerFromLegHit } from '../zombies/rules';
 import { TEAR_SECONDS } from '../zombies/zones';
+import { canAttackThroughWindow, laneAngle, steerLane, surroundSlot, windowQueueSpot } from './horde';
+import { GLB_CAPSULES, HIT_PARTS, rayCapsules, type HitPart } from './hitbox';
 
 /** Zombies-mode barricade hooks: zombies spawned outside walk to a window, tear planks, then climb in. */
 export interface BarricadeHost {
@@ -27,7 +29,7 @@ const GLB_FOR: Partial<Record<ZombieType, string>> = {
   shambler: 'z_shambler', runner: 'z_runner', brute: 'z_brute', armored: 'z_brute', crawler: 'z_crawler', fast: 'z_fast', boss: 'z_boss', elite: 'z_boss',
 };
 
-export interface ZombieHit { z: Zombie; dist: number; head: boolean; x: number; y: number; z_: number }
+export interface ZombieHit { z: Zombie; dist: number; head: boolean; x: number; y: number; z_: number; part: HitPart }
 
 export interface DamageOutcome { killed: boolean; head: boolean; armor: boolean; dealt: number }
 
@@ -51,6 +53,9 @@ export class EnemyManager {
   private seedCounter = 1;
   private time = 0;
   private dir: FlowOut = { x: 0, z: 0 };
+  private frustum = new THREE.Frustum();
+  private projView = new THREE.Matrix4();
+  private sphere = new THREE.Sphere();
   elite: Zombie | null = null;
   boss: Zombie | null = null;
   eliteAggro = false;
@@ -61,6 +66,8 @@ export class EnemyManager {
   barricades: BarricadeHost | null = null;
   private arena: Arena;
   private glbModels = new Map<string, LoadedModel>();
+  /** Simplified geometry per zombie model (scripts/zombie-lods.mjs), bound to the full model's skeleton. */
+  private lodGeos = new Map<string, THREE.BufferGeometry[]>();
   private rnd = Math.random;
 
   constructor(tex: TextureLib, level: Level, private fx: Effects, private audio: AudioEngine, private events: EnemyEvents) {
@@ -71,6 +78,13 @@ export class EnemyManager {
       models.whenNamed(`${name}.glb`, (m) => {
         if (!m.skinned && m.animations.length === 0) { console.info('[models] static zombie model ignored (needs a skin/clips):', name); return; }
         this.glbModels.set(name, m);
+        // Distance LOD is optional: only fetched once the full model exists.
+        void models.load(`zombies/${name}_lod1.glb`).then((lm) => {
+          if (!lm) return;
+          const geos: THREE.BufferGeometry[] = [];
+          lm.scene.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) geos.push((o as THREE.SkinnedMesh).geometry); });
+          if (geos.length) this.lodGeos.set(name, geos);
+        });
       });
     }
   }
@@ -109,8 +123,29 @@ export class EnemyManager {
     }
     if (Object.keys(actions).length === 0 && m.animations[0]) actions.walk = mixer.clipAction(m.animations[0]);
     inst.traverse((o) => { o.frustumCulled = false; });
+    // LOD: a low-poly skin driven by the same skeleton (swapped by distance in animate()).
+    const lodGeos = name ? this.lodGeos.get(name) : undefined;
+    const lodPairs: [THREE.SkinnedMesh, THREE.SkinnedMesh][] = [];
+    if (lodGeos) {
+      const hi: THREE.SkinnedMesh[] = [];
+      inst.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) hi.push(o as THREE.SkinnedMesh); });
+      if (hi.length === lodGeos.length) hi.forEach((h, i) => {
+        const lo = new THREE.SkinnedMesh(lodGeos[i], h.material);
+        lo.position.copy(h.position); lo.quaternion.copy(h.quaternion); lo.scale.copy(h.scale);
+        lo.bind(h.skeleton, h.bindMatrix);
+        lo.frustumCulled = false;
+        lo.visible = false;
+        lo.castShadow = h.castShadow;
+        h.parent!.add(lo);
+        lodPairs.push([h, lo]);
+      });
+    }
     const head = findNode(inst, 'head') ?? findNode(inst, 'mixamorig:head') ?? findNode(inst, 'Head');
-    z.glb = { root: holder, mixer, actions, current: '', head };
+    const byName = (n: string) => { let f: THREE.Object3D | null = null; inst.traverse((o) => { if (!f && o.name === n) f = o; }); return f as THREE.Object3D | null; };
+    const capBones = GLB_CAPSULES.map((c) => [byName(c.a), byName(c.b)]);
+    const legs = ['LeftUpLeg', 'RightUpLeg'].map(byName).filter((o): o is THREE.Object3D => !!o);
+    z.lod = 0;
+    z.glb = { root: holder, mixer, actions, current: '', head, lodPairs, capBones: capBones.every(([a, b]) => a && b) ? capBones : undefined, legs };
     this.group.add(holder);
   }
 
@@ -169,6 +204,7 @@ export class EnemyManager {
     const zb = this.acquire(type);
     const y = this.level.world.groundHeight(x, z, 0.3, atY === undefined ? 3 : atY + 0.5);
     zb.spawn(type, region, x, z, y, this.seedCounter++ * 0.6180339 + Math.random());
+    zb.lane = laneAngle(zb.seed);
     if (state === 'chase') zb.setState('chase');
     this.attachGlb(zb);
     this.zombies.push(zb);
@@ -300,8 +336,20 @@ export class EnemyManager {
         const sameLevel = Math.abs(p.y - z.pos.y) < 1.2;
         if (dist < 28 && z.hasLOS && sameLevel && (dist < 3 || nav.walkLine(z.pos.x, z.pos.z, p.x, p.z, z.pos.y))) {
           dirX = dx / (dist || 1); dirZ = dz / (dist || 1);
+          // Close in on a slot around the player so attackers fan out instead of stacking.
+          if (dist < 5 && dist > range * 0.9 && !z.elite) {
+            const slot = surroundSlot(p.x, p.z, z.pos.x, z.pos.z, z.lane, range * 0.85);
+            const sx = slot.x - z.pos.x, sz = slot.z - z.pos.z, sl = Math.hypot(sx, sz);
+            if (sl > 0.2 && nav.isWalkable(slot.x, slot.z, z.pos.y)) { dirX = sx / sl; dirZ = sz / sl; }
+          }
         } else if (nav.flowDir(z.pos.x, z.pos.z, this.dir, z.pos.y)) {
           dirX = this.dir.x; dirZ = this.dir.z;
+          if ((this.dir.link ?? -1) < 0) {
+            // Lanes: bias the shared flow sideways per zombie so the horde spreads across corridors.
+            const zy = z.pos.y;
+            const l = steerLane(dirX, dirZ, z.lane, dist, (ddx, ddz) => nav.isWalkable(z.pos.x + ddx * 1.2, z.pos.z + ddz * 1.2, zy));
+            dirX = l.x; dirZ = l.z;
+          }
           if ((this.dir.link ?? -1) >= 0 && z.grounded) {
             const ends = nav.linkEnds(this.dir.link!);
             if (ends && Math.hypot(ends.from.x - z.pos.x, ends.from.z - z.pos.z) < 0.7 && Math.abs(ends.from.y - z.pos.y) < 0.8) { this.beginLink(z, ends); break; }
@@ -374,8 +422,14 @@ export class EnemyManager {
       if (Math.hypot(p.x - z.pos.x, p.z - z.pos.z) < 30) this.audio.zombieVoice(z.pos, 'groan', z.type === 'fast' ? 1.4 : 1);
     }
     if (z.entryPhase === 'approach') {
-      const dx = w.outside.x - z.pos.x, dz = w.outside.z - z.pos.z;
+      // Queue behind whoever is already working this window.
+      let q = 0;
+      for (const o of this.zombies) if (o !== z && o.alive && o.entry === z.entry && o.entryPhase !== 'approach') q++;
+      const nl = Math.hypot(w.outside.x - w.inside.x, w.outside.z - w.inside.z) || 1;
+      const tgt = q > 0 ? windowQueueSpot(w.outside.x, w.outside.z, (w.outside.x - w.inside.x) / nl, (w.outside.z - w.inside.z) / nl, q) : w.outside;
+      const dx = tgt.x - z.pos.x, dz = tgt.z - z.pos.z;
       const d = Math.hypot(dx, dz);
+      if (q > 0 && d < 0.35) { z.vel.x = z.vel.z = 0; z.yaw = Math.atan2(w.inside.x - w.outside.x, w.inside.z - w.outside.z); return; }
       if (d < 0.4) {
         z.entryPhase = 'tear';
         z.entryT = TEAR_SECONDS * (0.6 + Math.random() * 0.5);
@@ -391,6 +445,12 @@ export class EnemyManager {
     }
     if (z.entryPhase === 'tear') {
       z.yaw = Math.atan2(w.inside.x - w.outside.x, w.inside.z - w.outside.z);
+      // Stand too close to the barricade and you get swiped through the gaps.
+      if (p.alive && z.attackCD <= 0 && b.planks(z.entry) < 6 && canAttackThroughWindow(p.x, p.y, p.z, w.inside.x, w.inside.z, w.floor)) {
+        z.attackCD = z.def.attackCooldown * 1.2;
+        this.audio.zombieSwipe(z.pos);
+        this.events.onPlayerHit(z.def.damage * z.damageMult * 0.75, z.pos.x, z.pos.z, false);
+      }
       if (b.planks(z.entry) <= 0) {
         z.entryPhase = 'climb';
         z.entryT = 0;
@@ -526,14 +586,39 @@ export class EnemyManager {
   }
 
   /** Render-rate animation for all visible zombies (skinning happens on the GPU). */
-  animate(dt: number, camX: number, camZ: number): void {
+  animate(dt: number, camX: number, camZ: number, cam?: THREE.Camera): void {
+    if (cam) {
+      cam.updateMatrixWorld();
+      this.projView.multiplyMatrices((cam as THREE.PerspectiveCamera).projectionMatrix, cam.matrixWorldInverse);
+      this.frustum.setFromProjectionMatrix(this.projView);
+    }
     for (const z of this.zombies) {
-      const far = Math.hypot(z.pos.x - camX, z.pos.z - camZ) > 70;
-      if (far && z.alive) { z.mesh.position.set(z.pos.x, z.pos.y, z.pos.z); z.mesh.rotation.set(0, z.yaw, 0); continue; }
+      const d = Math.hypot(z.pos.x - camX, z.pos.z - camZ);
+      const far = d > 70;
+      if (far && z.alive) { z.mesh.position.set(z.pos.x, z.pos.y, z.pos.z); z.mesh.rotation.set(0, z.yaw, 0); z.hitValid = false; continue; }
       z.animate(dt, this.time);
+      if (!cam) continue;
+      // Skinned bounds are unreliable, so skinned meshes never self-cull: cull the whole body here instead,
+      // and only zombies near the camera cast shadows.
+      this.sphere.center.set(z.pos.x, z.pos.y + 0.9 * z.scale, z.pos.z);
+      this.sphere.radius = 1.7 * z.scale;
+      const inView = this.frustum.intersectsSphere(this.sphere);
+      const body = z.glb ? z.glb.root : z.mesh;
+      if (!inView) body.visible = false;
+      // Distance LOD with hysteresis.
+      const want = z.lod === 0 ? (d > 15 ? 1 : 0) : (d < 12 ? 0 : 1);
+      if (z.glb?.lodPairs?.length && want !== z.lod) {
+        z.lod = want;
+        for (const [hi, lo] of z.glb.lodPairs) { hi.visible = want === 0; lo.visible = want === 1; }
+      }
+      const shadow = d < 16;
+      if (z.castsShadow !== shadow) {
+        z.castsShadow = shadow;
+        body.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = shadow; });
+      }
     }
     this.group.updateMatrixWorld(true);
-    for (const z of this.zombies) if (z.alive) z.updateHeadPos();
+    for (const z of this.zombies) if (z.alive) { z.updateHeadPos(); if (z.hitValid || Math.hypot(z.pos.x - camX, z.pos.z - camZ) <= 70) z.updateHitboxes(); }
   }
 
   // --------------------------------------------------------------------------------------------
@@ -547,19 +632,29 @@ export class EnemyManager {
       const cx = z.pos.x - ox, cz = z.pos.z - oz;
       const along = cx * dx + cz * dz;
       if (along < -1 || along > bestD + 1.5) continue;
+      if (z.hitValid) {
+        // Bone-attached capsules: head first (index 0), then torso and limbs.
+        const h = rayCapsules(z.hitSegs, z.hitCount, ox, oy, oz, dx, dy, dz, bestD);
+        if (h) {
+          bestD = h.dist;
+          const part = HIT_PARTS[h.index];
+          best = { z, dist: h.dist, head: part === 'head', x: ox + dx * h.dist, y: oy + dy * h.dist, z_: oz + dz * h.dist, part };
+        }
+        continue;
+      }
       const hr = 0.14 * z.scale;
       const hp = z.headPos;
       const t = raySphere(ox, oy, oz, dx, dy, dz, hp.x, hp.y, hp.z, hr);
       if (t !== null && t < bestD) {
         bestD = t;
-        best = { z, dist: t, head: true, x: ox + dx * t, y: oy + dy * t, z_: oz + dz * t };
+        best = { z, dist: t, head: true, x: ox + dx * t, y: oy + dy * t, z_: oz + dz * t, part: 'head' };
       }
       const r = z.elite ? 0.42 : 0.27 * z.scale;
       const top = z.pos.y + (hp.y - z.pos.y) - hr * 0.9;
       const tb = rayAABB(ox, oy, oz, dx, dy, dz, z.pos.x - r, z.pos.y, z.pos.z - r, z.pos.x + r, top, z.pos.z + r);
       if (tb !== null && tb < bestD - 1e-4) {
         bestD = tb;
-        best = { z, dist: tb, head: false, x: ox + dx * tb, y: oy + dy * tb, z_: oz + dz * tb };
+        best = { z, dist: tb, head: false, x: ox + dx * tb, y: oy + dy * tb, z_: oz + dz * tb, part: 'body' };
       }
     }
     return best;

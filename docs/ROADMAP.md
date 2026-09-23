@@ -14,8 +14,15 @@
 - [x] Zombie roster: shambler/runner/brute/crawler/Scuttler (special rounds)/Warden boss every 8th round; head pops, leg-loss crawlers, hit reactions
 - [x] Results screen ("YOU SURVIVED N ROUNDS"); easter egg (3 relics)
 - [x] Machines/zombies/weapons use the authored GLBs from `public/models/` when present (procedural fallbacks otherwise)
-- [ ] Down/bleed-out state + spectate (co-op), recoil patterns, wall penetration
+- [x] Down/bleed-out state + last stand (Lifeline self-revive) — spectate waits for co-op (M3)
+- [x] Recoil patterns per weapon, ADS sway + breath hold, wall penetration (`src/weapons/gunplay.ts`)
+- [x] Data-driven multi-map API (`ZombiesMapDef`, docs/MAP_API.md): registry, validator, map select, `?map=`
+- [x] Layered multi-floor nav (stairs, ramps, ladders, drop/jump links), zombie + player ladders
+- [x] Bone-attached hit capsules, 2.8 m Warden, legless crawlers; horde lanes/surround, window queues + swipes,
+      sprinters (r10+), blackout rounds (13, 23, ...)
+- [x] Perf pass: draw calls ~250 → ~125, triangles ~1M → 100-400k, zombie frustum culling + distance LOD
 - [ ] Use `kit_barricade_window` / wall kit pieces for the map shell (currently procedural boxes)
+- [ ] Second and third maps (Lahore Darbar, Favela Ridge: in progress on their own branches)
 
 ## M3 — Netcode foundation (~3 weeks)
 - Extract sim into a transport-agnostic `Room` (inputs in, snapshots out); `LocalTransport` for offline

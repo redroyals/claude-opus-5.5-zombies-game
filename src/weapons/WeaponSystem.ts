@@ -10,6 +10,8 @@ import type { Loadout } from '../mission/Economy';
 import type { Player } from '../player/Player';
 import type { CollisionWorld } from '../world/Collision';
 import type { ViewModel } from './ViewModel';
+import { LIMB_MULT } from '../enemies/hitbox';
+import { BREATH, adsSway, penBudget, penetrate, recoilKick, sprayReset } from './gunplay';
 import {
   canFire, cancelReload, damageAtRange, effectiveStats, fire, isReloading, reloadProgress, startReload, updateWeapon, type WeaponState,
 } from './WeaponState';
@@ -40,6 +42,14 @@ export class WeaponSystem {
   throwT = 0;
   stats = { shots: 0, hits: 0, headshots: 0 };
   private tmp = new THREE.Vector3();
+  /** Shot index within the current spray (drives the recoil pattern). */
+  private sprayIdx = 0;
+  /** Aim sway added to the camera (radians). */
+  swayYaw = 0;
+  swayPitch = 0;
+  /** Breath held while aiming (seconds left). */
+  breath: number = BREATH.hold;
+  private swayT = 0;
   private camQ = new THREE.Quaternion();
 
   constructor(loadout: Loadout, private vm: ViewModel, private audio: AudioEngine, private fx: Effects, private cb: WeaponCallbacks) {
@@ -143,6 +153,13 @@ export class WeaponSystem {
     this.adsT = target > this.adsT ? Math.min(1, this.adsT + rate) : Math.max(0, this.adsT - rate * 1.3);
     player.aiming = this.adsT > 0.5;
     player.adsT = this.adsT;
+    // Aim sway; hold breath (sprint key while aiming) to steady scoped guns for a few seconds.
+    const holding = this.adsT > 0.5 && input.isHeld('sprint') && this.breath > 0;
+    this.breath = holding ? Math.max(0, this.breath - dt) : Math.min(BREATH.hold, this.breath + dt * BREATH.recover);
+    this.swayT += dt;
+    const sw = adsSway(def.cls, this.swayT, this.adsT, { crouched: player.crouched, holdingBreath: holding });
+    this.swayYaw = sw.yaw;
+    this.swayPitch = sw.pitch;
 
     // Reload
     if (input.consume('reload') && !blocked.plating && this.switchDir === 0) {
@@ -181,6 +198,7 @@ export class WeaponSystem {
   private shoot(w: WeaponState, player: Player, world: CollisionWorld, enemies: EnemyManager, camPos: THREE.Vector3, camQuat: THREE.Quaternion,
     baseDamage: number, spreadMult: number): void {
     const def = WEAPONS[w.id];
+    if (sprayReset(this.sinceShot, def.rpm)) this.sprayIdx = 0;
     this.sinceShot = 0;
     this.stats.shots++;
     const ads = this.adsT;
@@ -216,9 +234,28 @@ export class WeaponSystem {
         .addScaledVector(up, Math.tan(r) * Math.sin(a))
         .normalize();
       const maxRange = 220;
-      const wh = world.raycast(camPos.x, camPos.y, camPos.z, dir.x, dir.y, dir.z, maxRange);
+      // Walk the ray through thin wood/glass/metal while the weapon's penetration budget lasts.
+      const budget0 = penBudget(w.id);
+      let budget = budget0, from = 0, penMult = 1;
+      let wh = world.raycast(camPos.x, camPos.y, camPos.z, dir.x, dir.y, dir.z, maxRange);
+      let zh = enemies.raycast(camPos.x, camPos.y, camPos.z, dir.x, dir.y, dir.z, wh ? wh.dist : maxRange);
+      for (let pen = 0; pen < 2 && !zh && wh && wh.box && budget > 0; pen++) {
+        const b = wh.box;
+        const exit = rayExit(camPos, dir, b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ);
+        const left = penetrate(b.surface, exit - wh.dist, budget);
+        if (left === null) break;
+        const hx = camPos.x + dir.x * wh.dist, hy = camPos.y + dir.y * wh.dist, hz = camPos.z + dir.z * wh.dist;
+        this.fx.impact(hx, hy, hz, wh.nx, wh.ny, wh.nz, b.surface);
+        budget = left;
+        penMult = budget0 > 0 ? Math.max(0.25, budget / budget0) : 1;
+        from = exit + 0.01;
+        const ox = camPos.x + dir.x * from, oy = camPos.y + dir.y * from, oz = camPos.z + dir.z * from;
+        const w2 = world.raycast(ox, oy, oz, dir.x, dir.y, dir.z, maxRange - from);
+        wh = w2 ? { ...w2, dist: w2.dist + from } : null;
+        const z2 = enemies.raycast(ox, oy, oz, dir.x, dir.y, dir.z, wh ? wh.dist - from : maxRange - from);
+        zh = z2 ? { ...z2, dist: z2.dist + from } : null;
+      }
       const worldDist = wh ? wh.dist : maxRange;
-      const zh = enemies.raycast(camPos.x, camPos.y, camPos.z, dir.x, dir.y, dir.z, worldDist);
       let endDist = worldDist;
       if (i === 0) {
         const d = zh ? zh.dist : Math.max(0.5, worldDist - 0.2);
@@ -226,8 +263,9 @@ export class WeaponSystem {
       }
       if (zh) {
         endDist = zh.dist;
-        let dmg = damageAtRange(w.id, baseDamage, zh.dist);
+        let dmg = damageAtRange(w.id, baseDamage, zh.dist) * penMult;
         if (zh.head) dmg *= def.headMult;
+        else if (zh.part === 'limb') dmg *= LIMB_MULT;
         const e = acc.get(zh.z);
         if (e) { e.dmg += dmg; e.head = e.head || zh.head; }
         else acc.set(zh.z, { dmg, head: zh.head, x: zh.x, y: zh.y, z: zh.z_, dx: dir.x, dz: dir.z });
@@ -258,8 +296,9 @@ export class WeaponSystem {
     // Recoil: kick the view, track the recoverable portion
     const adsK = 1 - ads * 0.45;
     const crouchK = player.crouched ? 0.8 : 1;
-    const pitch = def.recoilPitch * adsK * crouchK;
-    const yaw = (Math.random() - 0.5) * 2 * def.recoilYaw * adsK;
+    const kick = recoilKick(w.id, this.sprayIdx++);
+    const pitch = kick.pitch * adsK * crouchK;
+    const yaw = kick.yaw * adsK;
     player.kickView((pitch * Math.PI) / 180, (yaw * Math.PI) / 180);
     player.applyRecoil(pitch, yaw);
     this.vm.fire(arch === 'shotgun' ? 1.6 : arch === 'pistol' ? 0.9 : def.cls === 'sniper' || def.cls === 'launcher' ? 1.8 : 0.7);
@@ -283,4 +322,15 @@ export class WeaponSystem {
   weaponName(id: WeaponId): string {
     return WEAPONS[id].name;
   }
+}
+
+/** Distance along a ray (origin o, unit dir d) at which it leaves an AABB. */
+function rayExit(o: THREE.Vector3, d: THREE.Vector3, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): number {
+  let tmax = Infinity;
+  for (const [oo, dd, a, b] of [[o.x, d.x, x0, x1], [o.y, d.y, y0, y1], [o.z, d.z, z0, z1]] as const) {
+    if (Math.abs(dd) < 1e-9) continue;
+    const t1 = (a - oo) / dd, t2 = (b - oo) / dd;
+    tmax = Math.min(tmax, Math.max(t1, t2));
+  }
+  return tmax;
 }
