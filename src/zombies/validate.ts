@@ -3,8 +3,8 @@
 import { PLAYER, WEAPONS } from '../config';
 import { NavGrid } from '../world/NavGrid';
 import { buildColliders, compileMap, openDoorBox, type CompiledMap } from './mapcompile';
-import { doorCenter, frontOf, perkEntries, roomCeiling, zoneAt, type P3, type ZombiesMapDef } from './mapdef';
-import { WALL_BUYS } from './rules';
+import { allEggs, doorCenter, doorDepths, frontOf, perkEntries, roomCeiling, zoneAt, type EggDef, type P3, type ZombiesMapDef } from './mapdef';
+import { PERKS, TIER_MIN_DEPTH, WALL_BUYS } from './rules';
 
 export interface MapIssue { severity: 'error' | 'warn'; code: string; msg: string }
 export interface ValidateResult { ok: boolean; issues: MapIssue[]; errors: MapIssue[] }
@@ -85,13 +85,67 @@ export function validateMapDef(def: ZombiesMapDef, opts: ValidateOptions = {}): 
   if (perkEntries(def).length === 0) warn('perks', 'map has no perk machines');
   if (!def.pap) warn('pap', 'map has no Reforger');
   for (const id of Object.keys(def.machines?.perks ?? {})) if (!def.perks[id as keyof typeof def.perks]) warn('machine-model', `machines.perks.${id} is set but the map has no ${id} machine`);
-  if (def.egg) {
-    if (def.egg.reward.weapon && !WEAPONS[def.egg.reward.weapon]) err('egg-weapon', `egg reward weapon ${def.egg.reward.weapon} does not exist`);
-    if (def.egg.steps.length === 0) err('egg', 'easter egg has no steps');
-    for (const s of def.egg.steps) {
-      if (s.kind === 'kill' && !zoneIds.has(s.zone)) err('egg-zone', `egg kill step references unknown zone ${s.zone}`);
-      if (s.kind !== 'kill' && s.objects.length === 0) err('egg-objects', `egg ${s.kind} step has no objects`);
+  for (const id of Object.keys(def.perks)) if (!PERKS[id as keyof typeof PERKS]) err('perk-id', `unknown perk ${id}`);
+  const checkEgg = (egg: EggDef, what: string) => {
+    if (egg.reward.weapon && !WEAPONS[egg.reward.weapon]) err('egg-weapon', `${what} reward weapon ${egg.reward.weapon} does not exist`);
+    if (egg.reward.perk && !PERKS[egg.reward.perk]) err('egg-perk', `${what} reward perk ${egg.reward.perk} does not exist`);
+    if (egg.steps.length === 0) err('egg', `${what} has no steps`);
+    for (const s of egg.steps) {
+      if (s.kind === 'kill' && !zoneIds.has(s.zone)) err('egg-zone', `${what} kill step references unknown zone ${s.zone}`);
+      if (s.kind !== 'kill' && s.objects.length === 0) err('egg-objects', `${what} ${s.kind} step has no objects`);
     }
+  };
+  if (def.egg) checkEgg(def.egg, 'easter egg');
+  (def.sideEggs ?? []).forEach((e, i) => checkEgg(e, `side egg ${i} "${e.name}"`));
+
+  // ---- Pacing: the Cache reveal, wall-buy tiers, buildables, traps ----
+  const depth = doorDepths(def);
+  const zoneOfSpot = (s: { x: number; z: number; y?: number }) => zoneAt(def, s.x, s.z, s.y ?? 0);
+  const rv = def.box.reveal;
+  if (rv) {
+    const spot = rv.spot ?? def.box.start ?? 0;
+    if (spot < 0 || spot >= def.box.spots.length) err('box-reveal-spot', `box.reveal.spot ${spot} is out of range`);
+    else {
+      const z = zoneOfSpot(def.box.spots[spot]);
+      if (z === def.startZone) err('box-reveal-start', 'the Cache first surfaces in the start zone: reveal it somewhere deeper');
+      if (z >= 0 && !depth.has(z)) err('box-reveal-reach', `the Cache first surfaces in zone ${z}, which no door reaches`);
+      if (rv.zones?.length && z >= 0 && !rv.zones.includes(z) && rv.doors === undefined && rv.round === undefined && !rv.power
+        && Math.min(...rv.zones.map((q) => depth.get(q) ?? Infinity)) < (depth.get(z) ?? Infinity)) {
+        warn('box-reveal-ahead', 'the Cache surfaces in a zone deeper than the one that reveals it');
+      }
+    }
+    if (rv.doors === undefined && !rv.zones?.length && rv.round === undefined && !rv.power) err('box-reveal-never', 'box.reveal has no condition: the Cache would never surface');
+    if (rv.doors !== undefined && rv.doors > def.doors.length) err('box-reveal-doors', `box.reveal.doors ${rv.doors} exceeds the ${def.doors.length} doors on the map`);
+    for (const z of rv.zones ?? []) if (!zoneIds.has(z)) err('box-reveal-zone', `box.reveal.zones references unknown zone ${z}`);
+    if (rv.round !== undefined && rv.round < 1) err('box-reveal-round', 'box.reveal.round must be 1 or more');
+  }
+  if (def.box.spots.length > 0 && def.box.spots.every((s) => zoneOfSpot(s) === def.startZone)) warn('box-spots-start', 'every Cache spot is in the start zone');
+  let startStarters = 0;
+  for (const w of def.wallBuys) {
+    const wb = WALL_BUYS[w.key];
+    if (!wb) continue;
+    const z = zoneAt(def, ...(((p) => [p.x, p.z, p.y] as const)(frontOf({ x: w.x, z: w.z, face: w.face, y: w.y }, 0.8))));
+    if (z === def.startZone) {
+      if (wb.tier !== 'starter') err('wallbuy-tier', `wall-buy ${w.key} (${wb.tier}) is in the start zone: only starter-tier guns belong there`);
+      else startStarters++;
+    } else if (z >= 0 && (depth.get(z) ?? 0) < TIER_MIN_DEPTH[wb.tier]) {
+      warn('wallbuy-depth', `wall-buy ${w.key} (${wb.tier}) hangs ${depth.get(z)} door(s) in; ${wb.tier} guns belong at least ${TIER_MIN_DEPTH[wb.tier]} doors deep`);
+    }
+  }
+  if (def.wallBuys.length > 0 && startStarters === 0) err('wallbuy-starter', 'the start zone has no starter wall-buy');
+  const buildIds = new Set<string>();
+  const trapIds = new Set((def.traps ?? []).map((t) => t.id));
+  for (const b of def.buildables ?? []) {
+    if (buildIds.has(b.id)) err('build-dup', `duplicate buildable id ${b.id}`);
+    buildIds.add(b.id);
+    if (b.parts.length === 0) err('build-parts', `buildable ${b.id} has no parts`);
+    if (b.result.kind === 'trap' && !trapIds.has(b.result.trap)) err('build-trap', `buildable ${b.id} builds unknown trap ${b.result.trap}`);
+    const pz = new Set(b.parts.map((p) => zoneAt(def, p.x, p.z, p.y - 0.5)));
+    if (b.parts.length > 1 && pz.size < 2) warn('build-spread', `buildable ${b.id}: every part is in one zone`);
+  }
+  for (const t of def.traps ?? []) {
+    if (t.requiresBuild && !buildIds.has(t.requiresBuild)) err('trap-build', `trap ${t.id} needs unknown buildable ${t.requiresBuild}`);
+    if (t.area.x1 <= t.area.x0 || t.area.z1 <= t.area.z0) err('trap-area', `trap ${t.id} has an empty area`);
   }
 
   const cm = compileMap(def);
@@ -109,6 +163,16 @@ export function validateMapDef(def: ZombiesMapDef, opts: ValidateOptions = {}): 
   for (const [id, s] of perkEntries(def)) inZone({ x: s.x, y: s.y ?? 0, z: s.z }, `perk ${id}`);
   if (def.pap) inZone({ x: def.pap.x, y: def.pap.y ?? 0, z: def.pap.z }, 'Reforger');
   if (def.power) inZone({ x: def.power.x, y: def.power.y ?? 0, z: def.power.z }, 'power switch');
+  for (const b of def.buildables ?? []) {
+    inZone({ x: b.bench.x, y: b.bench.y ?? 0, z: b.bench.z }, `bench ${b.id}`);
+    b.parts.forEach((p, i) => inZone({ x: p.x, y: p.y - 0.5, z: p.z }, `${b.id} part ${i}`));
+  }
+  for (const t of def.traps ?? []) {
+    inZone({ x: t.switch.x, y: t.switch.y ?? 0, z: t.switch.z }, `trap ${t.id} switch`);
+    inZone({ x: (t.area.x0 + t.area.x1) / 2, y: t.area.y, z: (t.area.z0 + t.area.z1) / 2 }, `trap ${t.id} area`);
+    const s = def.playerSpawn;
+    if (s.x >= t.area.x0 && s.x <= t.area.x1 && s.z >= t.area.z0 && s.z <= t.area.z1) warn('trap-spawn', `trap ${t.id} covers the player spawn`);
+  }
 
   const { world, doors } = buildColliders(def, cm);
   // ---- Player spawn must be clear ----
@@ -177,9 +241,18 @@ function navChecks(def: ZombiesMapDef, cm: CompiledMap, world: ReturnType<typeof
   for (const w of def.wallBuys) if (!reachable(frontOf({ x: w.x, z: w.z, face: w.face, y: w.y }, 0.8))) err('wallbuy-unreachable', `wall-buy ${w.key} cannot be reached`);
   for (const w of cm.windows) if (!reachable({ x: w.inside.x, y: w.def.floor, z: w.inside.z })) err('window-unreachable', `window ${w.def.id} inside point is not reachable`);
   for (const s of def.spawnPoints ?? []) if (!reachable(s)) err('spawnpoint-unreachable', `spawn point (${s.x}, ${s.y}, ${s.z}) cannot reach the player`);
-  for (const s of def.egg?.steps ?? []) {
+  for (const s of allEggs(def).flatMap((e) => e.steps)) {
     if (s.kind === 'kill') continue;
     for (const o of s.objects) if (!reachable({ x: o.x, y: o.y - 0.35, z: o.z }, 1.6) && !reachable({ x: o.x, y: 0, z: o.z }, 1.6)) warn('egg-unreachable', `egg object at (${o.x}, ${o.y}, ${o.z}) may be out of reach`);
+  }
+  for (const b of def.buildables ?? []) {
+    if (!reachable(frontOf(b.bench, 1.2))) err('bench-unreachable', `the ${b.id} bench cannot be reached`);
+    b.parts.forEach((p, i) => { if (!reachable({ x: p.x, y: p.y - 0.35, z: p.z }, 1.3)) err('part-unreachable', `${b.id} part ${i} (${p.name}) at (${p.x}, ${p.y}, ${p.z}) cannot be reached`); });
+  }
+  for (const t of def.traps ?? []) {
+    if (!reachable(frontOf(t.switch, 0.9))) err('trap-unreachable', `the ${t.id} trap switch cannot be reached`);
+    const a = t.area;
+    if (!reachable({ x: (a.x0 + a.x1) / 2, y: a.y, z: (a.z0 + a.z1) / 2 }, Math.ceil(Math.max(a.x1 - a.x0, a.z1 - a.z0) / 2))) err('trap-area-unreachable', `the ${t.id} trap area is not on walkable floor`);
   }
   // Window outsides: zombies must be able to walk from the spawn pocket to the window.
   for (const w of cm.windows) {

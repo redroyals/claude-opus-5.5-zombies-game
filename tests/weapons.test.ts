@@ -102,6 +102,8 @@ describe('weapon ammunition and reload rules', () => {
     expect(t1.magSize).toBeGreaterThan(base.magSize);
     expect(w.mag).toBe(t1.magSize);
     expect(applyUpgrade(w)).toBe(true);
+    expect(applyUpgrade(w)).toBe(true); // tier III (the Zombies Reforger's third pass)
+    expect(effectiveStats('rifle', 3).damage).toBeGreaterThan(effectiveStats('rifle', 2).damage);
     expect(applyUpgrade(w)).toBe(false); // max tier
   });
 

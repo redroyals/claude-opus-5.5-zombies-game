@@ -1,5 +1,5 @@
 // Pure game-over summary for Zombies (formatting only).
-export interface ZRunStats { round: number; kills: number; headshots: number; points: number; doors: number; time: number; downs: number }
+export interface ZRunStats { round: number; kills: number; headshots: number; points: number; doors: number; time: number; downs: number; builds?: number }
 
 export function survivedTitle(round: number): string {
   const n = Math.max(0, round);

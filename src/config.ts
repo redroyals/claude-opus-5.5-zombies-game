@@ -5,7 +5,7 @@ export type ZombieType = 'shambler' | 'runner' | 'armored' | 'elite' | 'brute' |
 /** Extraction-mode weapons (kept stable) plus the Zombies roster. Zombies ids match the GLB file names in public/models/weapons/. */
 export type WeaponId = 'rifle' | 'pistol' | 'shotgun'
   | 'ar_kestrel' | 'ar_corvid' | 'ar_moraine' | 'ar_tern' | 'smg_wren' | 'smg_fennec' | 'smg_skiff' | 'sg_hullbreaker' | 'sg_tidal'
-  | 'lmg_bastion' | 'dmr_sentry' | 'sr_longwatch' | 'pi_warden' | 'pi_basalt' | 'pi_magnus' | 'ln_lotus'
+  | 'lmg_bastion' | 'dmr_sentry' | 'sr_longwatch' | 'br_drover' | 'pi_warden' | 'pi_basalt' | 'pi_magnus' | 'ln_lotus'
   | 'ww_arc' | 'ww_singularity' | 'ww_cryo';
 /** Procedural viewmodel / audio archetype a weapon borrows when no GLB exists. */
 export type WeaponArch = 'rifle' | 'pistol' | 'shotgun';
@@ -199,7 +199,7 @@ const AR: Base = { ...WEAPONS.rifle, arch: 'rifle', cls: 'ar', cost: 0 };
 const PI: Base = { ...WEAPONS.pistol, arch: 'pistol', cls: 'pistol', cost: 0 };
 const SG: Base = { ...WEAPONS.shotgun, arch: 'shotgun', cls: 'shotgun', cost: 0 };
 function zw(id: WeaponId, name: string, shortName: string, base: Base, o: Partial<WeaponDef>): WeaponDef {
-  return { ...base, ...o, id, name, shortName, modelId: id };
+  return { ...base, ...o, id, name, shortName, modelId: o.modelId ?? id };
 }
 
 
@@ -208,7 +208,7 @@ export const ZOMBIE_WEAPONS: Record<string, WeaponDef> = {
   ar_corvid: zw('ar_corvid', 'CV-4 CORVID', 'CORVID', AR, { damage: 40, rpm: 560, magSize: 25, reserveMax: 200, startReserve: 150, recoilPitch: 0.7, tint: 0x3a3226 }),
   ar_moraine: zw('ar_moraine', 'MR-9 MORAINE', 'MORAINE', AR, { damage: 46, rpm: 520, magSize: 30, reserveMax: 240, startReserve: 180, recoilPitch: 0.85, recoilYaw: 0.4, tint: 0x2e3a2c, lengthScale: 1.08 }),
   ar_tern: zw('ar_tern', 'TN-2 TERN', 'TERN', AR, { damage: 29, rpm: 820, magSize: 35, reserveMax: 280, startReserve: 210, recoilPitch: 0.45, tint: 0x40444c }),
-  smg_wren: zw('smg_wren', 'W-9 WREN', 'WREN', AR, { cls: 'smg', damage: 24, rpm: 900, magSize: 32, reserveMax: 256, startReserve: 192, hipSpread: 1.9, rangeNear: 12, rangeFar: 35, reloadTime: 1.8, adsTime: 0.17, tint: 0x2a2a30, lengthScale: 0.7 }),
+  smg_wren: zw('smg_wren', 'W-9 WREN', 'WREN', AR, { cls: 'smg', damage: 21, rpm: 900, magSize: 32, reserveMax: 256, startReserve: 192, hipSpread: 1.9, rangeNear: 12, rangeFar: 35, reloadTime: 1.8, adsTime: 0.17, tint: 0x2a2a30, lengthScale: 0.7 }),
   smg_fennec: zw('smg_fennec', 'FX-45 FENNEC', 'FENNEC', AR, { cls: 'smg', damage: 20, rpm: 1100, magSize: 25, reserveMax: 250, startReserve: 175, hipSpread: 1.7, rangeNear: 10, rangeFar: 30, reloadTime: 1.6, recoilPitch: 0.35, tint: 0x8a7a5a, lengthScale: 0.65 }),
   smg_skiff: zw('smg_skiff', 'SK-5 SKIFF', 'SKIFF', AR, { cls: 'smg', damage: 27, rpm: 760, magSize: 40, reserveMax: 280, startReserve: 200, hipSpread: 2, rangeNear: 14, rangeFar: 38, reloadTime: 2.0, tint: 0x3c4450, lengthScale: 0.75 }),
   sg_hullbreaker: zw('sg_hullbreaker', 'HB-12 HULLBREAKER', 'HULLBREAKER', SG, {}),
@@ -216,9 +216,12 @@ export const ZOMBIE_WEAPONS: Record<string, WeaponDef> = {
   lmg_bastion: zw('lmg_bastion', 'BX-100 BASTION', 'BASTION', AR, { cls: 'lmg', damage: 38, rpm: 640, magSize: 100, reserveMax: 400, startReserve: 300, reloadTime: 4.8, hipSpread: 3.4, adsTime: 0.34, switchTime: 0.8, recoilPitch: 0.6, tint: 0x3a3c30, lengthScale: 1.22 }),
   dmr_sentry: zw('dmr_sentry', 'SN-14 SENTRY', 'SENTRY', AR, { cls: 'dmr', auto: false, damage: 95, headMult: 2.6, rpm: 330, magSize: 15, reserveMax: 120, startReserve: 90, rangeNear: 60, rangeFar: 120, minDamageMult: 0.8, recoilPitch: 1.8, adsZoom: 0.55, tint: 0x4a4436, lengthScale: 1.15 }),
   sr_longwatch: zw('sr_longwatch', 'LW-50 LONGWATCH', 'LONGWATCH', AR, { cls: 'sniper', auto: false, damage: 320, headMult: 3, rpm: 48, magSize: 5, reserveMax: 40, startReserve: 30, reloadTime: 3.2, hipSpread: 6, adsSpread: 0.05, rangeNear: 100, rangeFar: 200, minDamageMult: 0.9, recoilPitch: 5, adsTime: 0.38, adsZoom: 0.35, tint: 0x3a4232, lengthScale: 1.3 }),
+  // Starter bolt-action: one body shot drops an early-round walker, but it cycles slowly (low DPS). Borrows the
+  // Longwatch model until it gets its own.
+  br_drover: zw('br_drover', 'BR-7 DROVER', 'DROVER', AR, { cls: 'dmr', modelId: 'sr_longwatch', auto: false, damage: 135, headMult: 2.5, rpm: 52, magSize: 5, reserveMax: 50, startReserve: 35, reloadTime: 2.6, hipSpread: 3.2, adsSpread: 0.12, rangeNear: 60, rangeFar: 120, minDamageMult: 0.85, recoilPitch: 3.2, adsTime: 0.28, adsZoom: 0.7, tint: 0x5a4630, lengthScale: 1.2 }),
   pi_warden: zw('pi_warden', 'P-19 WARDEN', 'WARDEN', PI, {}),
   pi_basalt: zw('pi_basalt', 'BS-1 BASALT', 'BASALT', PI, { damage: 115, headMult: 2.5, rpm: 170, magSize: 6, reserveMax: 48, startReserve: 36, reloadTime: 2.4, recoilPitch: 4, tint: 0x5a5048 }),
-  pi_magnus: zw('pi_magnus', 'MG-2 MAGNUS', 'MAGNUS', PI, { auto: true, damage: 30, rpm: 720, magSize: 20, reserveMax: 160, startReserve: 120, hipSpread: 2.2, recoilPitch: 0.9, tint: 0x26282c }),
+  pi_magnus: zw('pi_magnus', 'MG-2 MAGNUS', 'MAGNUS', PI, { auto: true, damage: 24, rpm: 720, magSize: 20, reserveMax: 160, startReserve: 120, hipSpread: 2.2, recoilPitch: 0.9, tint: 0x26282c }),
   ln_lotus: zw('ln_lotus', 'LT-6 LOTUS', 'LOTUS', AR, { cls: 'launcher', special: 'explosive', auto: false, damage: 420, headMult: 1, rpm: 55, magSize: 1, reserveMax: 16, startReserve: 12, reloadTime: 2.6, hipSpread: 0.6, adsSpread: 0.2, rangeNear: 999, rangeFar: 1000, minDamageMult: 1, recoilPitch: 4, adsZoom: 0.8, tint: 0x3c4a2a, lengthScale: 1.05 }),
   ww_arc: zw('ww_arc', 'ARC LANCE', 'ARC LANCE', AR, { cls: 'wonder', special: 'arc', auto: false, damage: 900, headMult: 1, rpm: 110, magSize: 6, reserveMax: 30, startReserve: 30, reloadTime: 2.4, hipSpread: 0.4, adsSpread: 0.2, rangeNear: 60, rangeFar: 80, minDamageMult: 0.8, recoilPitch: 1.6, tint: 0x1a3a6a, lengthScale: 0.95 }),
   ww_singularity: zw('ww_singularity', 'VOID ANCHOR', 'VOID ANCHOR', AR, { cls: 'wonder', special: 'singularity', auto: false, damage: 250, headMult: 1, rpm: 50, magSize: 3, reserveMax: 12, startReserve: 12, reloadTime: 3.0, hipSpread: 0.4, adsSpread: 0.2, rangeNear: 999, rangeFar: 1000, minDamageMult: 1, recoilPitch: 3, tint: 0x3a1a5a }),
@@ -239,7 +242,11 @@ export const UPGRADE_TIERS = [
   { name: 'STOCK', damageMult: 1, magMult: 1, reloadMult: 1, rpmMult: 1, spreadMult: 1, cost: 0 },
   { name: 'TIER I', damageMult: 1.65, magMult: 1.25, reloadMult: 0.85, rpmMult: 1.08, spreadMult: 0.85, cost: 2500 },
   { name: 'TIER II', damageMult: 2.5, magMult: 1.5, reloadMult: 0.7, rpmMult: 1.15, spreadMult: 0.7, cost: 5000 },
+  // Zombies-only (the Reforger's third pass); the extraction bench stops at EXTRACTION_MAX_TIER.
+  { name: 'TIER III', damageMult: 3.4, magMult: 1.75, reloadMult: 0.6, rpmMult: 1.22, spreadMult: 0.6, cost: 9000 },
 ];
+/** The extraction upgrade bench tops out here; the Zombies Reforger goes to UPGRADE_TIERS.length - 1. */
+export const EXTRACTION_MAX_TIER = 2;
 
 export interface ZombieDef {
   hp: number;

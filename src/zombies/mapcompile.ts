@@ -8,7 +8,7 @@ import {
   dirVec, perkEntries, roomCeiling, type BoxTuple, type Collide, type DoorDef, type MatRef, type OpeningDef, type P2, type P3,
   type Rect, type WindowDef, type ZombiesMapDef,
 } from './mapdef';
-import type { PerkId } from './rules';
+import { PERKS, type PerkId } from './rules';
 
 export const WALL_T = 0.3;
 export const WIN = { half: 0.75, y0: 0.85, y1: 2.25 };
@@ -37,8 +37,14 @@ export interface CompiledMap {
   ladders: CLadder[];
 }
 
-/** Perk machine footprints [width along its X, depth along its Z], matching the authored models. */
-export const PERK_FOOT: Record<PerkId, [number, number]> = { bulwark: [1.0, 0.85], quickhands: [0.8, 0.75], hammerfall: [1.9, 1.9], lifeline: [1.75, 1.2] };
+/** Perk machine footprints [width along its X, depth along its Z], matching the authored models (per base machine). */
+export const PERK_FOOT: Record<PerkDefBase, [number, number]> = { bulwark: [1.0, 0.85], quickhands: [0.8, 0.75], hammerfall: [1.9, 1.9], lifeline: [1.75, 1.2] };
+type PerkDefBase = (typeof PERKS)[PerkId]['base'];
+/** Footprint of a perk machine (new perks borrow their base machine's). */
+export function perkFoot(id: PerkId): [number, number] { return PERK_FOOT[PERKS[id].base]; }
+/** Workbench and trap-switch footprints [w along X, d along Z] (facing +Z). */
+export const BENCH_FOOT: [number, number] = [1.6, 0.8];
+export const TRAP_SWITCH_FOOT: [number, number] = [0.9, 0.35];
 
 function tuple(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): BoxTuple {
   return [Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1), Math.max(x0, x1), Math.max(y0, y1), Math.max(z0, z1)];
@@ -220,7 +226,7 @@ export function compileMap(def: ZombiesMapDef): CompiledMap {
   for (const [id, s] of perkEntries(def)) {
     const y = s.y ?? 0;
     const pm = def.machines?.perks?.[id];
-    const [fw, fd] = (typeof pm === 'object' ? pm.foot : undefined) ?? PERK_FOOT[id];
+    const [fw, fd] = (typeof pm === 'object' ? pm.foot : undefined) ?? perkFoot(id);
     const side = Math.abs(Math.sin(s.face)) > 0.5;
     const hx = (side ? fd : fw) / 2, hz = (side ? fw : fd) / 2;
     mach(tuple(s.x - hx, y, s.z - hz, s.x + hx, y + 2.2, s.z + hz), 'metal');
@@ -237,6 +243,14 @@ export function compileMap(def: ZombiesMapDef): CompiledMap {
     const hx = side ? 0.2 : 0.6, hz = side ? 0.6 : 0.2;
     mach(tuple(s.x - hx, y, s.z - hz, s.x + hx, y + 2.1, s.z + hz), 'metal');
   }
+  const footAt = (s: { x: number; z: number; face: number; y?: number }, [w, d]: [number, number], h: number, surface: Surface) => {
+    const y = s.y ?? 0;
+    const side = Math.abs(Math.sin(s.face)) > 0.5;
+    const hx = (side ? d : w) / 2, hz = (side ? w : d) / 2;
+    mach(tuple(s.x - hx, y, s.z - hz, s.x + hx, y + h, s.z + hz), surface);
+  };
+  for (const b of def.buildables ?? []) footAt(b.bench, BENCH_FOOT, 1.0, 'wood');
+  for (const t of def.traps ?? []) footAt(t.switch, TRAP_SWITCH_FOOT, 1.9, 'metal');
   return out;
 }
 

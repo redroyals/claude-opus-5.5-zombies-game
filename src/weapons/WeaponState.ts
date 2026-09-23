@@ -26,7 +26,7 @@ export interface EffectiveStats {
 }
 
 /** Global player modifiers (Zombies perks). Identity by default so the extraction mode is unaffected. */
-export const WEAPON_MODS = { damageMult: 1, rpmMult: 1, reloadMult: 1 };
+export const WEAPON_MODS = { damageMult: 1, rpmMult: 1, reloadMult: 1, adsMult: 1, spreadMult: 1, headMult: 1 };
 
 export function effectiveStats(id: WeaponId, tier: number): EffectiveStats {
   const d: WeaponDef = WEAPONS[id];
@@ -38,7 +38,7 @@ export function effectiveStats(id: WeaponId, tier: number): EffectiveStats {
     reserveMax: Math.round(d.reserveMax * t.magMult),
     reloadTime: d.reloadTime * t.reloadMult * m.reloadMult,
     fireInterval: 60 / (d.rpm * t.rpmMult * m.rpmMult),
-    spreadMult: t.spreadMult,
+    spreadMult: t.spreadMult * m.spreadMult,
     shell: d.shellReload
       ? { start: d.shellReload.start * t.reloadMult * m.reloadMult, perShell: d.shellReload.perShell * t.reloadMult * m.reloadMult, end: d.shellReload.end * t.reloadMult * m.reloadMult }
       : undefined,

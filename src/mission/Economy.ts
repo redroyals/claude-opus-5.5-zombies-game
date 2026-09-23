@@ -1,6 +1,6 @@
 // Pure purchase validation. Every purchase goes through here so currency can never go negative
 // and a denied purchase has no side effects.
-import { ECONOMY, PLAYER, UPGRADE_TIERS, type WeaponId } from '../config';
+import { ECONOMY, EXTRACTION_MAX_TIER, PLAYER, UPGRADE_TIERS, type WeaponId } from '../config';
 import { addReserve, applyUpgrade, createWeapon, effectiveStats, type WeaponState } from '../weapons/WeaponState';
 import type { Vitals } from '../player/Vitals';
 
@@ -20,7 +20,7 @@ export interface PurchaseResult {
 }
 
 export function upgradeCost(w: WeaponState | null): number | null {
-  if (!w || w.tier >= UPGRADE_TIERS.length - 1) return null;
+  if (!w || w.tier >= EXTRACTION_MAX_TIER) return null;
   return UPGRADE_TIERS[w.tier + 1].cost;
 }
 

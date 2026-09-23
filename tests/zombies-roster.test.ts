@@ -58,11 +58,12 @@ describe('zombie roster mix', () => {
 
 describe('weapon roster', () => {
   const ids = Object.keys(ZOMBIE_WEAPONS) as WeaponId[];
-  it('has ~20 weapons with model ids equal to their id', () => {
+  it('has ~20 weapons with model ids equal to their id (re-skins alias an existing model)', () => {
     expect(ids.length).toBeGreaterThanOrEqual(19);
     for (const id of ids) {
       expect(WEAPONS[id].id).toBe(id);
-      expect(WEAPONS[id].modelId).toBe(id);
+      const mid = WEAPONS[id].modelId!;
+      expect(mid === id || ids.includes(mid as WeaponId), `${id} -> ${mid}`).toBe(true);
       expect(['rifle', 'pistol', 'shotgun']).toContain(weaponArch(id));
     }
   });

@@ -10,8 +10,8 @@ const seq = (...v: number[]) => { let i = 0; return () => v[i++ % v.length]; };
 
 describe('rounds', () => {
   it('count grows and scales with players', () => {
-    expect(zombieCountForRound(1)).toBe(6);
-    expect(zombieCountForRound(5)).toBe(18);
+    expect([1, 2, 3, 4, 5].map((n) => zombieCountForRound(n))).toEqual([6, 8, 13, 18, 24]); // the classic solo table
+    expect(zombieCountForRound(6)).toBeGreaterThan(zombieCountForRound(5));
     expect(zombieCountForRound(10)).toBeGreaterThan(zombieCountForRound(9));
     expect(zombieCountForRound(5, 4)).toBeGreaterThan(zombieCountForRound(5, 1));
     expect(zombieCountForRound(999, 4)).toBe(120);
@@ -71,9 +71,11 @@ describe('points', () => {
 
 describe('wall-buys', () => {
   it('weapon price when unowned, ammo price when owned, upgraded ammo when packed', () => {
-    expect(wallBuyPrice(WALL_BUYS.sg_hullbreaker, null)).toEqual({ action: 'weapon', price: 1500 });
-    expect(wallBuyPrice(WALL_BUYS.sg_hullbreaker, 0)).toEqual({ action: 'ammo', price: 750 });
-    expect(wallBuyPrice(WALL_BUYS.sg_hullbreaker, 1).price).toBe(4500);
+    expect(wallBuyPrice(WALL_BUYS.ar_kestrel, null)).toEqual({ action: 'weapon', price: 1400 });
+    expect(wallBuyPrice(WALL_BUYS.ar_kestrel, 0)).toEqual({ action: 'ammo', price: 700 });
+    expect(wallBuyPrice(WALL_BUYS.ar_kestrel, 1).price).toBe(4500);
+    // Reforged ammo is tier-priced: starters are cheaper to keep fed than the heavy guns.
+    expect(wallBuyPrice(WALL_BUYS.sg_hullbreaker, 2).price).toBeLessThan(wallBuyPrice(WALL_BUYS.lmg_bastion, 2).price);
   });
 });
 

@@ -6,7 +6,7 @@
 import type { WeaponId } from '../config';
 import type { Surface } from '../world/Collision';
 import type { PowerUpKind } from './powerups';
-import type { PerkId, WallBuyKey } from './rules';
+import type { PerkId, RoundScheduleDef, WallBuyKey } from './rules';
 import type { MapTopology } from './zones';
 
 export interface P2 { x: number; z: number }
@@ -194,6 +194,12 @@ export interface EggReward {
   weapon?: WeaponId;
   /** Grant every perk this map has (ignores the perk limit). */
   allPerks?: boolean;
+  /** Grant one perk for free (ignores price, power and the limit). */
+  perk?: PerkId;
+  /** Raise the perk limit by this many slots (PERK_LIMIT_MAX caps it). */
+  perkSlot?: number;
+  /** Play a hidden music track (see AudioEngine.easterTrack). */
+  music?: string;
 }
 
 /**
@@ -208,6 +214,65 @@ export interface MachineModels {
   perks?: Partial<Record<PerkId, string | { model: string; foot?: [number, number] }>>;
 }
 export interface EggDef { name: string; steps: EggStepDef[]; reward: EggReward }
+
+// ---- Pacing: the Cache reveal, buildables and traps ----------------------------------------------------
+/**
+ * When the Cache first surfaces. It is hidden at the start and appears as soon as ANY listed condition holds
+ * (so a `round` makes a safety net for players who never open a door). Omit `reveal` for a Cache that is there
+ * from the start.
+ */
+export interface BoxRevealDef {
+  /** Surface once this many doors/debris are open. */
+  doors?: number;
+  /** Surface once any of these zones is unlocked. */
+  zones?: number[];
+  /** Surface at the start of this round at the latest. */
+  round?: number;
+  /** Surface when the power comes on. */
+  power?: boolean;
+  /** Box spot it lands at first (default `box.start`); must be outside the start zone. */
+  spot?: number;
+  /** HUD line under "THE CACHE HAS SURFACED" (default: the zone it landed in). */
+  hint?: string;
+}
+
+/** A part to find for a buildable: walk up and press E to pick it up. */
+export interface BuildPartDef { x: number; y: number; z: number; name: string; model?: 'relic' | 'orb' | 'radio' | 'gear' | 'plate' | string }
+/**
+ * Something the player assembles at a workbench from parts scattered across the map. `shield` hands out a
+ * back-mounted shield (re-issued by the bench after a cooldown when it breaks); `trap` unlocks the named trap.
+ */
+export interface BuildableDef {
+  id: string;
+  name: string;
+  parts: BuildPartDef[];
+  bench: Spot;
+  result: { kind: 'shield'; hp?: number } | { kind: 'trap'; trap: string };
+  requiresPower?: boolean;
+  /** Bench model (path under /models); a procedural table otherwise. */
+  model?: string;
+}
+
+/**
+ * A trap: pay at the switch to electrify/ignite `area` for `seconds`, then it cools down. Kills in the area
+ * pay POINTS.trapKill. It hurts players standing in it too.
+ */
+export interface TrapDef {
+  id: string;
+  name: string;
+  kind: 'electric' | 'fire';
+  /** The switch panel (stand in front of it and press E). */
+  switch: Spot;
+  /** The killing floor: a rect at floor `y` (1.5 m below to 2.6 m above count). */
+  area: Rect & { y: number };
+  cost?: number;
+  seconds?: number;
+  cooldown?: number;
+  requiresPower?: boolean;
+  /** Buildable id that must be assembled first. */
+  requiresBuild?: string;
+  model?: string;
+}
 
 /**
  * A ride: press E at `at` to be carried along `path` (feet positions, first point near `at`) in `seconds`.
@@ -273,7 +338,7 @@ export interface ZombiesMapDef {
   playerSpawn: { x: number; y?: number; z: number; yaw: number };
   /** Extra co-op spawns (players 2-4). */
   coopSpawns?: { x: number; y?: number; z: number; yaw: number }[];
-  box: { spots: Spot[]; start?: number };
+  box: { spots: Spot[]; start?: number; reveal?: BoxRevealDef };
   perks: Partial<Record<PerkId, Spot>>;
   pap: Spot | null;
   /** Null = the power is on from the start. */
@@ -281,7 +346,15 @@ export interface ZombiesMapDef {
   wallBuys: WallBuySpot[];
   startWeapon?: WeaponId;
   powerups?: PowerUpRules;
+  /** Special-round / Warden / blackout cadence (default: specials every 5, Warden every 8, blackout 13+10n). */
+  rounds?: RoundScheduleDef;
+  /** The main quest. */
   egg?: EggDef;
+  /** Short side quests (collectibles), run in parallel with the main quest. */
+  sideEggs?: EggDef[];
+  /** Workbench builds (shields, trap parts). */
+  buildables?: BuildableDef[];
+  traps?: TrapDef[];
   /** Cable cars, ziplines, slides (see RideDef). */
   rides?: RideDef[];
   lighting: LightingDef;
@@ -349,7 +422,26 @@ export function frontOf(s: Spot, dist = 1.0): P3 {
   return { x: s.x + Math.sin(s.face) * dist, y: s.y ?? 0, z: s.z + Math.cos(s.face) * dist };
 }
 
-export const PERK_ORDER: PerkId[] = ['lifeline', 'bulwark', 'quickhands', 'hammerfall'];
+export const PERK_ORDER: PerkId[] = ['lifeline', 'bulwark', 'quickhands', 'hammerfall', 'strider', 'hawkeye', 'packmule', 'nova'];
 export function perkEntries(def: ZombiesMapDef): [PerkId, Spot][] {
   return PERK_ORDER.filter((id) => def.perks[id]).map((id) => [id, def.perks[id]!]);
+}
+
+/** Every easter egg on the map: the main quest first (index 0, when present), then the side eggs. */
+export function allEggs(def: ZombiesMapDef): EggDef[] {
+  return [...(def.egg ? [def.egg] : []), ...(def.sideEggs ?? [])];
+}
+
+/** Doors needed (fewest) to unlock each zone from the start zone. */
+export function doorDepths(def: ZombiesMapDef): Map<number, number> {
+  const dist = new Map([[def.startZone, 0]]);
+  const q = [def.startZone];
+  while (q.length) {
+    const z = q.shift()!;
+    for (const d of def.doors) {
+      const o = d.a === z ? d.b : d.b === z ? d.a : -1;
+      if (o >= 0 && !dist.has(o)) { dist.set(o, dist.get(z)! + 1); q.push(o); }
+    }
+  }
+  return dist;
 }
