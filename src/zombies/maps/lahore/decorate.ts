@@ -308,6 +308,8 @@ export function decorateLahore(ctx: MapDecorateContext): void {
   for (const x of [-26, -20, -14]) { put(PR('chandelier'), x, 12.4, -64, 0, 1.3); lamp(x, 12.6, -64, 'chandelier'); }
   for (let x = -32; x < -7; x += 4) lamp(x, U + 2.2, -69.3, 'mirror');
   put(PR('throne_dais'), -29, U, -67.6, 0, 0.9); col(-29, U, -67.6, 2.4, 2.2, 1.3);
+  for (const [x, z, yaw] of [[-33.85, -66, HP], [-6.15, -62.5, -HP], [-28, -69.85, 0]] as const) put(K('mirror_medallion'), x, U + 1.0, z, yaw, 1.3, { shadow: false });
+  for (const [x, z, yaw] of [[-33.85, -61, HP], [-6.15, -67, -HP], [-14, -69.85, 0]] as const) put(K('mirror_medallion'), x, U + 2.6, z, yaw, 1.1, { shadow: false });
   lamp(-20, U + 1.5, -64, 'lantern');
 
   // ================= RAMPARTS =================
@@ -582,7 +584,7 @@ export function updateLahore(u: MapUpdateContext): void {
     if (!pts || !pts.visible) continue;
     const c = pts.geometry.getAttribute('color') as THREE.BufferAttribute, base = pts.geometry.userData.base as Float32Array;
     for (let i = 0; i < list.length; i++) {
-      const f = list[i].kind === 'chandelier' ? 1 : 0.8 + 0.2 * Math.sin(time * 9 + i * 2.3) * Math.sin(time * 3.7 + i);
+      const f = (list[i].kind === 'chandelier' ? 1 : 0.8 + 0.2 * Math.sin(time * 9 + i * 2.3) * Math.sin(time * 3.7 + i)) * (u.blackout ? 0.2 : 1);
       c.setXYZ(i, base[i * 3] * f, base[i * 3 + 1] * f, base[i * 3 + 2] * f);
     }
     c.needsUpdate = true;
@@ -600,9 +602,9 @@ export function updateLahore(u: MapUpdateContext): void {
     if (!sl.a) { sl.light.intensity = 0; continue; }
     const L = LAMP[sl.a.kind];
     const flick = sl.a.kind === 'torch' || sl.a.kind === 'forge' ? 0.82 + 0.18 * Math.sin(time * 11 + sl.phase) * Math.sin(time * 4.3 + sl.phase * 2) : 1;
-    sl.light.color.setHex(L.color);
+    sl.light.color.setHex(u.blackout ? 0xff3010 : L.color);
     sl.light.distance = L.range;
-    sl.light.intensity = (power ? L.post : L.pre) * flick;
+    sl.light.intensity = (power ? L.post : L.pre) * flick * (u.blackout ? (Math.sin(time * 5 + sl.phase) > 0.7 ? 0.05 : 0.22) : 1);
   }
   // Distance cull the instanced dressing (the fog hides it anyway).
   cullT -= u.dt;

@@ -19,7 +19,7 @@ export interface MapDecorateContext {
   mat: (m: import('../mapdef').MatRef) => THREE.Material;
 }
 
-export interface MapUpdateContext { time: number; dt: number; power: boolean; /** Player feet position (for proximity effects, light pools). */ player?: { x: number; y: number; z: number } }
+export interface MapUpdateContext { time: number; dt: number; power: boolean; /** Player feet position (for proximity effects, light pools). */ player?: { x: number; y: number; z: number }; /** A blackout round is in progress. */ blackout?: boolean }
 
 export interface ZombiesMapEntry {
   def: ZombiesMapDef;

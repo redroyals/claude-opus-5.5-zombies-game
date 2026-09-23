@@ -483,7 +483,7 @@ export class ZombiesMap {
       const s = r.userData.spin as THREE.Object3D | undefined;
       if (s) s.rotation.y = time * 2;
     }
-    this.entry.update?.({ time, dt, power, player });
+    this.entry.update?.({ time, dt, power, player, blackout });
   }
 
   groundHeight(x: number, z: number): number {
