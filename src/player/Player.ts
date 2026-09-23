@@ -30,8 +30,22 @@ export function findMantleLedge(world: Pick<CollisionWorld, 'overlaps'>, x: numb
   return null;
 }
 
+/** A climbable ladder column (see zombies mapcompile CLadder). */
+export interface LadderVolume { x: number; z: number; y0: number; y1: number; top: { x: number; y: number; z: number } }
+
+/** Pure ladder check: the ladder the player is on (within reach and height range), or null. */
+export function ladderAt(ladders: LadderVolume[], x: number, y: number, z: number): LadderVolume | null {
+  for (const l of ladders) if (Math.hypot(x - l.x, z - l.z) < 0.75 && y >= l.y0 - 0.3 && y <= l.y1 + 0.2) return l;
+  return null;
+}
+
 export class Player {
   pos = { x: 0, y: 0, z: 0 };
+  /** Climbable ladders in the current arena. */
+  ladders: LadderVolume[] = [];
+  /** Playable bounds override (null = the extraction WORLD bounds). */
+  bounds: { minX: number; minZ: number; maxX: number; maxZ: number } | null = null;
+  climbing = false;
   vel = { x: 0, y: 0, z: 0 };
   yaw = 0;
   pitch = 0;
@@ -61,8 +75,9 @@ export class Player {
   private stepDist = 0;
   private airTime = 0;
 
-  reset(x: number, z: number, yaw: number): void {
-    this.pos = { x, y: 0, z };
+  reset(x: number, z: number, yaw: number, y = 0): void {
+    this.pos = { x, y, z };
+    this.climbing = false;
     this.vel = { x: 0, y: 0, z: 0 };
     this.yaw = yaw;
     this.pitch = 0;
@@ -166,6 +181,30 @@ export class Player {
       this.vel.z += (dvz / dl) * step;
     }
 
+    // --- Ladders: walk into one to climb it (forward = up, back = down, jump = let go) ---
+    const lad = this.ladders.length ? ladderAt(this.ladders, this.pos.x, this.pos.y, this.pos.z) : null;
+    if (lad && (fwd !== 0 || this.climbing) && !input.isHeld('jump')) {
+      this.climbing = true;
+      const toX = lad.x - this.pos.x, toZ = lad.z - this.pos.z;
+      const facing = -Math.sin(this.yaw) * toX - Math.cos(this.yaw) * toZ >= -0.2;
+      const climb = fwd === 0 ? 0 : (fwd > 0) === facing || this.pitch > 0.35 ? 3.2 : -3.2;
+      this.vel.x *= 0.2; this.vel.z *= 0.2;
+      this.vel.y = climb;
+      let ny = this.pos.y + climb * dt;
+      if (ny >= lad.y1 - 0.05 && climb > 0) {
+        // Step off onto the landing.
+        this.pos.x += (lad.top.x - this.pos.x) * Math.min(1, dt * 8);
+        this.pos.z += (lad.top.z - this.pos.z) * Math.min(1, dt * 8);
+        ny = Math.min(ny, lad.y1 + 0.05);
+        if (Math.hypot(lad.top.x - this.pos.x, lad.top.z - this.pos.z) < 0.25) { this.climbing = false; this.pos.y = lad.top.y; this.grounded = true; this.vel.y = 0; return ev; }
+      }
+      const res = world.move(this.pos, PLAYER.radius, this.height, 0, ny - this.pos.y, 0, 0, false);
+      if (res.grounded && climb < 0) this.climbing = false;
+      this.grounded = res.grounded;
+      this.moving = false;
+      return ev;
+    }
+    this.climbing = false;
     // --- Mantle / jump / gravity ---
     const wantJump = input.consume('jump');
     if ((wantJump || (!this.grounded && fwd > 0 && this.vel.y < 1.5)) && !this.crouched) {
@@ -205,8 +244,9 @@ export class Player {
     this.grounded = res.grounded;
 
     // Hard clamp to playable bounds (walls already block, this is a safety net).
-    this.pos.x = Math.max(WORLD.minX + 1, Math.min(WORLD.maxX - 1, this.pos.x));
-    this.pos.z = Math.max(WORLD.minZ + 1, Math.min(WORLD.maxZ - 1, this.pos.z));
+    const B = this.bounds ?? WORLD;
+    this.pos.x = Math.max(B.minX + 1, Math.min(B.maxX - 1, this.pos.x));
+    this.pos.z = Math.max(B.minZ + 1, Math.min(B.maxZ - 1, this.pos.z));
 
     const moved = Math.hypot(this.pos.x - px, this.pos.z - pz);
     this.speed2d = moved / dt;

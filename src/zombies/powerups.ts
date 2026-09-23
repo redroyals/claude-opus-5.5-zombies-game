@@ -52,15 +52,16 @@ export function nextPowerUp(s: PowerUpState, rnd: () => number, exclude: PowerUp
 }
 
 /** Called on every zombie kill with the points it earned. Returns a kind if something drops. */
-export function rollDrop(s: PowerUpState, killPoints: number, rnd: () => number, exclude: PowerUpKind[] = []): PowerUpKind | null {
-  if (s.dropsThisRound >= POWERUP.maxDropsPerRound) return null;
+export function rollDrop(s: PowerUpState, killPoints: number, rnd: () => number, exclude: PowerUpKind[] = [],
+  opts: { maxPerRound?: number; chanceMult?: number } = {}): PowerUpKind | null {
+  if (s.dropsThisRound >= (opts.maxPerRound ?? POWERUP.maxDropsPerRound)) return null;
   s.pointsTowardDrop += killPoints;
   let drop = false;
   if (s.pointsTowardDrop >= s.nextThreshold) {
     s.pointsTowardDrop -= s.nextThreshold;
     s.nextThreshold = Math.round(s.nextThreshold * POWERUP.thresholdGrowth);
     drop = true;
-  } else if (rnd() < POWERUP.dropChance) drop = true;
+  } else if (rnd() < POWERUP.dropChance * (opts.chanceMult ?? 1)) drop = true;
   if (!drop) return null;
   s.dropsThisRound++;
   return nextPowerUp(s, rnd, exclude);

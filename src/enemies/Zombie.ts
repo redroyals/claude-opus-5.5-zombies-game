@@ -66,6 +66,15 @@ export class Zombie {
   headless = false;
   legless = false;
   hitReactT = 0;
+  /** >0 while clawing up out of the ground (non-window 'ground' spawns). */
+  riseT = 0;
+  /** Nav-link traversal (ladders, drops, jumps); link >= 0 while traversing. */
+  link = -1;
+  linkKind: 'drop' | 'jump' | 'vault' | 'ladder' = 'drop';
+  linkT = 0;
+  linkDur = 1;
+  linkFrom = { x: 0, y: 0, z: 0 };
+  linkTo = { x: 0, y: 0, z: 0 };
   /** Skinned GLB instance (when a model exists); the procedural mesh is hidden then. */
   glb: { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>; current: string; head: THREE.Object3D | null } | null = null;
 
@@ -82,6 +91,8 @@ export class Zombie {
     this.headless = false;
     this.legless = type === 'crawler';
     this.hitReactT = 0;
+    this.riseT = 0;
+    this.link = -1;
     if (this.bones) {
       this.bones[BONE.head].scale.setScalar(1);
       const ls = this.legless ? 0.001 : 1;
@@ -143,6 +154,7 @@ export class Zombie {
   /** Render-rate animation: procedural skeleton always (it drives hitboxes), plus the skinned GLB when present. */
   animate(dt: number, time: number): void {
     this.animateBody(dt, time);
+    if (this.riseT > 0) this.mesh.position.y -= (this.riseT / 1.2) * 1.8 * this.scale;
     if (this.glb) this.animateGlb(dt);
   }
 

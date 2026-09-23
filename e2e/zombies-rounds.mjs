@@ -9,7 +9,7 @@ const errors = [];
 p.on('pageerror', (e) => { errors.push(String(e)); console.log('PAGEERR', String(e).slice(0, 300)); });
 b.on('disconnected', () => console.log('BROWSER DISCONNECTED'));
 p.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
-await p.goto('http://127.0.0.1:5173/?mode=zombies&dev');
+await p.goto(`${process.env.BASE ?? 'http://127.0.0.1:5173'}/?mode=zombies${process.env.MAP ? '&map=' + process.env.MAP : ''}&dev`);
 await p.waitForFunction(() => window.__DS, null, { timeout: 120000 });
 const ds = (fn, ...a) => p.evaluate(([f, args]) => window.__DS[f](...args), [fn, a]);
 await ds('lock', true); await p.click('#btn-zombies'); await p.waitForTimeout(2000);
