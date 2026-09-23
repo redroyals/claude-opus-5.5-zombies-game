@@ -602,5 +602,302 @@
       "task": "01a0ce18-4075-7034-9e5b-7cd893e915ca",
       "status": "ok"
     }
+  },
+  "la_facade_bay": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cea8-5ad3-70b8-bd67-15d3f1fc1b20",
+    "spent": 30,
+    "task": "01a0ceaa-50db-71d5-8712-03cab2864638",
+    "status": "ok",
+    "at": "2026-09-23T14:28:53.065Z"
+  },
+  "la_mashaal": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cea8-5ad8-742f-9270-51268917d493",
+    "spent": 30,
+    "task": "01a0ceaa-0f87-731e-ba3a-7b69905c506a",
+    "status": "ok",
+    "at": "2026-09-23T14:28:19.472Z"
+  },
+  "la_naqqara": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cea8-5bea-73c9-983c-a023e11a9f1c",
+    "spent": 30,
+    "task": "01a0ceaa-a65a-77e4-9e58-578e3c3f4e60",
+    "status": "ok",
+    "at": "2026-09-23T14:29:22.844Z"
+  },
+  "la_pedestal": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cea8-5ada-7683-9d83-9fcfb358d5cb",
+    "spent": 30,
+    "task": "01a0ceaa-7259-7501-989c-d92a3fa9de8e",
+    "status": "ok",
+    "at": "2026-09-23T14:28:56.551Z"
+  },
+  "la_pigeon": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceb5-bd0f-700e-8544-f0d669338a29",
+    "spent": 30,
+    "task": "01a0ceb7-50f2-7335-bf3e-2c38ca71aa8a",
+    "status": "ok",
+    "at": "2026-09-23T14:43:05.093Z"
+  },
+  "la_charpai": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceb5-bd13-75bd-ae9a-d9580800b003",
+    "spent": 30,
+    "task": "01a0ceb7-c68c-723c-b01a-ce0c2550b6ce",
+    "status": "ok",
+    "at": "2026-09-23T14:43:52.530Z"
+  },
+  "la_pottery_stall": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceb5-be25-73d8-a178-7c6483e79d7f",
+    "spent": 30,
+    "task": "01a0ceb7-9215-7441-ba88-02d369dd5111",
+    "status": "ok",
+    "at": "2026-09-23T14:43:52.727Z"
+  },
+  "la_perk_test": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceb5-be2b-7176-9799-ce6e870d68df",
+    "spent": 30,
+    "task": "01a0ceb7-717b-7184-bf5c-fc9ac07e6843",
+    "status": "ok",
+    "at": "2026-09-23T14:43:08.262Z"
+  },
+  "la_brass_vessels": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceb5-bd19-74dd-b2a5-e5c3eabf92c3",
+    "spent": 30,
+    "task": "01a0ceb7-5055-7695-9a55-9e18147610c2",
+    "status": "ok",
+    "at": "2026-09-23T14:43:08.363Z"
+  },
+  "la_divan": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceb5-bd1c-747e-9504-7a0f9405c6c5",
+    "spent": 30,
+    "task": "01a0ceb7-c68a-700d-bc44-240a3a73549e",
+    "status": "ok",
+    "at": "2026-09-23T14:43:52.218Z"
+  },
+  "la_fruit_cart": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceb5-bd18-70eb-aa47-76282b0fcfe9",
+    "spent": 30,
+    "task": "01a0ceb8-0853-7554-8a45-7865f88c7e6e",
+    "status": "ok",
+    "at": "2026-09-23T14:43:52.200Z"
+  },
+  "la_cloth_stall": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceb5-be27-7749-aca2-012d3e344b52",
+    "spent": 30,
+    "task": "01a0ceb8-9f7a-725e-8025-0b131f2d42da",
+    "status": "ok",
+    "at": "2026-09-23T14:44:21.050Z"
+  },
+  "la_perk_hammerfall": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec7-18fe-7102-aa7a-795d0468b5d7",
+    "spent": 30,
+    "task": "01a0cec9-9396-7627-a688-e5bf8a3f8b3e",
+    "status": "ok",
+    "at": "2026-09-23T15:02:51.870Z"
+  },
+  "la_perk_bulwark": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec7-1901-764b-8da9-ff16b75ae2dd",
+    "spent": 30,
+    "task": "01a0cec8-eee8-7331-b110-408663749c76",
+    "status": "ok",
+    "at": "2026-09-23T15:01:57.714Z"
+  },
+  "la_lamp_stand": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec7-1a17-72fe-b1e1-aeef9c2c2da7",
+    "spent": 30,
+    "task": "01a0cec9-72bf-71af-905a-b96ba9ed583c",
+    "status": "ok",
+    "at": "2026-09-23T15:02:48.259Z"
+  },
+  "la_perk_quickhands": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec7-1a14-7499-a899-3723003c7da4",
+    "spent": 30,
+    "task": "01a0cec9-d4d2-7027-917f-f445b7f2cece",
+    "status": "ok",
+    "at": "2026-09-23T15:03:05.057Z"
+  },
+  "la_cloth_stall2": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec7-1907-745b-aaed-6846fba95b52",
+    "spent": 30,
+    "task": "01a0cec9-7251-7520-ae4e-eea3e31abb33",
+    "status": "ok",
+    "at": "2026-09-23T15:02:48.288Z"
+  },
+  "la_sacks": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec7-1908-76bc-8794-7c170814c5a3",
+    "spent": 30,
+    "task": "01a0ceca-586e-77a4-a797-6362ba4cb6cb",
+    "status": "ok",
+    "at": "2026-09-23T15:03:33.719Z"
+  },
+  "la_lantern": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec7-190a-70af-b8d7-271ff8f11cb2",
+    "spent": 30,
+    "task": "01a0cec9-0fa4-713e-8a35-6ed7c50406a3",
+    "status": "ok",
+    "at": "2026-09-23T15:02:17.970Z"
+  },
+  "la_planter_tree": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec7-1a1b-70dc-bd25-81cfa99d3c8b",
+    "spent": 30,
+    "task": "01a0cecb-6141-7707-b5dc-e55733bf4dae",
+    "status": "ok",
+    "at": "2026-09-23T15:04:51.526Z"
+  },
+  "la_pigeon_loft": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec9-ac62-71ce-bf01-147f923487cf",
+    "spent": 30,
+    "task": "01a0cecb-8117-74e7-92d1-e105c3c52849",
+    "status": "ok",
+    "at": "2026-09-23T15:05:03.218Z"
+  },
+  "la_degh": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cec9-f961-7346-aa04-85ef89058143",
+    "spent": 30,
+    "task": "01a0cecc-185c-7655-8add-50d16029e8fa",
+    "status": "ok",
+    "at": "2026-09-23T15:05:37.321Z"
+  },
+  "la_chowki": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceca-70bc-7558-b3dc-b137ade3edd4",
+    "spent": 30,
+    "task": "01a0cecc-1860-76b8-b333-392944ca326f",
+    "status": "ok",
+    "at": "2026-09-23T15:05:37.132Z"
+  },
+  "la_perk_bulwark2": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cecf-9577-71be-886c-a517b680fa4e",
+    "spent": 30,
+    "task": "01a0ced1-a35d-7643-a819-dc67e4ac98a1",
+    "status": "ok",
+    "at": "2026-09-23T15:11:53.904Z"
+  },
+  "la_fire_pit": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cee6-8468-76eb-a84f-c39f26548d18",
+    "spent": 30,
+    "task": "01a0cee7-c6b7-7656-aea5-a583093b7191",
+    "status": "ok",
+    "at": "2026-09-23T15:36:40.745Z"
+  },
+  "la_part_bellows": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cee6-8464-770d-a0c7-d6a0bb692162",
+    "spent": 30,
+    "task": "01a0cee8-4b7c-7525-a673-3f833b7dfef0",
+    "status": "ok",
+    "at": "2026-09-23T15:36:40.668Z"
+  },
+  "la_perk_strider": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cee6-8463-73e5-ba4c-16f8a4a15fac",
+    "spent": 30,
+    "task": "01a0cee8-2988-72eb-a43d-00a5bfe7564e",
+    "status": "ok",
+    "at": "2026-09-23T15:36:40.641Z"
+  },
+  "la_perk_nova": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cee6-8475-7149-ab45-efe65b612d08",
+    "spent": 30,
+    "task": "01a0cee7-a5e5-7293-a878-e9543a166841",
+    "status": "ok",
+    "at": "2026-09-23T15:36:04.593Z"
+  },
+  "la_perk_hawkeye": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cee6-8468-7126-858f-3362e15ba9b9",
+    "spent": 30,
+    "task": "01a0cee7-c6bf-71ad-b184-d201b0021284",
+    "status": "ok",
+    "at": "2026-09-23T15:37:23.367Z"
+  },
+  "la_part_naft_jar": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cee6-857d-761a-b508-953202cbb4bd",
+    "spent": 30,
+    "task": "01a0cee8-2986-721b-8ad3-76f665809460",
+    "status": "ok",
+    "at": "2026-09-23T15:36:48.802Z"
+  },
+  "la_bench": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cee6-8474-77b2-b160-78cff3e97f1b",
+    "spent": 30,
+    "task": "01a0cee7-c6cb-71f2-aab5-85196a17fc02",
+    "status": "ok",
+    "at": "2026-09-23T15:36:39.417Z"
+  },
+  "la_part_bowl": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0cee6-8474-76cc-924e-d0f9d632f082",
+    "spent": 30,
+    "task": "01a0cee7-a5df-7447-b15f-9192090c648e",
+    "status": "ok",
+    "at": "2026-09-23T15:36:40.459Z"
+  },
+  "la_perk_strider2": {
+    "cat": "lahore",
+    "method": "text",
+    "preview": "01a0ceeb-1f26-74aa-a3f6-38ffb17905cf",
+    "spent": 30,
+    "task": "01a0ceec-420e-77be-898f-6ee0e13819bb",
+    "status": "ok",
+    "at": "2026-09-23T15:41:03.447Z"
   }
 }

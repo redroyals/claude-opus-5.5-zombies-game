@@ -518,5 +518,203 @@
     "tris": 5000,
     "kb": 497,
     "tex": 1024
+  },
+  "la_naqqara": {
+    "id": "la_naqqara",
+    "tris": 6000,
+    "kb": 449,
+    "tex": 1024
+  },
+  "la_pedestal": {
+    "id": "la_pedestal",
+    "tris": 4999,
+    "kb": 507,
+    "tex": 1024
+  },
+  "la_mashaal": {
+    "id": "la_mashaal",
+    "tris": 2500,
+    "kb": 176,
+    "tex": 512
+  },
+  "la_facade_bay": {
+    "id": "la_facade_bay",
+    "tris": 6000,
+    "kb": 355,
+    "tex": 1024
+  },
+  "la_fruit_cart": {
+    "id": "la_fruit_cart",
+    "tris": 5000,
+    "kb": 446,
+    "tex": 1024
+  },
+  "la_pottery_stall": {
+    "id": "la_pottery_stall",
+    "tris": 5000,
+    "kb": 333,
+    "tex": 1024
+  },
+  "la_cloth_stall": {
+    "id": "la_cloth_stall",
+    "tris": 5687,
+    "kb": 424,
+    "tex": 1024
+  },
+  "la_brass_vessels": {
+    "id": "la_brass_vessels",
+    "tris": 3499,
+    "kb": 112,
+    "tex": 1024
+  },
+  "la_divan": {
+    "id": "la_divan",
+    "tris": 4999,
+    "kb": 369,
+    "tex": 1024
+  },
+  "la_pigeon": {
+    "id": "la_pigeon",
+    "tris": 1499,
+    "kb": 113,
+    "tex": 512
+  },
+  "la_charpai": {
+    "id": "la_charpai",
+    "tris": 2999,
+    "kb": 472,
+    "tex": 1024
+  },
+  "la_perk_test": {
+    "id": "la_perk_test",
+    "tris": 6000,
+    "kb": 343,
+    "tex": 1024
+  },
+  "la_perk_bulwark": {
+    "id": "la_perk_bulwark",
+    "tris": 6000,
+    "kb": 385,
+    "tex": 1024
+  },
+  "la_perk_quickhands": {
+    "id": "la_perk_quickhands",
+    "tris": 6000,
+    "kb": 378,
+    "tex": 1024
+  },
+  "la_perk_hammerfall": {
+    "id": "la_perk_hammerfall",
+    "tris": 5999,
+    "kb": 364,
+    "tex": 1024
+  },
+  "la_lantern": {
+    "id": "la_lantern",
+    "tris": 3000,
+    "kb": 123,
+    "tex": 512
+  },
+  "la_lamp_stand": {
+    "id": "la_lamp_stand",
+    "tris": 2999,
+    "kb": 113,
+    "tex": 512
+  },
+  "la_planter_tree": {
+    "id": "la_planter_tree",
+    "tris": 4999,
+    "kb": 362,
+    "tex": 1024
+  },
+  "la_sacks": {
+    "id": "la_sacks",
+    "tris": 4000,
+    "kb": 466,
+    "tex": 1024
+  },
+  "la_cloth_stall2": {
+    "id": "la_cloth_stall2",
+    "tris": 4999,
+    "kb": 483,
+    "tex": 1024
+  },
+  "la_pigeon_loft": {
+    "id": "la_pigeon_loft",
+    "tris": 3999,
+    "kb": 309,
+    "tex": 1024
+  },
+  "la_degh": {
+    "id": "la_degh",
+    "tris": 3500,
+    "kb": 272,
+    "tex": 1024
+  },
+  "la_chowki": {
+    "id": "la_chowki",
+    "tris": 3499,
+    "kb": 389,
+    "tex": 1024
+  },
+  "la_perk_bulwark2": {
+    "id": "la_perk_bulwark2",
+    "tris": 5999,
+    "kb": 462,
+    "tex": 1024
+  },
+  "la_perk_nova": {
+    "id": "la_perk_nova",
+    "tris": 6000,
+    "kb": 331,
+    "tex": 1024
+  },
+  "la_perk_strider": {
+    "id": "la_perk_strider",
+    "tris": 5999,
+    "kb": 374,
+    "tex": 1024
+  },
+  "la_perk_hawkeye": {
+    "id": "la_perk_hawkeye",
+    "tris": 6000,
+    "kb": 452,
+    "tex": 1024
+  },
+  "la_bench": {
+    "id": "la_bench",
+    "tris": 5000,
+    "kb": 293,
+    "tex": 1024
+  },
+  "la_fire_pit": {
+    "id": "la_fire_pit",
+    "tris": 4999,
+    "kb": 299,
+    "tex": 1024
+  },
+  "la_part_bowl": {
+    "id": "la_part_bowl",
+    "tris": 1500,
+    "kb": 78,
+    "tex": 512
+  },
+  "la_part_bellows": {
+    "id": "la_part_bellows",
+    "tris": 1499,
+    "kb": 93,
+    "tex": 512
+  },
+  "la_part_naft_jar": {
+    "id": "la_part_naft_jar",
+    "tris": 1500,
+    "kb": 107,
+    "tex": 512
+  },
+  "la_perk_strider2": {
+    "id": "la_perk_strider2",
+    "tris": 5999,
+    "kb": 365,
+    "tex": 1024
   }
 }
