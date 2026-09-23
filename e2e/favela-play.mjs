@@ -93,9 +93,9 @@ log('spawn origins (street):', JSON.stringify(results.spawns));
 // climb yard (y 0) must scale the wall into the street; one on the roof ledge (y 10) must drop into it.
 {
   await ds('clearZombies');
-  await stand(22, 34.5, 4, 23.8, 38.5, -0.15);
+  await stand(21.5, 35.5, 4, 23.8, 39, 0.05);
   await ds('zSpawn', 'shambler', 23.8, 40.4, 0);
-  await until(async () => (await ds('zombies')).some((z) => z.y > 1.2 && z.y < 3.6), 60000, 150);
+  await until(async () => (await ds('zombies')).some((z) => z.y > 3.3 && z.z > 37.6), 60000, 120); // head above the parapet
   await shot('01b-zombie-climbing');
   const up = await until(async () => (await ds('zombies')).some((z) => z.y > 3.9 && z.z < 37.9), 90000);
   check('zombies climb up from below the street (yard y0 -> street y4)', !!up || results.spawns.climb > 0);
