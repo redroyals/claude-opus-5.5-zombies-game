@@ -1,6 +1,6 @@
 // Bot play-through: aims at the nearest zombie (its torso capsule) and fires, round after round, with
 // screenshots of the round flow, a blackout round and a Scuttler round, plus frame-time stats.
-// Usage: BASE=http://127.0.0.1:5180 [MAP=id] [ROUNDS=4] [GOD=1] node e2e/zombies-bot.mjs [outDir]
+// Usage: BASE=http://127.0.0.1:5180 [MAP=id] [ROUNDS=4] [GOD=1] [GPU=1] node e2e/zombies-bot.mjs [outDir]
 import { chromium } from 'playwright-core';
 import os from 'node:os';
 import fs from 'node:fs';
@@ -8,7 +8,8 @@ import fs from 'node:fs';
 const out = process.argv[2] ?? '/tmp/zbot';
 fs.mkdirSync(out, { recursive: true });
 const exe = process.env.CHROME ?? fs.readdirSync(`${os.homedir()}/.cache/ms-playwright`).filter((d) => d.startsWith('chromium-')).map((d) => `${os.homedir()}/.cache/ms-playwright/${d}/chrome-linux-arm64/chrome`).find((p) => fs.existsSync(p));
-const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const gpu = process.env.GPU === '1' ? ['--use-angle=gl-egl', '--ignore-gpu-blocklist', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', ...gpu] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
@@ -64,5 +65,5 @@ for (const [n, name] of [[13, 'blackout'], [15, 'scuttlers']]) {
   await page.screenshot({ path: `${out}/${name}.png` });
   console.log(name, JSON.stringify((await ds('zm')).round));
 }
-console.log('errors', errors.slice(0, 6));
+console.log('errors', errors.length, errors.slice(0, 2).map((e) => e.slice(0, 400)));
 await browser.close();
