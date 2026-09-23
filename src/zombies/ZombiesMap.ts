@@ -16,7 +16,8 @@ export interface DoorRuntime { geom: DoorDef; box: Box; mesh: THREE.Group; openT
 export interface WindowRuntime {
   geom: WindowDef;
   box: Box;
-  planks: THREE.Mesh[];
+  /** Instance slots in the shared plank InstancedMesh (6 per window) and whether each is shown. */
+  planks: { slot: number; shown: boolean }[];
   plankHome: THREE.Matrix4[];
   flying: { m: THREE.Mesh; t: number; v: THREE.Vector3; spin: THREE.Vector3 }[];
   /** Outside approach point, inside landing point and pocket spawn point. */
@@ -75,6 +76,9 @@ export class ZombiesMap {
   private bulbOn: THREE.MeshBasicMaterial;
   private bulbOff: THREE.MeshBasicMaterial;
   private plankMat: THREE.MeshStandardMaterial;
+  /** Every plank on the map in one draw call. */
+  private plankInst!: THREE.InstancedMesh;
+  private static readonly HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
   private chalk = new Map<string, THREE.Mesh>();
 
   constructor(private M: Materials, readonly entry: ZombiesMapEntry) {
@@ -182,6 +186,13 @@ export class ZombiesMap {
 
   private buildWindows(boxes: Box[]): void {
     const plankGeo = new THREE.BoxGeometry(1.75, 0.2, 0.06);
+    this.plankInst = new THREE.InstancedMesh(plankGeo, this.plankMat, Math.max(1, this.compiled.windows.length * 6));
+    this.plankInst.castShadow = true;
+    this.plankInst.receiveShadow = true;
+    this.plankInst.count = this.compiled.windows.length * 6;
+    this.plankInst.frustumCulled = false; // one draw call; instance bounds would go stale as planks move
+    this.root.add(this.plankInst);
+    const tmp = new THREE.Object3D();
     this.compiled.windows.forEach((cw, wi) => {
       const w = cw.def;
       const alongX = w.nz !== 0;
@@ -194,20 +205,19 @@ export class ZombiesMap {
       };
       fr(-WIN.half - 0.1, -WIN.half, y0, y1); fr(WIN.half, WIN.half + 0.1, y0, y1); fr(-WIN.half - 0.1, WIN.half + 0.1, y0 - 0.1, y0); fr(-WIN.half - 0.1, WIN.half + 0.1, y1, y1 + 0.1);
       // Planks nailed on the inside face at jaunty angles
-      const planks: THREE.Mesh[] = [];
+      const planks: { slot: number; shown: boolean }[] = [];
       const homes: THREE.Matrix4[] = [];
       const yaw = Math.atan2(w.nx, w.nz);
       for (let i = 0; i < 6; i++) {
-        const m = new THREE.Mesh(plankGeo, this.plankMat);
         const y = y0 + 0.15 + i * ((y1 - y0 - 0.3) / 5);
         const inset = -0.25; // inside the wall
-        m.position.set(cx + w.nx * inset, y, cz + w.nz * inset);
-        m.rotation.set(0, yaw, ((i * 37) % 7 - 3) * 0.06 + (i % 2 ? 0.12 : -0.1));
-        m.castShadow = true;
-        this.root.add(m);
-        m.updateMatrix();
-        planks.push(m);
-        homes.push(m.matrix.clone());
+        tmp.position.set(cx + w.nx * inset, y, cz + w.nz * inset);
+        tmp.rotation.set(0, yaw, ((i * 37) % 7 - 3) * 0.06 + (i % 2 ? 0.12 : -0.1));
+        tmp.updateMatrix();
+        const slot = wi * 6 + i;
+        this.plankInst.setMatrixAt(slot, tmp.matrix);
+        planks.push({ slot, shown: true });
+        homes.push(tmp.matrix.clone());
       }
       this.windows.push({ geom: w, box: boxes[wi], planks, plankHome: homes, flying: [], outside: cw.outside, inside: cw.inside, spawn: cw.spawn });
     });
@@ -315,11 +325,10 @@ export class ZombiesMap {
       if ((d.fixture ?? 'pendant') === 'pendant') {
         bulb = new THREE.Mesh(bulbGeo, this.bulbOff);
         bulb.position.set(d.x, d.y - 0.3, d.z);
-        const sh = new THREE.Mesh(shade, this.M.metalDark);
-        sh.position.set(d.x, d.y - 0.12, d.z);
-        const c = new THREE.Mesh(cord, this.M.rubber);
-        c.position.set(d.x, d.y + 0.1, d.z);
-        this.root.add(bulb, sh, c);
+        // Shade and cord are static: merged into the map batch.
+        this.batch.add(this.M.metalDark, shade.clone(), new THREE.Matrix4().makeTranslation(d.x, d.y - 0.12, d.z));
+        this.batch.add(this.M.rubber, cord.clone(), new THREE.Matrix4().makeTranslation(d.x, d.y + 0.1, d.z));
+        this.root.add(bulb);
       }
       this.lights.push({ light: l, bulb, phase: i * 1.7, def: d });
     });
@@ -416,15 +425,18 @@ export class ZombiesMap {
     const win = this.windows[w];
     win.planks.forEach((p, i) => {
       const show = i < n;
-      if (show && !p.visible) {
-        p.visible = true;
-        p.matrix.copy(win.plankHome[i]);
-        p.matrix.decompose(p.position, p.quaternion, p.scale);
-      } else if (!show && p.visible) {
-        p.visible = false;
+      if (show && !p.shown) {
+        p.shown = true;
+        this.plankInst.setMatrixAt(p.slot, win.plankHome[i]);
+        this.plankInst.instanceMatrix.needsUpdate = true;
+      } else if (!show && p.shown) {
+        p.shown = false;
+        this.plankInst.setMatrixAt(p.slot, ZombiesMap.HIDDEN);
+        this.plankInst.instanceMatrix.needsUpdate = true;
         if (animate) {
-          const fly = p.clone();
-          fly.visible = true;
+          const fly = new THREE.Mesh(this.plankInst.geometry, this.plankMat);
+          win.plankHome[i].decompose(fly.position, fly.quaternion, fly.scale);
+          fly.castShadow = true;
           this.root.add(fly);
           const g = win.geom;
           win.flying.push({ m: fly, t: 0, v: new THREE.Vector3(g.nx * 3 + (Math.random() - 0.5), 2.5, g.nz * 3 + (Math.random() - 0.5)), spin: new THREE.Vector3(Math.random() * 8, Math.random() * 8, Math.random() * 8) });
@@ -433,7 +445,7 @@ export class ZombiesMap {
     });
   }
 
-  update(time: number, dt: number, power: boolean): void {
+  update(time: number, dt: number, power: boolean, blackout = false): void {
     for (const d of this.doors) {
       if (!d.open || d.openT >= 1) { if (d.open) d.mesh.visible = false; continue; }
       d.openT = Math.min(1, d.openT + dt / 1.1);
@@ -456,10 +468,10 @@ export class ZombiesMap {
     }
     for (const l of this.lights) {
       const st = power ? l.def.post : l.def.pre;
-      const { intensity, lit } = lampLevel(st, time, l.phase);
-      l.light.color.setHex(st.color);
+      const { intensity, lit } = lampLevel(blackout ? { ...l.def.pre, intensity: l.def.pre.intensity * 0.25, flicker: 'faulty' } : st, time, l.phase);
+      l.light.color.setHex(blackout ? 0xff2010 : st.color);
       l.light.intensity = intensity;
-      if (l.bulb) l.bulb.material = lit ? this.bulbOn : this.bulbOff;
+      if (l.bulb) l.bulb.material = lit && !blackout ? this.bulbOn : this.bulbOff;
     }
     for (const step of this.eggObjects) for (const r of step) {
       if (!r.visible) continue;

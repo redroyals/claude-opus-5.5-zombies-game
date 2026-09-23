@@ -102,6 +102,7 @@ export class Game {
   private meleeKill = false;
   private fogSaved: { density: number; color: number; hemi: number; sun: number; sunColor: number } | null = null;
   private atmoPower = false;
+  private atmoBlackout = false;
 
   constructor(container: HTMLElement, onProgress: (p: number, label: string) => void) {
     this.settings = loadSettings();
@@ -180,15 +181,17 @@ export class Game {
     const f = this.fogSaved;
     const L = this.zm.def.lighting;
     const pp = power ? L.postPower : undefined;
-    fog.density = zombies ? pp?.fogDensity ?? L.fogDensity : f.density;
+    const dark = zombies && this.zm.blackout;
+    fog.density = zombies ? (pp?.fogDensity ?? L.fogDensity) * (dark ? 1.9 : 1) : f.density;
     fog.color.setHex(zombies ? L.fogColor : f.color);
     if (R.scene.background instanceof THREE.Color) R.scene.background.setHex(zombies ? L.background : f.color);
-    R.hemi.intensity = zombies ? pp?.hemi ?? L.hemi : f.hemi;
+    R.hemi.intensity = zombies ? (pp?.hemi ?? L.hemi) * (dark ? 0.4 : 1) : f.hemi;
     R.sun.intensity = zombies ? pp?.sun ?? L.sun : f.sun;
     R.sun.color.setHex(zombies && L.sunColor !== undefined ? L.sunColor : f.sunColor);
     R.sunDir = zombies && L.sunDir ? L.sunDir : null;
     R.setSkyVisible(!(zombies && L.sky));
     this.atmoPower = power;
+    this.atmoBlackout = dark;
   }
 
   /** Select the Zombies map (takes effect immediately on the title screen, else on the next deploy). */
@@ -524,7 +527,7 @@ export class Game {
     const fl = Math.hypot(fwd.x, fwd.z) || 1;
     if (this.mode === 'zombies') {
       this.zm.update(dt, { x: p.pos.x, y: p.pos.y, z: p.pos.z }, input.isHeld('interact'));
-      if (this.zm.power !== this.atmoPower) this.applyAtmosphere(true, this.zm.power);
+      if (this.zm.power !== this.atmoPower || this.zm.blackout !== this.atmoBlackout) this.applyAtmosphere(true, this.zm.power);
     }
     else this.spawner.update(dt, {
       px: p.pos.x, pz: p.pos.z, eyeY: p.eyeY, fx: fwd.x / fl, fz: fwd.z / fl,
@@ -989,7 +992,7 @@ export class Game {
     // World animation
     const animDt = this.state === 'paused' ? 0 : dt;
     if (this.state !== 'paused') {
-      this.enemies.animate(animDt, cam.position.x, cam.position.z);
+      this.enemies.animate(animDt, cam.position.x, cam.position.z, cam);
       this.level.update(this.realTime, animDt);
       this.interact.update(animDt, this.realTime);
       this.fx.update(animDt);
@@ -1099,7 +1102,7 @@ export class Game {
     if (zmode) {
       const r = this.zm.rounds;
       contracts.length = 0;
-      contracts.push({ title: this.zm.def.name.toUpperCase(), tag: r.spec.special ? 'SCUTTLERS' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
+      contracts.push({ title: this.zm.def.name.toUpperCase(), tag: r.spec.special ? 'SCUTTLERS' : r.spec.blackout ? 'BLACKOUT' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
         sub: r.phase === 'break' ? `Next round in ${Math.ceil(r.timer)}s` : `${r.toSpawn + this.enemies.aliveCount} remaining`, state: 'active' });
       contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? 'Reforger + perks live' : this.zm.def.flavor?.powerHint ?? 'Find the power switch', state: this.zm.power ? 'done' : 'active' });
       this.zhud.update(dt, { round: r.round, points: this.zm.zp.points, perks: this.zm.zp.perks, pups: this.zm.activePowerUps, zone: this.zm.zoneName({ x: p.pos.x, y: p.pos.y, z: p.pos.z }) });

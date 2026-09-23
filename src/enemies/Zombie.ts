@@ -67,6 +67,12 @@ export class Zombie {
   headless = false;
   legless = false;
   hitReactT = 0;
+  /** Current shadow-casting state of the drawn body (toggled by distance). */
+  castsShadow = true;
+  /** Lane bias for horde steering (radians). */
+  lane = 0;
+  /** Sprinter (late-round runner at x1.3 speed). */
+  sprinter = false;
   /** >0 while clawing up out of the ground (non-window 'ground' spawns). */
   riseT = 0;
   /** Nav-link traversal (ladders, drops, jumps); link >= 0 while traversing. */
@@ -79,7 +85,9 @@ export class Zombie {
   /** Skinned GLB instance (when a model exists); the procedural mesh is hidden then. */
   glb: { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>; current: string; head: THREE.Object3D | null;
     /** Rig bones per hit capsule endpoint (see GLB_CAPSULES) and the thigh bones hidden when legless. */
-    capBones?: (THREE.Object3D | null)[][]; legs?: THREE.Object3D[] } | null = null;
+    capBones?: (THREE.Object3D | null)[][]; legs?: THREE.Object3D[]; lodPairs?: [THREE.SkinnedMesh, THREE.SkinnedMesh][] } | null = null;
+  /** Current distance LOD (0 = full, 1 = simplified). */
+  lod = 0;
   /** Bone-attached hit capsules (world space), rebuilt every render frame. */
   readonly hitSegs = new Float32Array(SEG * MAX_CAPSULES);
   hitCount = 0;
@@ -102,6 +110,7 @@ export class Zombie {
     this.riseT = 0;
     this.link = -1;
     this.hitValid = false;
+    this.sprinter = false;
     if (this.bones) {
       this.bones[BONE.head].scale.setScalar(1);
       const ls = this.legless ? 0.001 : 1;

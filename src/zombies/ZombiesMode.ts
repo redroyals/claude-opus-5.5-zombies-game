@@ -12,7 +12,7 @@ import type { Materials } from '../render/materials';
 import type { Vitals } from '../player/Vitals';
 import { WEAPON_MODS, applyUpgrade, createWeapon, effectiveStats, refillAmmo } from '../weapons/WeaponState';
 import {
-  BOX_PRICE, PAP_SECONDS, PERKS, WALL_BUYS, awardHit, awardKill, bossHpForRound, boxReel, createBox, createRoundState, createZPlayer,
+  SPRINTER_SPEED_MULT, BOX_PRICE, PAP_SECONDS, PERKS, WALL_BUYS, awardHit, awardKill, bossHpForRound, boxReel, createBox, createRoundState, createZPlayer,
   papName, papPrice, perkMods, pickZombieType, pullBox, roundBonus, stepBox, stepRounds, takeBoxOffer, tryBuyPerk, tryPap, trySpend, wallBuyPrice,
   wonderBonus, type BoxState, type PerkId, type RoundState, type SpendResult, type WallBuyKey, type ZPlayer,
 } from './rules';
@@ -79,6 +79,8 @@ export class ZombiesMode {
   pu: PowerUpState = createPowerUps();
   egg!: EggRun;
   power = false;
+  /** Lights-out round in progress. */
+  blackout = false;
   lifelineBuys = 0;
   /** Non-null while the player is downed (last stand). */
   down: DownState | null = null;
@@ -153,6 +155,7 @@ export class ZombiesMode {
     this.pu = createPowerUps();
     this.egg = createEggRun(this.def.egg);
     this.power = !this.def.power;
+    this.blackout = false;
     this.lifelineBuys = 0;
     this.stats = { round: 0, kills: 0, headshots: 0, points: 0, doors: 0, time: 0, downs: 0 };
     this.earned = 0;
@@ -226,7 +229,8 @@ export class ZombiesMode {
       onRoundStart(this.pu);
       onRoundStartZones(this.zones);
       const sp = this.rounds.spec;
-      this.host.toast(`ROUND ${ev.started}`, 'big', sp.special ? 'THE SCUTTLERS ARE COMING · FAST AND HUNGRY' : ev.boss ? 'THE WARDEN WALKS TONIGHT' : '', 3.5);
+      this.blackout = sp.blackout;
+      this.host.toast(`ROUND ${ev.started}`, 'big', sp.special ? 'THE SCUTTLERS ARE COMING · FAST AND HUNGRY' : sp.blackout ? 'BLACKOUT · THE LIGHTS ARE GONE' : ev.boss ? 'THE WARDEN WALKS TONIGHT' : '', 3.5);
       this.host.audio.roundSting(true);
       if (ev.boss) this.spawnBoss(player);
     }
@@ -235,7 +239,8 @@ export class ZombiesMode {
       this.addPoints(b);
       this.host.toast(`ROUND ${ev.ended} SURVIVED`, 'good', `+${b}`, 2.5);
       this.host.audio.roundSting(false);
-      if (this.rounds.spec.special) this.dropPowerUp('max_ammo', player.x, player.y, player.z - 1.5);
+      if (this.rounds.spec.special || this.rounds.spec.blackout) this.dropPowerUp('max_ammo', player.x, player.y, player.z - 1.5);
+      this.blackout = false;
     }
     for (let i = 0; i < ev.spawn; i++) this.spawnOne(player);
 
@@ -257,7 +262,7 @@ export class ZombiesMode {
     this.reforger?.update(dt, this.time, this.power, (x, y, z) => this.host.fx.sparkBurst(x, y, z, 18, [1.4, 0.6, 2]));
     this.perks.update(this.time, this.power);
     this.powerSwitch?.update(dt);
-    this.map.update(this.time, dt, this.power);
+    this.map.update(this.time, dt, this.power, this.blackout);
 
     // Perk jingles when standing near a lit machine
     this.jingleT -= dt;
@@ -351,6 +356,7 @@ export class ZombiesMode {
         z.entryPhase = 'approach';
       }
     }
+    if (type === 'runner' && this.rnd() < spec.sprinterFrac) { z.speed *= SPRINTER_SPEED_MULT; z.sprinter = true; }
     z.maxHp *= spec.hpMult;
     z.hp = z.maxHp;
     z.reward = 0;
