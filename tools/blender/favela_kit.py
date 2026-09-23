@@ -179,24 +179,32 @@ HOUSES = [
 # ------------------------------------------------------------------------------------------------
 # Dressing
 # ------------------------------------------------------------------------------------------------
-def pole():  # 8.5 m concrete utility pole with a crossarm, insulators and a pole-top transformer can
+def pole():  # 8.5 m tapered concrete utility pole: crossarms, insulators, a pole-top transformer, junction boxes
     M = mats(); p = P('fv_pole')
-    p.box(-0.11, 0, -0.11, 0.11, 8.5, 0.11, M['concrete'], surface='concrete')
+    p.lathe([(0.16, 0), (0.14, 3.0), (0.09, 8.5), (0.0, 8.52)], M['concrete'], sides=6)
     p.box(-1.1, 7.6, -0.07, 1.1, 7.75, 0.07, M['wood'], collide=False)
     p.box(-0.8, 6.9, -0.06, 0.8, 7.0, 0.06, M['wood'], collide=False)
     for x in (-1.0, -0.5, 0.5, 1.0):
-        p.cyl((x, 7.83, 0), 'y', 0.16, 0.035, M['white'], seg=6)
-    p.cyl((0, 6.3, 0.35), 'y', 0.9, 0.26, M['concrete_dark'], seg=10)
-    p.box(-0.05, 6.1, 0.1, 0.05, 6.2, 0.35, M['steel'], collide=False)
+        p.lathe([(0.05, 0), (0.07, 0.04), (0.04, 0.08), (0.06, 0.12), (0.03, 0.18)], M['white'], sides=6, center=(x, 7.75, 0))
+    p.lathe([(0.26, 0), (0.28, 0.1), (0.28, 0.85), (0.22, 0.95), (0.0, 1.0)], M['concrete_dark'], sides=10, center=(0, 5.5, 0.42))
+    p.box(-0.06, 5.9, 0.12, 0.06, 6.05, 0.3, M['steel'], collide=False)
+    for x in (-0.12, 0.12):
+        p.cyl((x, 6.6, 0.42), 'y', 0.2, 0.035, M['white'], seg=6)
+    for k in range(3):  # junction / meter boxes strapped to the pole
+        y = 2.2 + k * 0.55
+        p.box(-0.18, y, 0.1, 0.18, y + 0.4, 0.3, M['white'] if k % 2 else M['steel'], collide=False)
+    p.box(-0.2, 2.0, 0.14, -0.17, 5.5, 0.17, M['black'], collide=False)
     return [p.build()]
 
 
-def streetlamp():  # sodium street lamp: arm off a pole top, head at (0, 6.2, 1.6)
+def streetlamp():  # sodium street lamp: tapered pole, curved arm, cobra head at (0, 6.2, 1.6)
     M = mats(); p = P('fv_streetlamp')
-    p.box(-0.08, 0, -0.08, 0.08, 6.4, 0.08, M['steel'], surface='metal')
-    p.prism([(0, 6.25), (1.5, 6.45), (1.5, 6.52), (0, 6.33)], -0.03, 0.03, M['steel'], across='x')
-    p.box(-0.16, 6.2, 1.35, 0.16, 6.42, 1.85, M['steel'], collide=False)
-    p.box(-0.12, 6.18, 1.4, 0.12, 6.2, 1.8, M['sodium'], collide=False)
+    p.lathe([(0.1, 0), (0.08, 0.6), (0.06, 6.3), (0.0, 6.32)], M['steel'], sides=8)
+    pts = [(0, 5.6), (0.25, 6.05), (0.6, 6.3), (1.0, 6.38), (1.55, 6.4)]
+    for (z0, y0), (z1, y1) in zip(pts, pts[1:]):
+        p.prism([(z0, y0 - 0.03), (z1, y1 - 0.03), (z1, y1 + 0.03), (z0, y0 + 0.03)], -0.03, 0.03, M['steel'], across='x')
+    p.prism([(1.25, 6.34), (1.95, 6.38), (1.95, 6.46), (1.3, 6.52)], -0.17, 0.17, M['steel'], across='x')
+    p.box(-0.13, 6.3, 1.4, 0.13, 6.34, 1.88, M['sodium'], collide=False)
     return [p.build()]
 
 
@@ -404,8 +412,25 @@ def goalframe():  # fallback futsal goal (3 x 2 m) frame, open toward +Z
     return [p.build()]
 
 
+HOUSE_META = {}
+
+
+def house_v2(n, w, d, st, seed, kw, lod):
+    from favela_houses import house2
+    obj, meta = house2(P, material, n + ('.lod1' if lod else ''), w, d, st, seed, lod=lod, **kw)
+    if not lod:
+        HOUSE_META[n] = meta
+    return [obj]
+
+
 def pieces():
-    out = [(n, (lambda kw=kw, n=n: house(n, **kw))) for n, kw in HOUSES]
+    from favela_houses import VARIANTS
+    out = []
+    for (n, w, d, st, seed, kw) in VARIANTS:
+        out.append((n, (lambda n=n, w=w, d=d, st=st, seed=seed, kw=kw: house_v2(n, w, d, st, seed, kw, False))))
+        out.append((n + '.lod1', (lambda n=n, w=w, d=d, st=st, seed=seed, kw=kw: house_v2(n, w, d, st, seed, kw, True))))
+    from favela_dress import pieces as dress_pieces
+    out += dress_pieces(P, material)
     out += [('fv_pole', pole), ('fv_streetlamp', streetlamp), ('fv_walllamp', walllamp), ('fv_floodlight', floodlight), ('fv_pylon', pylon),
             ('fv_ladder', ladder), ('fv_railing', railing), ('fv_tinroof', tinroof), ('fv_rebar', rebar), ('fv_grille', grille),
             ('fv_kite', kite), ('fv_laundry', laundry), ('fv_mural_a', lambda: mural('fv_mural_a', 21)), ('fv_mural_b', lambda: mural('fv_mural_b', 34, 8.0, 4.5)),
@@ -426,3 +451,9 @@ cf = os.path.join(OUT, 'colliders.json')
 old = json.load(open(cf)) if os.path.exists(cf) else {}
 old.update(colliders)
 json.dump(old, open(cf, 'w'), indent=0)
+if HOUSE_META:
+    hf = os.path.join(OUT, 'houses.json')
+    hm = json.load(open(hf)) if os.path.exists(hf) else {}
+    hm.update(HOUSE_META)
+    json.dump(hm, open(hf, 'w'), indent=0)
+    print('HOUSES', json.dumps(hm))

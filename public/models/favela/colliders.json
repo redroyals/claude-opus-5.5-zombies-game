@@ -1,108 +1,6 @@
 {
-"fv_house_a": [
-[
--2.12,
-0,
--2.02,
-2.12,
-6.0,
-2.02,
-"concrete",
-false,
-true
-]
-],
-"fv_house_b": [
-[
--2.52,
-0,
--2.27,
-2.52,
-9.0,
-2.27,
-"concrete",
-false,
-true
-]
-],
-"fv_house_c": [
-[
--1.82,
-0,
--2.02,
-1.82,
-3.0,
-2.02,
-"concrete",
-false,
-true
-]
-],
-"fv_house_d": [
-[
--3.02,
-0,
--2.52,
-3.02,
-6.0,
-2.52,
-"concrete",
-false,
-true
-]
-],
-"fv_house_e": [
-[
--2.02,
-0,
--2.77,
-2.02,
-12.0,
-2.77,
-"concrete",
-false,
-true
-]
-],
-"fv_house_f": [
-[
--2.62,
-0,
--2.52,
-2.62,
-6.0,
-2.52,
-"concrete",
-false,
-true
-]
-],
-"fv_pole": [
-[
--0.11,
-0,
--0.11,
-0.11,
-8.5,
-0.11,
-"concrete",
-true,
-true
-]
-],
-"fv_streetlamp": [
-[
--0.08,
-0,
--0.08,
-0.08,
-6.4,
-0.08,
-"metal",
-true,
-true
-]
-],
+"fv_pole": [],
+"fv_streetlamp": [],
 "fv_walllamp": [],
 "fv_floodlight": [
 [
@@ -243,5 +141,49 @@ true
 false,
 false
 ]
-]
+],
+"fv_h01": [],
+"fv_h01.lod1": [],
+"fv_h02": [],
+"fv_h02.lod1": [],
+"fv_h03": [],
+"fv_h03.lod1": [],
+"fv_h04": [],
+"fv_h04.lod1": [],
+"fv_h05": [],
+"fv_h05.lod1": [],
+"fv_h06": [],
+"fv_h06.lod1": [],
+"fv_h07": [],
+"fv_h07.lod1": [],
+"fv_h08": [],
+"fv_h08.lod1": [],
+"fv_h09": [],
+"fv_h09.lod1": [],
+"fv_h10": [],
+"fv_h10.lod1": [],
+"fv_h11": [],
+"fv_h11.lod1": [],
+"fv_h12": [],
+"fv_h12.lod1": [],
+"fv_h13": [],
+"fv_h13.lod1": [],
+"fv_h14": [],
+"fv_h14.lod1": [],
+"fv_banana": [],
+"fv_palm": [],
+"fv_tree": [],
+"fv_tree_b": [],
+"fv_bush": [],
+"fv_shrub": [],
+"fv_pots": [],
+"fv_stall": [],
+"fv_kiosk": [],
+"fv_fence": [],
+"fv_gantry": [],
+"fv_station_hall": [],
+"fv_station_cap": [],
+"fv_awning": [],
+"fv_bench": [],
+"fv_viewer": []
 }
