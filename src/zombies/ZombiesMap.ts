@@ -443,7 +443,7 @@ export class ZombiesMap {
     });
   }
 
-  update(time: number, dt: number, power: boolean, extra: { ride?: { id: string; t: number } | null; egg?: boolean } = {}): void {
+  update(time: number, dt: number, power: boolean, extra: { ride?: { id: string; t: number } | null; egg?: boolean; eggStep?: number } = {}): void {
     for (const d of this.doors) {
       if (!d.open || d.openT >= 1) { if (d.open) d.mesh.visible = false; continue; }
       d.openT = Math.min(1, d.openT + dt / 1.1);
@@ -476,7 +476,7 @@ export class ZombiesMap {
       const s = r.userData.spin as THREE.Object3D | undefined;
       if (s) s.rotation.y = time * 2;
     }
-    this.entry.update?.({ time, dt, power, ride: extra.ride ?? null, egg: extra.egg ?? false });
+    this.entry.update?.({ time, dt, power, ride: extra.ride ?? null, egg: extra.egg ?? false, eggStep: extra.eggStep ?? 0 });
   }
 
   groundHeight(x: number, z: number): number {

@@ -25,6 +25,8 @@ export interface MapUpdateContext {
   ride?: { id: string; t: number } | null;
   /** True once the map's easter egg is complete. */
   egg?: boolean;
+  /** Index of the easter egg's current step (steps before it are done). */
+  eggStep?: number;
 }
 
 export interface ZombiesMapEntry {

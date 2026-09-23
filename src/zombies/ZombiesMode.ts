@@ -270,7 +270,7 @@ export class ZombiesMode {
         this.ride = null;
       }
     }
-    this.map.update(this.time, dt, this.power, { ride: this.ride ? { id: this.ride.def.id, t: Math.min(1, this.ride.t / this.ride.def.seconds) } : null, egg: this.egg.complete });
+    this.map.update(this.time, dt, this.power, { ride: this.ride ? { id: this.ride.def.id, t: Math.min(1, this.ride.t / this.ride.def.seconds) } : null, egg: this.egg.complete, eggStep: this.egg.step });
 
     // Perk jingles when standing near a lit machine
     this.jingleT -= dt;

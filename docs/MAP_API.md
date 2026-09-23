@@ -170,7 +170,7 @@ rides: [{
 ```
 Press E at `at` to be carried along `path` (arc-length, eased in and out). Rides are one-way; add a second
 ride for the way back. Pure rules live in `src/zombies/rides.ts` (`rideBlock`, `ridePosition`). The map's
-`update(ctx)` hook receives `ctx.ride = { id, t }` (progress 0..1) to animate the vehicle, and `ctx.egg`.
+`update(ctx)` hook receives `ctx.ride = { id, t }` (progress 0..1) to animate the vehicle, plus `ctx.egg` (complete) and `ctx.eggStep`.
 Test ride clearance against the compiled colliders (see `tests/maps-favela.test.ts`).
 
 ### Invisible colliders
