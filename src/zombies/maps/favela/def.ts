@@ -474,6 +474,8 @@ export const FAVELA: ZombiesMapDef = {
   coopSpawns: [{ x: 1, y: T0, z: 34.5, yaw: Math.PI / 2 }, { x: 7, y: T0, z: 34.5, yaw: Math.PI / 2 }, { x: 4, y: T0, z: 36.5, yaw: Math.PI / 2 }],
   box: {
     start: 0,
+    // No Cache in the bottom street: it surfaces in the stacked houses once two doors are open (round 5 at the latest).
+    reveal: { doors: 2, round: 5, spot: 1 },
     spots: [
       { x: 16, z: 30.75, face: 0, y: T0 },
       { x: -8, z: 23.25, face: Math.PI, y: T1 },
@@ -488,12 +490,20 @@ export const FAVELA: ZombiesMapDef = {
     bulwark: { x: -44.8, z: -12, face: Math.PI / 2, y: T2 },
     quickhands: { x: 3.0, z: -28, face: Math.PI / 2, y: T3 },
     hammerfall: { x: 8, z: -58.8, face: 0, y: T5 },
+    strider: { x: -40.8, z: -9, face: -Math.PI / 2, y: T2 },
+    nova: { x: -1, z: -5.5, face: Math.PI / 2, y: T3 },
+    packmule: { x: 28, z: -36, face: Math.PI, y: T3 },
+    hawkeye: { x: 17, z: -55.5, face: 0, y: T5 },
   },
   pap: { x: -46.8, z: 12, face: Math.PI / 2, y: T2 },
   power: { x: -4, z: -59.6, face: 0, y: T5 },
+  // Starter tier in the bottom street; standard on the terraces; the heavy guns at the crest.
   wallBuys: [
     { key: 'pi_warden', x: -6, z: 30.17, face: 0, y: T0 },
     { key: 'pi_magnus', x: -3.83, z: 42, face: Math.PI / 2, y: T0 },
+    { key: 'br_drover', x: 26, z: 30.17, face: 0, y: T0 },
+    { key: 'lmg_bastion', x: 33.83, z: -45, face: -Math.PI / 2, y: T5 },
+    { key: 'ar_moraine', x: -11.83, z: -57, face: Math.PI / 2, y: T5 },
     { key: 'smg_wren', x: -8, z: 24.17, face: 0, y: T0 },
     { key: 'sg_hullbreaker', x: -8, z: 8.17, face: 0, y: T2 },
     { key: 'ar_kestrel', x: 6, z: -23.83, face: 0, y: T3 },
@@ -517,9 +527,40 @@ export const FAVELA: ZombiesMapDef = {
       { kind: 'kill', zone: Z.station, count: 24, requiresPower: true, toast: 'THE CAR IS COMING DOWN FROM THE PEAK' },
       { kind: 'interact', prompt: 'Take what the peak keeps', toast: 'THE PEAK LINE RUNS · RIDE IT FROM THE STATION', objects: [{ x: 24, y: PEAK_Y + 1.1, z: -84.2, model: 'orb', radius: 1.8 }] },
     ],
-    reward: { title: 'LAST RIDE TO THE PEAK', sub: 'The Arc Projector is yours · +5000 · max ammo', points: 5000, reforge: true, refillAmmo: true, powerup: 'max_ammo', weapon: 'ww_arc' },
+    reward: { title: 'LAST RIDE TO THE PEAK', sub: 'The Arc Projector is yours · +5000 · +1 perk slot · max ammo', points: 5000, reforge: true, refillAmmo: true, powerup: 'max_ammo', weapon: 'ww_arc', perkSlot: 1 },
   },
-  powerups: { dropChanceMult: 1 },
+  // Side quest: three baile records, picked up by walking over them.
+  sideEggs: [{
+    name: 'Baile Records',
+    steps: [{
+      kind: 'collect', toast: 'A SCRATCHED RECORD · THE BAILE NEVER ENDED',
+      objects: [
+        { x: 25, y: T0 + 0.6, z: 37.5, model: 'relic' },
+        { x: -15.4, y: T1 + 0.6, z: 17.6, model: 'relic' },
+        { x: 10, y: T0 + 0.6, z: 27, model: 'relic' },
+      ],
+    }],
+    reward: { title: 'BAILE RECORDS', sub: 'The speakers wake up · a free Strider Tonic', music: 'favela', perk: 'strider', points: 500 },
+  }],
+  // Buildable: a car-door shield, assembled on the big laje beside the water tower.
+  buildables: [{
+    id: 'car_door_shield', name: 'Car-Door Shield',
+    bench: { x: 13.5, z: -4.5, face: -Math.PI / 2, y: T3 },
+    parts: [
+      { name: 'Car door', x: 1.9, y: T2 + 0.9, z: 15.1, model: 'plate' },
+      { name: 'Hinge bolts', x: -28, y: T2 + 0.9, z: -7.5, model: 'gear' },
+      { name: 'Bungee straps', x: 29.5, y: T3 + 0.9, z: -39.5, model: 'relic' },
+    ],
+    result: { kind: 'shield', hp: 1500 },
+  }],
+  // Trap: the quadra's stolen-power ("gato") wiring, live across the pitch (needs power).
+  traps: [{
+    id: 'quadra_gato', name: 'Gato Wires', kind: 'electric', requiresPower: true, cost: 1000, seconds: 20, cooldown: 45,
+    switch: { x: -26, z: 15.5, face: Math.PI, y: T2 },
+    area: { x0: -33, z0: 1, x1: -23, z1: 9, y: T2 },
+  }],
+  rounds: { special: { first: [5, 6], every: [4, 5] }, bossEvery: 8 },
+  powerups: { maxPerRound: 4, dropChanceMult: 1 },
   lighting: {
     background: 0x2a2140,
     sky: { top: 0x121638, horizon: 0xf0884a, stars: true, moon: false },

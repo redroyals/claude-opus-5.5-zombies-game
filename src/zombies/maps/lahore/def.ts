@@ -1,9 +1,9 @@
 // "Lahore Darbar" as a ZombiesMapDef (see docs/MAP_API.md and docs/maps/lahore-darbar.md).
 // Geometry comes from the rasterised layout (./raster); props, lights and FX are added by ./decorate.
-import type { BoxDef, DoorDef, LadderDef, MatSpec, NavLinkDef, RoomDef, StairDef, WallDef, WindowDef, ZombiesMapDef } from '../../mapdef';
+import type { BoxDef, DoorDef, LadderDef, MatSpec, NavLinkDef, RoomDef, StairDef, WallBuySpot, WallDef, WindowDef, ZombiesMapDef } from '../../mapdef';
 import type { WallBuyKey } from '../../rules';
 import {
-  AREAS, BOX_SPOTS, COOP_SPAWNS, DOORS, DOOR_H, EGG, LADDERS, PAP_SPOT, PERK_SPOTS, PLAYER_SPAWN, POWER_SPOT, SPAWN_POINTS, WALL_BUY_SPOTS, WINDOWS,
+  AREAS, B, BOX_SPOTS, COOP_SPAWNS, DOORS, DOOR_H, EGG, G, LADDERS, PAP_SPOT, PERK_SPOTS, PLAYER_SPAWN, POWER_SPOT, SPAWN_POINTS, U, WALL_BUY_SPOTS, WINDOWS,
   ZONE_NAMES, Z, type Surf,
 } from './layout';
 import { GRID, rasterize } from './raster';
@@ -63,6 +63,13 @@ const doors: DoorDef[] = DOORS.map((d) => ({
 }));
 const windows: WindowDef[] = WINDOWS.map((w, id) => ({ id, zone: w.zone, x: w.x, z: w.z, nx: w.nx, nz: w.nz, floor: w.floor }));
 
+// ---- Pacing (gameplay data layered over the layout; the layout's spots stay untouched) -----------------
+const HP = Math.PI / 2;
+/** Wall-buy re-tiering by index into WALL_BUY_SPOTS: the heavy guns hang deep in the map. */
+const WALL_RETIER: Record<number, WallBuyKey> = { 7: 'lmg_bastion', 11: 'ar_moraine' };
+/** Extra wall-buys: the starter bolt-action in the Hazuri Bagh. */
+const WALL_EXTRA: WallBuySpot[] = [{ key: 'br_drover', x: 13.98, y: G, z: 18, face: -HP }];
+
 export const LAHORE: ZombiesMapDef = {
   id: 'lahore-darbar',
   name: 'Lahore Darbar',
@@ -83,14 +90,19 @@ export const LAHORE: ZombiesMapDef = {
   ground: { mat: surfMat('dirt'), tile: 6 },
   playerSpawn: { ...PLAYER_SPAWN },
   coopSpawns: COOP_SPAWNS.map((s) => ({ ...s })),
-  box: { spots: BOX_SPOTS.map((s) => ({ ...s })), start: 0 },
+  // The Cache is not in the baradari at the start: it surfaces beside the jharokha in the Diwan-e-Aam once two gates are
+  // open (round 5 at the latest).
+  box: { spots: BOX_SPOTS.map((s) => ({ ...s })), start: 0, reveal: { doors: 2, round: 5, spot: 1 } },
   perks: {
     lifeline: { ...PERK_SPOTS.lifeline }, quickhands: { ...PERK_SPOTS.quickhands },
     bulwark: { ...PERK_SPOTS.bulwark }, hammerfall: { ...PERK_SPOTS.hammerfall },
+    nova: { x: -42.5, y: G, z: -5, face: 0 },
+    strider: { x: -53, y: U, z: 19.5, face: Math.PI },
+    hawkeye: { x: -0.5, y: U, z: -44, face: -HP },
   },
   pap: { ...PAP_SPOT },
   power: { ...POWER_SPOT },
-  wallBuys: WALL_BUY_SPOTS.map((w) => ({ ...w, key: w.key as WallBuyKey })),
+  wallBuys: [...WALL_BUY_SPOTS.map((w, i) => ({ ...w, key: WALL_RETIER[i] ?? (w.key as WallBuyKey) })), ...WALL_EXTRA],
   startWeapon: 'pi_warden',
   egg: {
     name: 'The Mountain of Light',
@@ -102,10 +114,42 @@ export const LAHORE: ZombiesMapDef = {
       { kind: 'kill', zone: Z.tosha, count: 30, toast: 'Defend the Toshakhana' },
     ],
     reward: {
-      title: 'THE MOUNTAIN OF LIGHT', sub: 'Reclaimed from the dead · every perk · the forge answers',
-      points: 5000, reforge: true, refillAmmo: true, allPerks: true, powerup: 'max_ammo',
+      title: 'THE MOUNTAIN OF LIGHT', sub: 'Reclaimed from the dead · every perk · +1 perk slot · the forge answers',
+      points: 5000, reforge: true, refillAmmo: true, allPerks: true, powerup: 'max_ammo', perkSlot: 1,
     },
   },
+  // Side quest: three brass lamps left burning in the walled city and under it.
+  sideEggs: [{
+    name: 'The Lamplighter',
+    steps: [{
+      kind: 'collect', toast: 'A BRASS LAMP, STILL WARM',
+      objects: [
+        { x: 4.5, y: G + 0.6, z: 1.5, model: 'relic' },
+        { x: 61.5, y: G + 0.6, z: 26.5, model: 'relic' },
+        { x: 45.5, y: B + 0.6, z: -31.5, model: 'relic' },
+      ],
+    }],
+    reward: { title: 'THE LAMPLIGHTER', sub: 'The court remembers a song · a free Hawkeye Draught', music: 'lahore', perk: 'hawkeye', points: 500 },
+  }],
+  // Buildable: the naft cauldron, pieced together from the gun park, the armoury and the Roshnai Gate, arms the fire
+  // trap in front of the Diwan-e-Aam steps.
+  buildables: [{
+    id: 'naft_cauldron', name: 'Naft Cauldron',
+    bench: { x: -12, y: G, z: -29.5, face: 0 },
+    parts: [
+      { name: 'Bronze bowl', x: -30.5, y: G + 0.9, z: 7.5, model: 'plate' },
+      { name: 'Bellows', x: -20, y: G + 0.9, z: -16.5, model: 'gear' },
+      { name: 'Jar of naft', x: 34.5, y: G + 0.9, z: 14, model: 'orb' },
+    ],
+    result: { kind: 'trap', trap: 'aam_fire' },
+  }],
+  traps: [{
+    id: 'aam_fire', name: 'Naft Fire Pit', kind: 'fire', requiresBuild: 'naft_cauldron', cost: 1000, seconds: 20, cooldown: 45,
+    switch: { x: -8, y: G, z: -29.5, face: 0 },
+    area: { x0: -6, z0: -24, x1: 2, z1: -13, y: G },
+  }],
+  rounds: { special: { first: [6, 7], every: [5, 6] }, bossEvery: 8 },
+  powerups: { maxPerRound: 4, dropChanceMult: 1.15 },
   lighting: {
     background: 0x1a1830,
     sky: { top: 0x121634, horizon: 0x9a5038, stars: true },

@@ -138,39 +138,93 @@ export const NIGHTFALL: ZombiesMapDef = {
       { x: 23.35, z: 16, face: -Math.PI / 2 },
       { x: -21.35, z: 6.5, face: Math.PI / 2 },
     ],
+    // No Cache in the lobby at the start: it surfaces on the dock once two doors are open (round 6 at the latest).
+    reveal: { doors: 2, round: 6, spot: 1 },
   },
   perks: {
     lifeline: { x: 6.2, z: 6.2, face: -Math.PI / 2 },
     bulwark: { x: -11.3, z: 0.5, face: Math.PI / 2 },
     quickhands: { x: 15.5, z: 4.75, face: 0 },
     hammerfall: { x: 15, z: -12.6, face: 0, y: PF },
+    hawkeye: { x: 11.5, z: -12.5, face: -Math.PI / 2 },
+    strider: { x: 18, z: 13, face: Math.PI },
+    nova: { x: 14.5, z: 3, face: Math.PI, y: PF },
+    packmule: { x: -14.5, z: 9, face: 0 },
   },
   pap: { x: -19, z: 16.9, face: Math.PI },
   power: { x: 20.5, z: -13.6, face: 0, y: PF },
+  // Starter tier in the lobby only; standard guns one door in; heavy guns in the vault and the power room.
   wallBuys: [
     { key: 'smg_wren', x: -6.83, z: 13, face: Math.PI / 2 },
     { key: 'pi_magnus', x: -4.5, z: 4.17, face: 0 },
+    { key: 'br_drover', x: 0, z: 17.83, face: Math.PI },
     { key: 'sg_hullbreaker', x: -11.83, z: -2.5, face: Math.PI / 2 },
     { key: 'ar_kestrel', x: 11.83, z: -7, face: -Math.PI / 2 },
     { key: 'smg_skiff', x: 23.83, z: 15.5, face: -Math.PI / 2 },
     { key: 'ar_corvid', x: -21.83, z: 15, face: Math.PI / 2 },
+    { key: 'lmg_bastion', x: -16.5, z: 4.17, face: 0 },
     { key: 'dmr_sentry', x: 23.83, z: -4, face: -Math.PI / 2, y: PF },
   ],
   startWeapon: 'pi_warden',
+  // Main quest: tune the radios, recover the relay's signal cores, feed the power room, then key the transmitter.
   egg: {
     name: 'Signal Fragments',
+    steps: [
+      {
+        kind: 'interact',
+        prompt: 'Tune the strange radio',
+        toast: 'A VOICE IN THE STATIC',
+        objects: [
+          { x: -11.4, z: -13.4, y: 0.35, model: 'radio' },
+          { x: 8.3, z: 17.3, y: 0.35, model: 'radio' },
+          { x: 23.4, z: -13.3, y: PF + 0.35, model: 'radio' },
+        ],
+      },
+      {
+        kind: 'collect', requiresPower: true, toast: 'THE VOICE WANTS ITS SIGNAL CORES · THREE, SCATTERED',
+        objects: [
+          { x: -20.5, y: 0.9, z: 12.5, model: 'orb' },
+          { x: 21.5, y: 0.9, z: 16.8, model: 'orb' },
+          { x: 23, y: PF + 0.9, z: -6, model: 'orb' },
+        ],
+      },
+      { kind: 'kill', zone: Z.power, count: 20, requiresPower: true, toast: 'FEED THE BREAKERS · KILL IN THE POWER ROOM' },
+      { kind: 'interact', prompt: 'Key the checkpoint transmitter', toast: 'THE TRANSMITTER IS WARM · KEY IT AT THE CHECKPOINT DESK', objects: [{ x: 0, y: 1.3, z: 7.9, model: 'radio', radius: 1.6 }] },
+    ],
+    reward: { title: 'THE RELAY ANSWERS', sub: 'Signal restored · +1 perk slot · your weapon is reforged for free', points: 5000, reforge: true, refillAmmo: true, powerup: 'double_points', perkSlot: 1 },
+  },
+  // Side quest: three lost cassette tapes, picked up by walking over them.
+  sideEggs: [{
+    name: 'Lost Tapes',
     steps: [{
-      kind: 'interact',
-      prompt: 'Tune the strange radio',
-      toast: 'A VOICE IN THE STATIC',
+      kind: 'collect', toast: 'A CASSETTE · SOMEONE WAS RECORDING THE NIGHTS',
       objects: [
-        { x: -11.4, z: -13.4, y: 0.35, model: 'radio' },
-        { x: 8.3, z: 17.3, y: 0.35, model: 'radio' },
-        { x: 23.4, z: -13.3, y: PF + 0.35, model: 'radio' },
+        { x: -6.3, y: 0.6, z: 4.7, model: 'relic' },
+        { x: -11.3, y: 0.6, z: -13.3, model: 'relic' },
+        { x: 7.7, y: 0.6, z: 17.3, model: 'relic' },
       ],
     }],
-    reward: { title: 'THE RELAY ANSWERS', sub: 'Signal restored · your weapon is reforged for free', points: 2500, reforge: true, refillAmmo: true, powerup: 'double_points' },
-  },
+    reward: { title: 'LOST TAPES', sub: 'The relay plays them back · a free Strider Tonic', music: 'nightfall', perk: 'strider', points: 500 },
+  }],
+  // Buildable: a riot shield from three parts, assembled on the bench in the Generator Hall.
+  buildables: [{
+    id: 'riot_shield', name: 'Riot Shield',
+    bench: { x: 12, z: 13, face: Math.PI },
+    parts: [
+      { name: 'Shield plate', x: 7, y: 0.9, z: -11, model: 'plate' },
+      { name: 'Viewport glass', x: -14, y: 0.9, z: 10, model: 'orb' },
+      { name: 'Grip strap', x: 12.5, y: PF + 0.9, z: -2, model: 'gear' },
+    ],
+    result: { kind: 'shield', hp: 1500 },
+  }],
+  // Trap: the dock's arc fence in front of the lobby door (needs power).
+  traps: [{
+    id: 'dock_arc', name: 'Arc Fence', kind: 'electric', requiresPower: true, cost: 1000, seconds: 20, cooldown: 45,
+    switch: { x: 11.5, z: 1, face: -Math.PI / 2 },
+    area: { x0: -3, z0: -2.5, x1: 3, z1: 2.5, y: 0 },
+  }],
+  rounds: { special: { first: [5, 6], every: [4, 6] }, bossEvery: 8 },
+  powerups: { maxPerRound: 4, dropChanceMult: 1 },
   lighting: {
     background: 0x05060a,
     fogColor: 0x0a0c12,

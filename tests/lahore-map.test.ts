@@ -107,8 +107,12 @@ describe('Lahore Darbar design invariants', () => {
     expect(depth(Z.naqqar)).toBeGreaterThanOrEqual(3);
   });
   it('spreads machines across both halves and several levels', () => {
-    const perkZones = Object.values(LAHORE.perks).map((s) => zoneAt(LAHORE, s!.x, s!.z, s!.y ?? 0));
+    const stock = (['lifeline', 'quickhands', 'bulwark', 'hammerfall'] as const).map((k) => LAHORE.perks[k]!);
+    const perkZones = stock.map((s) => zoneAt(LAHORE, s.x, s.z, s.y ?? 0));
     expect(new Set(perkZones)).toEqual(new Set([Z.bagh, Z.aam, Z.wazir, Z.sheesh]));
+    // The extra perks sit in their own zones, none of them in the start zone.
+    const extra = Object.entries(LAHORE.perks).filter(([k]) => !['lifeline', 'quickhands', 'bulwark', 'hammerfall'].includes(k));
+    for (const [, s] of extra) expect(zoneAt(LAHORE, s!.x, s!.z, s!.y ?? 0)).not.toBe(Z.bagh);
     const boxZones = LAHORE.box.spots.map((s) => zoneAt(LAHORE, s.x, s.z, s.y ?? 0));
     expect(new Set(boxZones).size).toBe(LAHORE.box.spots.length);
     expect(new Set(LAHORE.box.spots.map((s) => s.y)).size).toBeGreaterThanOrEqual(4);
