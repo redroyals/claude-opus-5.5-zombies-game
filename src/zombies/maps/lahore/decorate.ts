@@ -94,11 +94,11 @@ interface Anchor { x: number; y: number; z: number; kind: LampKind }
 const anchors: Anchor[] = [];
 const LAMP: Record<LampKind, { color: number; pre: number; post: number; range: number; glow: number }> = {
   torch: { color: 0xff8a3a, pre: 40, post: 45, range: 15, glow: 1.6 },
-  lantern: { color: 0xffb060, pre: 22, post: 45, range: 13, glow: 1.2 },
-  chandelier: { color: 0xffd9a0, pre: 0, post: 110, range: 24, glow: 2.4 },
+  lantern: { color: 0xffb060, pre: 18, post: 28, range: 12, glow: 1.2 },
+  chandelier: { color: 0xffd9a0, pre: 0, post: 38, range: 18, glow: 2.0 },
   diya: { color: 0xffa040, pre: 0, post: 0, range: 0, glow: 0.9 },
-  forge: { color: 0xff5a1a, pre: 20, post: 70, range: 11, glow: 2 },
-  mirror: { color: 0xcfe6ff, pre: 0, post: 40, range: 15, glow: 0 },
+  forge: { color: 0xff5a1a, pre: 14, post: 26, range: 9, glow: 2 },
+  mirror: { color: 0xcfe6ff, pre: 0, post: 10, range: 10, glow: 0 },
 };
 const lamp = (x: number, y: number, z: number, kind: LampKind) => anchors.push({ x, y, z, kind });
 

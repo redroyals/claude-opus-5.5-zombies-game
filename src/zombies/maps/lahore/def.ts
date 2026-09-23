@@ -115,7 +115,7 @@ export const LAHORE: ZombiesMapDef = {
     sun: 1.1,
     sunColor: 0xff9a5a,
     sunDir: [-0.85, 0.28, 0.25],
-    postPower: { hemi: 1.15, sun: 1.0, fogDensity: 0.012 },
+    postPower: { hemi: 1.0, sun: 1.0, fogDensity: 0.012 },
     lamps: [],
   },
   audio: { ambience: 'lahore' },

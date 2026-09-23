@@ -265,7 +265,7 @@ export const WALL_BUY_SPOTS: { key: string; x: number; y: number; z: number; fac
 
 /** Easter egg objects ("The Mountain of Light"). */
 export const EGG = {
-  mirrors: [{ x: -33.6, y: U + 1.5, z: -66 }, { x: -6.4, y: U + 1.5, z: -62 }, { x: -28, y: U + 1.5, z: -69.6 }],
+  mirrors: [{ x: -33.1, y: U + 1.1, z: -66 }, { x: -6.9, y: U + 1.1, z: -62.5 }, { x: -28, y: U + 1.1, z: -69.1 }],
   keys: [{ x: 40, y: B + 0.35, z: -44.5 }, { x: 40.5, y: R + 0.35, z: 29.5 }, { x: 39, y: U + 0.35, z: -19 }],
   pedestal: { x: 18, y: B, z: -44.4 },
 };
