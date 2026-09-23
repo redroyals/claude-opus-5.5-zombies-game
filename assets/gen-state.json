@@ -168,5 +168,239 @@
   "task": "01a0cac5-787d-72e1-bdc5-0054375c116a",
   "status": "ok",
   "at": "2026-09-22T20:19:48.701Z"
+ },
+ "fv_house_block": {
+  "cat": "favela",
+  "method": "reuse(01a0cab1-351e-71e9-8cf1-b3199353de10)",
+  "task": "01a0cab1-351e-71e9-8cf1-b3199353de10",
+  "status": "ok",
+  "at": "2026-09-23T11:30:09.734Z"
+ },
+ "fv_barrel": {
+  "cat": "favela",
+  "method": "reuse(01a0caa8-ce3a-73e2-8e74-6848b20c9fa6)",
+  "task": "01a0caa8-ce3a-73e2-8e74-6848b20c9fa6",
+  "status": "ok",
+  "at": "2026-09-23T11:30:09.355Z"
+ },
+ "fv_gas_cylinder": {
+  "cat": "favela",
+  "method": "reuse(01a0caa8-abe7-77d9-82db-bf56726335d5)",
+  "task": "01a0caa8-abe7-77d9-82db-bf56726335d5",
+  "status": "ok",
+  "at": "2026-09-23T11:30:09.436Z"
+ },
+ "fv_satellite": {
+  "cat": "favela",
+  "method": "reuse-preview(01a0cab1-3f10-71ed-81b1-93cd006e4377)",
+  "preview": "01a0cab1-3f10-71ed-81b1-93cd006e4377",
+  "task": "01a0ce07-a94e-75cc-bcc2-cb1aee645a9a",
+  "spent": 10,
+  "status": "ok",
+  "at": "2026-09-23T11:31:30.648Z"
+ },
+ "fv_water_tank": {
+  "cat": "favela",
+  "method": "reuse-preview(01a0cab0-6522-721c-a328-c3a21dbe00fb)",
+  "preview": "01a0cab0-6522-721c-a328-c3a21dbe00fb",
+  "task": "01a0ce07-a952-74a2-b476-546740705352",
+  "spent": 10,
+  "status": "ok",
+  "at": "2026-09-23T11:31:33.827Z"
+ },
+ "fv_transformer": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce09-1e71-77b0-912b-073d1942b876",
+  "spent": 30,
+  "task": "01a0ce0a-f47e-7541-8a6e-35521449f019",
+  "status": "ok",
+  "at": "2026-09-23T11:34:46.802Z"
+ },
+ "fv_bar_counter": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce09-1e73-718b-b601-6ddaeb5eb053",
+  "spent": 30,
+  "task": "01a0ce0a-7166-771b-b1a5-475af192f283",
+  "status": "ok",
+  "at": "2026-09-23T11:34:13.294Z"
+ },
+ "fv_bullwheel": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce09-1f85-707a-a3a5-d82d591387c2",
+  "spent": 30,
+  "task": "01a0ce0a-70d7-7410-8430-da4c832759da",
+  "status": "ok",
+  "at": "2026-09-23T11:34:13.607Z"
+ },
+ "fv_fridge": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce09-1f84-7629-a659-0a789451872d",
+  "spent": 30,
+  "task": "01a0ce0a-7114-7087-a429-be1f63eb78da",
+  "status": "ok",
+  "at": "2026-09-23T11:34:05.254Z"
+ },
+ "fv_gondola_cabin": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce09-1e71-73b1-98e9-d8ff40072783",
+  "spent": 30,
+  "task": "01a0ce0a-502e-7579-aee7-abbcd450b703",
+  "status": "ok",
+  "at": "2026-09-23T11:33:57.281Z"
+ },
+ "fv_motorbike": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce09-1e72-734f-a647-a8fe2321703f",
+  "spent": 30,
+  "task": "01a0ce0a-4fa9-745b-8be2-ca1cad6ff225",
+  "status": "ok",
+  "at": "2026-09-23T11:33:57.038Z"
+ },
+ "fv_wires": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce09-1e75-74b8-96ae-1b167c77dff2",
+  "spent": 30,
+  "task": "01a0ce0a-4ee5-745f-b9d6-cafdcdd18bc7",
+  "status": "ok",
+  "at": "2026-09-23T11:33:57.045Z"
+ },
+ "fv_goal": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0b-3991-7157-836a-cdd571b76b97",
+  "spent": 30,
+  "task": "01a0ce0c-870c-71af-8a20-b6635d6c65d6",
+  "status": "ok",
+  "at": "2026-09-23T11:36:26.748Z"
+ },
+ "fv_drums": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0b-3995-741a-8f5c-b561536de528",
+  "spent": 30,
+  "task": "01a0ce0c-42bf-7604-8d8f-5c0ce9a346de",
+  "status": "ok",
+  "at": "2026-09-23T11:36:14.914Z"
+ },
+ "fv_speakers": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0b-3a81-7002-bd58-a4eb3ef809bc",
+  "spent": 30,
+  "task": "01a0ce0c-641b-7114-a036-accd58996edf",
+  "status": "ok",
+  "at": "2026-09-23T11:36:18.351Z"
+ },
+ "fv_costume_rack": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0b-599e-76e7-9f4e-42886f4f3d97",
+  "spent": 30,
+  "task": "01a0ce0d-e2c3-7782-abbf-b0d778243e9d",
+  "status": "ok",
+  "at": "2026-09-23T11:38:05.203Z"
+ },
+ "fv_table_chairs": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0b-790d-73fe-b22f-7845ae6af3a2",
+  "spent": 30,
+  "task": "01a0ce0c-85f2-7772-a00d-90ee360b55bb",
+  "status": "ok",
+  "at": "2026-09-23T11:36:18.307Z"
+ },
+ "fv_water_tower": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0b-7b55-71ad-a7ac-bd2ffc337448",
+  "spent": 30,
+  "task": "01a0ce0c-8590-72fd-af81-add5be1607dd",
+  "status": "ok",
+  "at": "2026-09-23T11:36:27.408Z"
+ },
+ "perk_fv_bulwark": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0f-0dcb-71b3-90d0-b5f4b91db258",
+  "spent": 50,
+  "task": "01a0ce11-0518-749c-ab91-1a354e503639",
+  "status": "ok",
+  "at": "2026-09-23T11:41:18.493Z",
+  "retexture": {
+   "task": "01a0ce17-4018-7473-b646-b447ae75c243",
+   "status": "ok"
+  }
+ },
+ "perk_fv_hammerfall": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0f-0dce-7687-8b89-6c5b374f0625",
+  "spent": 50,
+  "task": "01a0ce10-1da9-739c-a788-82e498285179",
+  "status": "ok",
+  "at": "2026-09-23T11:40:09.176Z",
+  "retexture": {
+   "task": "01a0ce18-4072-72b4-9d4d-44dec22b97d1",
+   "status": "ok"
+  }
+ },
+ "perk_fv_lifeline": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0f-0eda-70dd-b8b0-e976cbd0de9e",
+  "spent": 50,
+  "task": "01a0ce10-1dc4-767d-ae3f-fa7ffb55c9aa",
+  "status": "ok",
+  "at": "2026-09-23T11:40:09.238Z",
+  "retexture": {
+   "task": "01a0ce18-4180-74a9-8727-64a6cb96e1b1",
+   "status": "ok"
+  }
+ },
+ "fv_reforger": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0f-0edd-7695-807a-dc55e55a43f2",
+  "spent": 50,
+  "task": "01a0ce10-a13b-71aa-b269-db8c8e4ab98c",
+  "status": "ok",
+  "at": "2026-09-23T11:40:42.959Z",
+  "retexture": {
+   "task": "01a0ce18-4070-7242-959d-c528698c605c",
+   "status": "ok"
+  }
+ },
+ "fv_mystery_box": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0f-0dce-7673-a687-131f69fdc3a7",
+  "spent": 50,
+  "task": "01a0ce10-3ebd-7737-8964-f448d05584a1",
+  "status": "ok",
+  "at": "2026-09-23T11:40:26.107Z",
+  "retexture": {
+   "task": "01a0ce18-4072-74bc-9215-8c15e7d3b506",
+   "status": "ok"
+  }
+ },
+ "perk_fv_quickhands": {
+  "cat": "favela",
+  "method": "text",
+  "preview": "01a0ce0f-0dce-7685-963a-e00703b89831",
+  "spent": 50,
+  "task": "01a0ce10-e321-767f-89c6-2815c2dc1091",
+  "status": "ok",
+  "at": "2026-09-23T11:41:18.312Z",
+  "retexture": {
+   "task": "01a0ce18-4075-7034-9e5b-7cd893e915ca",
+   "status": "ok"
+  }
  }
 }

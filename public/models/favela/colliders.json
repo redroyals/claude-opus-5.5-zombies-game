@@ -1,0 +1,247 @@
+{
+"fv_house_a": [
+[
+-2.12,
+0,
+-2.02,
+2.12,
+6.0,
+2.02,
+"concrete",
+false,
+true
+]
+],
+"fv_house_b": [
+[
+-2.52,
+0,
+-2.27,
+2.52,
+9.0,
+2.27,
+"concrete",
+false,
+true
+]
+],
+"fv_house_c": [
+[
+-1.82,
+0,
+-2.02,
+1.82,
+3.0,
+2.02,
+"concrete",
+false,
+true
+]
+],
+"fv_house_d": [
+[
+-3.02,
+0,
+-2.52,
+3.02,
+6.0,
+2.52,
+"concrete",
+false,
+true
+]
+],
+"fv_house_e": [
+[
+-2.02,
+0,
+-2.77,
+2.02,
+12.0,
+2.77,
+"concrete",
+false,
+true
+]
+],
+"fv_house_f": [
+[
+-2.62,
+0,
+-2.52,
+2.62,
+6.0,
+2.52,
+"concrete",
+false,
+true
+]
+],
+"fv_pole": [
+[
+-0.11,
+0,
+-0.11,
+0.11,
+8.5,
+0.11,
+"concrete",
+true,
+true
+]
+],
+"fv_streetlamp": [
+[
+-0.08,
+0,
+-0.08,
+0.08,
+6.4,
+0.08,
+"metal",
+true,
+true
+]
+],
+"fv_walllamp": [],
+"fv_floodlight": [
+[
+-0.15,
+0,
+-0.15,
+0.15,
+11,
+0.15,
+"metal",
+true,
+true
+]
+],
+"fv_pylon": [
+[
+-1.35,
+0,
+-1.35,
+1.35,
+16.0,
+1.35,
+"metal",
+false,
+false
+]
+],
+"fv_ladder": [],
+"fv_railing": [
+[
+-1.0,
+0,
+-0.05,
+1.0,
+1.06,
+0.05,
+"metal",
+false,
+false
+]
+],
+"fv_tinroof": [],
+"fv_rebar": [],
+"fv_grille": [],
+"fv_kite": [],
+"fv_laundry": [],
+"fv_mural_a": [],
+"fv_mural_b": [],
+"fv_mural_c": [],
+"fv_canopy": [
+[
+-7.7,
+0,
+-5.7,
+-7.3,
+7.0,
+-5.3,
+"metal",
+true,
+true
+],
+[
+-7.7,
+0,
+5.3,
+-7.3,
+7.0,
+5.7,
+"metal",
+true,
+true
+],
+[
+-0.2,
+0,
+-5.7,
+0.2,
+7.0,
+-5.3,
+"metal",
+true,
+true
+],
+[
+-0.2,
+0,
+5.3,
+0.2,
+7.0,
+5.7,
+"metal",
+true,
+true
+],
+[
+7.3,
+0,
+-5.7,
+7.7,
+7.0,
+-5.3,
+"metal",
+true,
+true
+],
+[
+7.3,
+0,
+5.3,
+7.7,
+7.0,
+5.7,
+"metal",
+true,
+true
+],
+[
+-8.3,
+7.0,
+-6.3,
+8.3,
+7.6,
+6.3,
+"metal",
+false,
+true
+]
+],
+"fv_goalframe": [
+[
+-1.55,
+0,
+-1.0,
+1.55,
+2.05,
+0.05,
+"metal",
+false,
+false
+]
+]
+}

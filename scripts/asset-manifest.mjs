@@ -38,4 +38,38 @@ export const ZOMBIES = [
   z('z_fast', 1.75, 'skeletal feral zombie with glowing orange eyes, charred black cracked skin with ember glow, very thin'),
   z('z_boss', 2.8, 'giant armored zombie boss wearing welded scrap metal plates and a riveted iron helmet, chains, glowing blue eyes'),
 ];
-export const ALL = [...WEAPONS, ...MACHINES, ...ZOMBIES];
+
+// ---- Map: RIO · RIDGELIGHT (favela). Map-specific props/machines -> public/models/favela/ (docs/maps/favela.md §10).
+// `reuse` = finished Meshy task ids from the paused mp-assets branch (fetched, never regenerated).
+const FV = 'original video game environment prop, no text, no logos, no letters, no numbers, no brand, stylised realistic, clean readable silhouette, isolated, PBR';
+const f = (id, size, prompt, extra = {}) => ({ id, cat: 'favela', size, polycount: 10000, prompt: `${prompt}, ${FV}`, ...extra });
+export const FAVELA = [
+  // reused mp-assets Rio kit (task ids, see ../zombies-mp-assets/assets/LOG.md)
+  { id: 'fv_house_block', cat: 'favela', size: 9, reuse: { task: '01a0cab1-351e-71e9-8cf1-b3199353de10' } },
+  { id: 'fv_barrel', cat: 'favela', size: 0.9, reuse: { task: '01a0caa8-ce3a-73e2-8e74-6848b20c9fa6' } },
+  { id: 'fv_gas_cylinder', cat: 'favela', size: 0.85, reuse: { task: '01a0caa8-abe7-77d9-82db-bf56726335d5' } },
+  { id: 'fv_water_tank', cat: 'favela', size: 1.6, reuse: { preview: '01a0cab0-6522-721c-a328-c3a21dbe00fb' } },
+  { id: 'fv_satellite', cat: 'favela', size: 1.2, reuse: { preview: '01a0cab1-3f10-71ed-81b1-93cd006e4377' } },
+  // stage 1: heroes
+  f('fv_gondola_cabin', 2.8, 'small aerial cable car gondola cabin, boxy cabin with rounded corners and large windows on all sides, red and white painted metal body, curved hanger arm rising from the roof to a steel cable grip clamp, sliding doors, weathered paint', { scrub: 19 }),
+  f('fv_bullwheel', 5.0, 'cable car station drive machinery, a large horizontal steel bull wheel on a heavy steel frame, electric motor and gearbox underneath, yellow safety railings, grey and yellow industrial, weathered'),
+  f('fv_transformer', 2.6, 'electrical substation power transformer, grey steel tank with rows of cooling radiator fins on the sides, three tall brown ceramic insulator bushings on top, yellow and black warning stripes on the base, rust streaks'),
+  f('fv_bar_counter', 3.2, 'small neighbourhood snack bar counter, front clad in small blue and white square tiles, stainless steel top, glass display case with pastries, three tall metal bar stools in front, worn and lived in'),
+  f('fv_fridge', 2.0, 'tall single glass-door drinks cooler fridge, white metal body, lit interior with shelves of colourful unlabeled glass bottles, chrome handle'),
+  f('fv_motorbike', 2.0, 'small 125cc street motorcycle parked on its side stand, red fuel tank, worn black seat, round headlight, chrome exhaust, mud splashes'),
+  f('fv_wires', 3.0, 'dense tangled bundle of black electrical cables and wires hanging in sagging loops from a wooden crossarm, messy wire tangle with small junction boxes'),
+  f('fv_goal', 3.0, 'five-a-side football goal, white painted steel tube frame with a sagging torn white net, weathered paint, standing on the ground'),
+  f('fv_drums', 1.4, 'set of samba percussion drums, two large bass drums with polished metal shells and shoulder straps, a snare drum and a tambourine on the ground, colourful shells'),
+  f('fv_speakers', 1.8, 'stack of big black loudspeaker cabinets for an outdoor street party sound system, an amplifier on top, cables, worn corners'),
+  f('fv_costume_rack', 1.9, 'rolling metal clothes rail with colourful feathered carnival costumes and sequined fabric hanging from it, plumes and ribbons'),
+  f('fv_table_chairs', 1.4, 'white plastic outdoor table with four white plastic chairs stacked beside it, weathered'),
+  f('fv_water_tower', 9.0, 'tall neighbourhood water tower, a large blue cylindrical water tank on top of a concrete frame tower with four columns and cross beams, steel ladder up one side, rust and water stains'),
+  // stage 2: themed machines (street-art reimaginings of the stock machines)
+  f('perk_fv_lifeline', 2.0, 'tall glass-door drinks cooler fridge painted all over with pale blue and white abstract street art waves and bubbles, lit interior with blue glass bottles, chrome handle', { cat: 'favela', machine: 'lifeline' , retexture: 'white drinks fridge body hand-painted with pale blue and white abstract waves, bubbles and circles, glass door, clean chrome, no letters, no words, no text, no numbers, no logos, no signatures' }),
+  f('perk_fv_bulwark', 2.1, 'tall red drinks vending cooler covered in bold colourful street art graffiti shapes, a big shield shape painted on the front, glass window with rows of red bottles, chunky chrome trim', { machine: 'bulwark' , retexture: 'glossy red enamel vending cooler hand-painted with bold abstract street-art shapes, a big shield outline, circles, triangles and stripes in yellow, green and white, no letters, no words, no text, no numbers, no logos, no signatures' }),
+  f('perk_fv_quickhands', 2.0, 'slim lime green vending machine covered in colourful graffiti, zigzag lightning bolt shapes spray painted on it, narrow glass window with green bottles', { machine: 'quickhands' , retexture: 'lime green enamel vending machine hand-painted with abstract zigzag lightning shapes, stripes and dots in yellow, white and black, no letters, no words, no text, no numbers, no logos, no signatures' }),
+  f('perk_fv_hammerfall', 2.1, 'wide orange drink dispenser machine covered in bold stencil graffiti of hammer shapes, two round amber glass portholes showing orange bottles, stepped top', { machine: 'hammerfall' , retexture: 'orange enamel drink dispenser hand-painted with bold abstract stencil shapes of hammers, chevrons and dots in black and cream, brass trim, no letters, no words, no text, no numbers, no logos, no signatures' }),
+  f('fv_reforger', 2.4, 'large industrial cable winch machine converted into a weapon forge, heavy steel drum winch and a big gear wheel, glowing orange furnace slot in the middle, pipes and gauges, covered in colourful street art graffiti shapes', { machine: 'reforger' , retexture: 'heavy steel winch machine hand-painted with colourful abstract street-art shapes, circles, waves and stripes in magenta, cyan and yellow over dark steel, glowing orange furnace slot, no letters, no words, no text, no numbers, no logos, no signatures' }),
+  f('fv_mystery_box', 1.3, 'long closed wooden crate painted with colourful abstract street art shapes and stripes, glowing cyan seams along the lid, brass corner brackets', { machine: 'box', split: 'lid' , retexture: 'wooden crate hand-painted with colourful abstract geometric shapes, circles, triangles, stripes and waves in bright colours, brass corners, glowing cyan seams, no letters, no words, no text, no numbers, no logos, no signatures' }),
+];
+export const ALL = [...WEAPONS, ...MACHINES, ...ZOMBIES, ...FAVELA];

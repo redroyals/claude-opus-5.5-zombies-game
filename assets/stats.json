@@ -224,5 +224,149 @@
   "tris": 7999,
   "kb": 343,
   "tex": 512
+ },
+ "fv_house_block": {
+  "id": "fv_house_block",
+  "tris": 5257,
+  "kb": 418,
+  "tex": 1024
+ },
+ "fv_barrel": {
+  "id": "fv_barrel",
+  "tris": 6092,
+  "kb": 234,
+  "tex": 1024
+ },
+ "fv_gas_cylinder": {
+  "id": "fv_gas_cylinder",
+  "tris": 6192,
+  "kb": 214,
+  "tex": 1024
+ },
+ "fv_water_tank": {
+  "id": "fv_water_tank",
+  "tris": 5991,
+  "kb": 214,
+  "tex": 1024
+ },
+ "fv_satellite": {
+  "id": "fv_satellite",
+  "tris": 5918,
+  "kb": 322,
+  "tex": 1024
+ },
+ "fv_gondola_cabin": {
+  "id": "fv_gondola_cabin",
+  "tris": 8999,
+  "kb": 529,
+  "tex": 1024
+ },
+ "fv_bullwheel": {
+  "id": "fv_bullwheel",
+  "tris": 8999,
+  "kb": 475,
+  "tex": 1024
+ },
+ "fv_transformer": {
+  "id": "fv_transformer",
+  "tris": 9000,
+  "kb": 400,
+  "tex": 1024
+ },
+ "fv_bar_counter": {
+  "id": "fv_bar_counter",
+  "tris": 8908,
+  "kb": 433,
+  "tex": 1024
+ },
+ "fv_fridge": {
+  "id": "fv_fridge",
+  "tris": 7057,
+  "kb": 493,
+  "tex": 1024
+ },
+ "fv_motorbike": {
+  "id": "fv_motorbike",
+  "tris": 9000,
+  "kb": 729,
+  "tex": 1024
+ },
+ "fv_wires": {
+  "id": "fv_wires",
+  "tris": 9000,
+  "kb": 459,
+  "tex": 1024
+ },
+ "fv_goal": {
+  "id": "fv_goal",
+  "tris": 5912,
+  "kb": 428,
+  "tex": 1024
+ },
+ "fv_drums": {
+  "id": "fv_drums",
+  "tris": 9000,
+  "kb": 494,
+  "tex": 1024
+ },
+ "fv_speakers": {
+  "id": "fv_speakers",
+  "tris": 8999,
+  "kb": 369,
+  "tex": 1024
+ },
+ "fv_table_chairs": {
+  "id": "fv_table_chairs",
+  "tris": 9000,
+  "kb": 284,
+  "tex": 1024
+ },
+ "fv_water_tower": {
+  "id": "fv_water_tower",
+  "tris": 8999,
+  "kb": 493,
+  "tex": 1024
+ },
+ "fv_costume_rack": {
+  "id": "fv_costume_rack",
+  "tris": 7341,
+  "kb": 551,
+  "tex": 1024
+ },
+ "perk_fv_lifeline": {
+  "id": "perk_fv_lifeline",
+  "tris": 8053,
+  "kb": 377,
+  "tex": 1024
+ },
+ "perk_fv_bulwark": {
+  "id": "perk_fv_bulwark",
+  "tris": 8895,
+  "kb": 433,
+  "tex": 1024
+ },
+ "perk_fv_quickhands": {
+  "id": "perk_fv_quickhands",
+  "tris": 8999,
+  "kb": 554,
+  "tex": 1024
+ },
+ "perk_fv_hammerfall": {
+  "id": "perk_fv_hammerfall",
+  "tris": 8999,
+  "kb": 365,
+  "tex": 1024
+ },
+ "fv_reforger": {
+  "id": "fv_reforger",
+  "tris": 9000,
+  "kb": 413,
+  "tex": 1024
+ },
+ "fv_mystery_box": {
+  "id": "fv_mystery_box",
+  "tris": 8394,
+  "kb": 553,
+  "tex": 1024
  }
 }

@@ -55,7 +55,16 @@ async function gen(a) {
   const topo = { topology: 'triangle', target_polycount: a.polycount ?? 8000, should_remesh: true };
   try {
     let result;
-    if (imgs.length >= 2) {
+    if (a.reuse?.task) {
+      // Finished task from another branch: fetch by id, costs nothing.
+      st.method = `reuse(${a.reuse.task})`; st.task = a.reuse.task;
+      result = await wait('/v2/text-to-3d', a.reuse.task);
+    } else if (a.reuse?.preview) {
+      // Finished preview from another branch: only the PBR refine is paid (~10 credits).
+      st.method = `reuse-preview(${a.reuse.preview})`; st.preview = a.reuse.preview;
+      if (!st.task) { st.task = await post('/v2/text-to-3d', { mode: 'refine', preview_task_id: a.reuse.preview, enable_pbr: true }); st.spent = (st.spent ?? 0) + 10; save(); }
+      result = await wait('/v2/text-to-3d', st.task);
+    } else if (imgs.length >= 2) {
       st.method = `multi-image(${imgs.map((f) => path.basename(f)).join(',')})`;
       st.task ??= await post('/v1/multi-image-to-3d', { image_urls: imgs.map(dataUri), should_texture: true, enable_pbr: true, ...topo }); save();
       result = await wait('/v1/multi-image-to-3d', st.task);
@@ -65,9 +74,9 @@ async function gen(a) {
       result = await wait('/v1/image-to-3d', st.task);
     } else {
       st.method = 'text';
-      st.preview ??= await post('/v2/text-to-3d', { mode: 'preview', prompt: a.prompt, art_style: 'realistic', ...(a.model || args.model ? { ai_model: a.model ?? args.model } : {}), ...topo }); save();
+      if (!st.preview) { st.preview = await post('/v2/text-to-3d', { mode: 'preview', prompt: a.prompt, art_style: 'realistic', ...(a.model || args.model ? { ai_model: a.model ?? args.model } : {}), ...topo }); st.spent = (st.spent ?? 0) + 20; save(); }
       await wait('/v2/text-to-3d', st.preview);
-      st.task ??= await post('/v2/text-to-3d', { mode: 'refine', preview_task_id: st.preview, enable_pbr: true }); save();
+      if (!st.task) { st.task = await post('/v2/text-to-3d', { mode: 'refine', preview_task_id: st.preview, enable_pbr: true }); st.spent = (st.spent ?? 0) + 10; save(); }
       result = await wait('/v2/text-to-3d', st.task);
     }
     const out = path.join(ROOT, 'assets/raw', a.cat, `${a.id}.glb`);
@@ -80,6 +89,9 @@ async function gen(a) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  // Per-map credit caps (sum of `spent` recorded in gen-state for that category).
+  const CAP = { favela: Number(process.env.MESHY_CAP_FAVELA ?? 1200) };
+  const spentIn = (cat) => Object.values(state).filter((s) => s.cat === cat).reduce((n, s) => n + (s.spent ?? 0), 0);
   let list = ALL.filter((a) => !a.reused && (!args.cat || a.cat === args.cat) && (!args.ids || String(args.ids).split(',').includes(a.id)) && (!args.map || a.map === args.map));
   if (args['refs-only']) list = list.filter((a) => refImages(a).length);
   if (args['no-refs']) list = list.filter((a) => !a.ref);
@@ -92,7 +104,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   await Promise.all(Array.from({ length: conc }, async () => {
     while (i < list.length) {
       const a = list[i++];
-      if (!state[a.id]?.task && !state[a.id]?.preview) { const bal = await balance(); if (bal - 60 * conc < FLOOR) { console.log('BUDGET STOP at', bal); i = list.length; return; } }
+      if (!state[a.id]?.task && !state[a.id]?.preview && !a.reuse?.task) {
+        const bal = await balance(); if (bal - 60 * conc < FLOOR) { console.log('BUDGET STOP at', bal); i = list.length; return; }
+        if (CAP[a.cat] !== undefined && spentIn(a.cat) + 30 > CAP[a.cat]) { console.log(`CAP STOP ${a.cat}: spent ${spentIn(a.cat)} of ${CAP[a.cat]}`); i = list.length; return; }
+      }
       await gen(a);
     }
   }));

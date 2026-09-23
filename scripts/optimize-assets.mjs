@@ -25,9 +25,9 @@ const ROOT = path.resolve(new URL('..', import.meta.url).pathname);
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, arr) => a.startsWith('--') ? [a.slice(2), arr[i + 1] ?? true] : null).filter(Boolean));
 await MeshoptSimplifier.ready; await MeshoptEncoder.ready; await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-const PPCAT = { machines: 'equipment', props: 'equipment', zombies: 'characters' };
-const OUTDIR = { weapons: 'public/models/weapons', machines: 'public/models/zombies', props: 'public/models/zombies', zombies: 'public/models/zombies' };
-const BUDGET = { machines: [800e3, 14000, 1024], props: [500e3, 8000, 1024], zombies: [1500e3, 18000, 2048], weapons: [600e3, 7000, 1024], attachments: [250e3, 3000, 512], equipment: [250e3, 2500, 512], characters: [1500e3, 18000, 2048], kits: [1000e3, 6000, 1024] };
+const PPCAT = { machines: 'equipment', props: 'equipment', zombies: 'characters', favela: 'equipment' };
+const OUTDIR = { weapons: 'public/models/weapons', machines: 'public/models/zombies', props: 'public/models/zombies', zombies: 'public/models/zombies', favela: 'public/models/favela' };
+const BUDGET = { machines: [800e3, 14000, 1024], props: [500e3, 8000, 1024], zombies: [1500e3, 18000, 2048], weapons: [600e3, 7000, 1024], attachments: [250e3, 3000, 512], equipment: [250e3, 2500, 512], characters: [1500e3, 18000, 2048], kits: [1000e3, 6000, 1024], favela: [900e3, 9000, 1024] };
 const framesF = path.join(ROOT, 'public/models/weapons/frames.json');
 const frames = fs.existsSync(framesF) ? JSON.parse(fs.readFileSync(framesF, 'utf8')) : { convention: '', weapons: {} };
 
@@ -117,6 +117,7 @@ async function one(a) {
   if (a.split) execFileSync(BLENDER, ['-b', '--factory-startup', '-P', path.join(ROOT, 'tools/blender/split_lid.py'), '--', '--in', wGlb, '--out', wGlb, '--frac', String(a.splitFrac ?? 0.74)], { stdio: 'pipe' });
   const frame = JSON.parse(fs.readFileSync(wFrame, 'utf8'));
   const texSize = await compress(wGlb, out, maxBytes, tex);
+  if (a.scrub) execFileSync(process.execPath, [path.join(ROOT, 'scripts/scrub-text.mjs'), out, '--radius', String(a.scrub)], { stdio: 'pipe' });
   if (fs.existsSync(wLod)) await compress(wLod, out.replace(/\.glb$/, '.lod1.glb'), maxBytes / 3, Math.min(512, texSize));
   if (a.cat === 'weapons') frames.weapons[a.id] = frame;
   if (a.cat === 'attachments') (frames.attachments ??= {})[a.id] = frame;

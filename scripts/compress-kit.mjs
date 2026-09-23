@@ -8,8 +8,13 @@ import { quantize, meshopt, prune } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
 await MeshoptEncoder.ready; await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-const DIR = path.resolve(new URL('../public/models/zombies', import.meta.url).pathname);
-for (const f of fs.readdirSync(DIR).filter((f) => /^(kit_.*|power_switch)\.glb$/.test(f))) {
+// Default: the zombies bunker kit. `--dir public/models/favela` compresses the favela Blender kit (fv_* pieces
+// listed in its colliders.json, i.e. only the Blender-made ones, never the Meshy props).
+const dirArg = process.argv.indexOf('--dir');
+const DIR = dirArg > 0 ? path.resolve(process.argv[dirArg + 1]) : path.resolve(new URL('../public/models/zombies', import.meta.url).pathname);
+const kitNames = fs.existsSync(path.join(DIR, 'colliders.json')) ? new Set(Object.keys(JSON.parse(fs.readFileSync(path.join(DIR, 'colliders.json'), 'utf8')))) : null;
+const pick = (f) => dirArg > 0 ? kitNames?.has(f.slice(0, -4)) : /^(kit_.*|power_switch)\.glb$/.test(f);
+for (const f of fs.readdirSync(DIR).filter(pick)) {
   const d = await io.read(path.join(DIR, f));
   if (d.getRoot().listExtensionsUsed().some((e) => /meshopt/.test(e.extensionName))) continue;
   await d.transform(prune({ keepLeaves: true }), quantize(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
