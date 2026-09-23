@@ -450,7 +450,7 @@ export class ZombiesMap {
     });
   }
 
-  update(time: number, dt: number, power: boolean, blackout = false, player?: { x: number; y: number; z: number }): void {
+  update(time: number, dt: number, power: boolean, blackout = false, extra: { player?: { x: number; y: number; z: number }; egg?: boolean } = {}): void {
     for (const d of this.doors) {
       if (!d.open || d.openT >= 1) { if (d.open) d.mesh.visible = false; continue; }
       d.openT = Math.min(1, d.openT + dt / 1.1);
@@ -483,7 +483,7 @@ export class ZombiesMap {
       const s = r.userData.spin as THREE.Object3D | undefined;
       if (s) s.rotation.y = time * 2;
     }
-    this.entry.update?.({ time, dt, power, player, blackout });
+    this.entry.update?.({ time, dt, power, blackout, player: extra.player, egg: extra.egg ?? false });
   }
 
   groundHeight(x: number, z: number): number {

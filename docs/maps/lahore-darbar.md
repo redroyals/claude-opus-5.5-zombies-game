@@ -343,7 +343,7 @@ What `decorate.ts` does:
 Engine additions (generic, on this branch):
 - `MatSpec.custom` plus `ZombiesMapEntry.materials()`: a bespoke material library per map.
 - `BoxDef.mat: null`: collider-only boxes, used for invisible parapet walls and jaali screens.
-- `def.machineModels`: per-map skins for the box, perks, Pack-a-Punch and power, loaded by path.
+- `def.machines`: per-map skins for the box, perks, Pack-a-Punch and power, loaded by path.
 - `def.flavor`: HUD, prompt and game-over strings.
 - `EggReward.allPerks` and `EggReward.weapon`.
 - `MapUpdateContext.player`.

@@ -219,7 +219,8 @@ export function compileMap(def: ZombiesMapDef): CompiledMap {
   for (const s of def.box.spots) { const y = s.y ?? 0; mach(tuple(s.x - 0.7, y, s.z - 0.7, s.x + 0.7, y + 0.62, s.z + 0.7), 'wood'); }
   for (const [id, s] of perkEntries(def)) {
     const y = s.y ?? 0;
-    const [fw, fd] = PERK_FOOT[id];
+    const pm = def.machines?.perks?.[id];
+    const [fw, fd] = (typeof pm === 'object' ? pm.foot : undefined) ?? PERK_FOOT[id];
     const side = Math.abs(Math.sin(s.face)) > 0.5;
     const hx = (side ? fd : fw) / 2, hz = (side ? fw : fd) / 2;
     mach(tuple(s.x - hx, y, s.z - hz, s.x + hx, y + 2.2, s.z + hz), 'metal');

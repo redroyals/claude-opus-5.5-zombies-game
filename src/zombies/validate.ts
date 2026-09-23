@@ -84,7 +84,9 @@ export function validateMapDef(def: ZombiesMapDef, opts: ValidateOptions = {}): 
   if (def.startWeapon && !WEAPONS[def.startWeapon]) err('start-weapon', `unknown start weapon ${def.startWeapon}`);
   if (perkEntries(def).length === 0) warn('perks', 'map has no perk machines');
   if (!def.pap) warn('pap', 'map has no Reforger');
+  for (const id of Object.keys(def.machines?.perks ?? {})) if (!def.perks[id as keyof typeof def.perks]) warn('machine-model', `machines.perks.${id} is set but the map has no ${id} machine`);
   if (def.egg) {
+    if (def.egg.reward.weapon && !WEAPONS[def.egg.reward.weapon]) err('egg-weapon', `egg reward weapon ${def.egg.reward.weapon} does not exist`);
     if (def.egg.steps.length === 0) err('egg', 'easter egg has no steps');
     for (const s of def.egg.steps) {
       if (s.kind === 'kill' && !zoneIds.has(s.zone)) err('egg-zone', `egg kill step references unknown zone ${s.zone}`);

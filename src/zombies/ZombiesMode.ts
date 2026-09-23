@@ -119,12 +119,13 @@ export class ZombiesMode {
       root.add(map.root);
       // Machines stand on the floor their spot names (the world already contains their own colliders).
       const ground = () => 0;
-      const mm = def.machineModels ?? {};
+      const mm = def.machines ?? {};
+      const perkModels = Object.fromEntries(Object.entries(mm.perks ?? {}).map(([k, v]) => [k, typeof v === 'string' ? v : v!.model]));
       const cache = new CacheView(def.box.spots, ground, mm.box);
       root.add(cache.group);
       const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0, mm.pap) : null;
       if (reforger) root.add(reforger.root);
-      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), ground, mm.perks);
+      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), ground, perkModels);
       root.add(perks.group);
       const powerSwitch = def.power ? new PowerSwitchView(def.power, mm.power) : null;
       if (powerSwitch) root.add(powerSwitch.root);
@@ -265,7 +266,7 @@ export class ZombiesMode {
     this.reforger?.update(dt, this.time, this.power, (x, y, z) => this.host.fx.sparkBurst(x, y, z, 18, [1.4, 0.6, 2]));
     this.perks.update(this.time, this.power);
     this.powerSwitch?.update(dt);
-    this.map.update(this.time, dt, this.power, this.blackout, player);
+    this.map.update(this.time, dt, this.power, this.blackout, { player, egg: this.egg.complete });
     this.host.audio.updateMapAmbience(dt, this.power);
 
     // Perk jingles when standing near a lit machine

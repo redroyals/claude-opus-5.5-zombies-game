@@ -45,7 +45,7 @@ export type Collide = 'solid' | 'floor' | 'nonsolid' | 'none';
 
 /** Axis-aligned box: [x0, y0, z0, x1, y1, z1]. */
 export type BoxTuple = [number, number, number, number, number, number];
-/** `mat: null` = collider only (invisible). */
+/** `mat: null` makes an invisible collider (e.g. the solid core of a GLB prop that draws itself). */
 export interface BoxDef { box: BoxTuple; mat?: MatRef | null; tile?: number; collide?: Collide; surface?: Surface; shadow?: boolean }
 /** Horizontal quad (visual floor/decal plane, no collider). */
 export interface QuadDef { rect: Rect; y: number; mat: MatRef; tile?: number }
@@ -188,12 +188,23 @@ export interface EggReward {
   refillAmmo?: boolean;
   /** Drop a power-up at the player spawn. */
   powerup?: PowerUpKind;
+  /** Hand the player a weapon (e.g. a wonder weapon on a pedestal). */
+  weapon?: WeaponId;
   /** Grant every perk this map has (ignores the perk limit). */
   allPerks?: boolean;
-  /** Give a weapon (e.g. a map-specific wonder weapon). */
-  weapon?: WeaponId;
 }
-export interface MachineModels { box?: string; pap?: string; power?: string; perks?: Partial<Record<PerkId, string>> }
+
+/**
+ * Per-map machine models (paths under /models, e.g. 'favela/perk_fv_bulwark.glb', or bare file names resolved
+ * via the manifest). Omitted entries use the stock models. A perk may give `foot` [width along its X, depth along
+ * its Z] to match its collider to the model. Gameplay is unchanged.
+ */
+export interface MachineModels {
+  box?: string;
+  pap?: string;
+  power?: string;
+  perks?: Partial<Record<PerkId, string | { model: string; foot?: [number, number] }>>;
+}
 export interface EggDef { name: string; steps: EggStepDef[]; reward: EggReward }
 
 export interface PowerUpRules {
@@ -246,12 +257,12 @@ export interface ZombiesMapDef {
   egg?: EggDef;
   lighting: LightingDef;
   audio?: { ambience?: string };
+  /** HUD/flavour strings. */
+  flavor?: { powerHint?: string; powerPrompt?: string; powerOnHint?: string; bossTitle?: string; gameOverSub?: string };
+  /** Map-specific machine models (see MachineModels). */
+  machines?: MachineModels;
   /** Model paths (under /models) to preload when the map is selected. */
   assets?: string[];
-  /** Map-specific strings for the HUD and prompts. */
-  flavor?: { powerHint?: string; powerPrompt?: string; powerOnHint?: string; bossTitle?: string; gameOverSub?: string };
-  /** Per-map machine skins (paths under /models, or bare file names resolved via the manifest). Gameplay is unchanged. */
-  machineModels?: MachineModels;
 }
 
 // ------------------------------------------------------------------------------------------------------

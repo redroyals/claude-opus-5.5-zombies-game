@@ -126,7 +126,7 @@ export const LAHORE: ZombiesMapDef = {
     bossTitle: 'THE WARDEN · BREAKER OF GATES',
     gameOverSub: 'LAHORE DARBAR · THE LAMPS GO OUT',
   },
-  machineModels: {
+  machines: {
     box: 'lahore/box_casket.glb', pap: 'lahore/forge_pap.glb', power: 'lahore/naqqara.glb',
     perks: { bulwark: 'lahore/perk_bulwark_lh.glb', quickhands: 'lahore/perk_quickhands_lh.glb', hammerfall: 'lahore/perk_hammerfall_lh.glb', lifeline: 'lahore/perk_lifeline_lh.glb' },
   },

@@ -424,7 +424,7 @@ export class PerkViews {
   readonly group = new THREE.Group();
   private views: PerkView[] = [];
 
-  constructor(spots: Partial<Record<PerkId, Spot>>, ground: (x: number, z: number, y?: number) => number, models_?: Partial<Record<PerkId, string>>) {
+  constructor(spots: Partial<Record<PerkId, Spot>>, ground: (x: number, z: number, y?: number) => number, modelNames: Partial<Record<PerkId, string>> = {}) {
     for (const id of Object.keys(spots) as PerkId[]) {
       const sp = spots[id]!;
       const def = PERKS[id];
@@ -491,7 +491,7 @@ export class PerkViews {
       this.group.add(root);
       const view: PerkView = { id, root, neon, glass, light, spot, cone, lit: false, glbEmissive: [] };
       this.views.push(view);
-      watchModel(models_?.[id] ?? `perk_${id}.glb`, (m) => {
+      watchModel(modelNames[id] ?? `perk_${id}.glb`, (m) => {
         const inst = models.instance(m);
         placeModel(inst, 2.1);
         for (const c of [...root.children]) if (c !== light && c !== sign && c !== spot && c !== spot.target && c !== cone) c.visible = false;
