@@ -1243,6 +1243,7 @@ export class Game {
       zTier: (t: number) => { const w = this.weapons.active; if (w) { w.tier = t; this.weapons.syncModel(); } },
       zDrop: (k: 'max_ammo' | 'insta_kill' | 'double_points' | 'nuke' | 'carpenter') => { const p = this.player.pos; (this.zm as unknown as { dropPowerUp(k: string, x: number, y: number, z: number): void }).dropPowerUp(k, p.x, p.y, p.z - 2.5); },
       zSpawn: (type: 'shambler' | 'runner' | 'brute' | 'crawler' | 'fast' | 'boss', x: number, z: number, y?: number) => this.enemies.spawn(type, 'low', x, z, 'chase', y),
+      vm: () => this.vm.debugInfo(),
       zMap: (id?: string) => { if (id) this.setZombiesMap(id); return this.zm.def.id; },
       godMode: (on: boolean) => { this.godMode = on; },
       elite: () => this.enemies.elite && { x: this.enemies.elite.pos.x, z: this.enemies.elite.pos.z, hp: this.enemies.elite.hp, helmet: this.enemies.elite.helmetHp, alive: this.enemies.elite.alive, state: this.enemies.elite.state },

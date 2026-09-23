@@ -5,6 +5,7 @@ import { WEAPONS, weaponArch, type WeaponDef, type WeaponId } from '../config';
 import { models, findNode } from '../render/ModelRegistry';
 import type { TextureLib } from '../render/textures';
 import type { ReloadPhase } from './WeaponState';
+import { viewmodelFit } from './vmfit';
 
 interface WeaponModel {
   id: WeaponId;
@@ -32,7 +33,7 @@ interface WeaponModel {
 }
 
 /** Optional per-weapon placement data from public/models/weapons/frames.json (all in viewmodel metres, gun forward = -Z). */
-interface FrameData { scale?: number; position?: number[]; rotation?: number[]; muzzle?: number[]; sight?: number[]; length?: number; mounts?: Record<string, number[]> }
+interface FrameData { scale?: number; position?: number[]; rotation?: number[]; muzzle?: number[]; sight?: number[]; length?: number; mounts?: Record<string, number[]>; vm?: { scale?: number; hip?: number[] } }
 
 export interface ViewState {
   id: WeaponId;
@@ -162,9 +163,11 @@ export class ViewModel {
     const arch = weaponArch(m.id);
     // Right-hand grip point on the procedural rig (the glove wraps around this).
     const gripAt = arch === 'pistol' ? new THREE.Vector3(0, -0.035, 0.03) : arch === 'shotgun' ? new THREE.Vector3(0, -0.02, 0.085) : new THREE.Vector3(0, -0.025, 0.045);
+    const fit = f.length ? viewmodelFit(f, WEAPONS[m.id].cls ?? (arch === 'pistol' ? 'pistol' : arch === 'shotgun' ? 'shotgun' : 'ar'), mid) : null;
     if (grip || f.length) {
       holder.position.copy(gripAt);
-      if (f.scale) obj.scale.setScalar(f.scale);
+      obj.scale.setScalar(fit ? fit.scale : f.scale ?? 1);
+      if (fit) m.hip.set(fit.hip[0], fit.hip[1], fit.hip[2]);
     } else {
       const box = new THREE.Box3().setFromObject(obj);
       const size = box.getSize(new THREE.Vector3());
@@ -202,13 +205,37 @@ export class ViewModel {
     const optic = findNode(obj, 'mount_optic');
     if (f.sight) m.sight.fromArray(f.sight);
     else if (optic) { const o = local(optic); m.sight.set(0, o.y + (arch === 'pistol' ? 0.012 : 0.025), o.z + 0.1); }
+    if (fit) m.sight.y += fit.adsLift;
     // Support hand under the handguard / on the pump.
     const under = findNode(obj, 'mount_under');
-    if (under && arch === 'rifle') {
+    if (under && arch !== 'pistol') {
       const u = local(under);
-      m.leftHand.position.set(0, u.y - 0.06, u.z + 0.06);
-      m.leftHome.copy(m.leftHand.position);
+      const target = new THREE.Vector3(0, u.y - 0.055, fit?.support ? holder.position.z + fit.support[2] : u.z + 0.05);
+      if (m.leftHand.parent === m.root) {
+        m.leftHand.position.copy(target);
+        m.leftHome.copy(target);
+      } else if (m.leftHand.parent === m.mover) {
+        // Hand rides on the pump: move the pump so the hand lands on the handguard.
+        m.mover.position.copy(target).sub(m.leftHand.position);
+        m.moverHome.copy(m.mover.position);
+      }
     }
+    // Authored GLB materials are tuned for daylight; keep metals from going black in dark interiors.
+    holder.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mesh.material = mats.map((mt) => {
+        const sm = mt as THREE.MeshStandardMaterial;
+        if (!sm.isMeshStandardMaterial) return mt;
+        const c = sm.clone();
+        c.metalness = Math.min(c.metalness, 0.55);
+        c.roughness = Math.max(c.roughness, 0.32);
+        c.envMapIntensity = 1.3;
+        return c;
+      }) as unknown as THREE.Material;
+      if (mats.length === 1) mesh.material = (mesh.material as unknown as THREE.Material[])[0];
+    });
     const mag = findNode(obj, 'mount_mag');
     if (mag) { const g = local(mag); m.magHome.set(g.x, g.y + 0.02, g.z); m.mag.position.copy(m.magHome); }
     m.glb = holder;
@@ -652,6 +679,15 @@ export class ViewModel {
     f.scale.set(s, s, 1);
     this.flashT = 0.045;
     this.flashLight.intensity = 3;
+  }
+
+  /** Debug: camera-space positions of the rig, support hand and muzzle, plus the camera FOV. */
+  debugInfo(): Record<string, number[] | number | string> {
+    const m = this.current;
+    if (!m) return {};
+    this.camera.updateMatrixWorld(true);
+    const cs = (o: THREE.Object3D) => this.camera.worldToLocal(o.getWorldPosition(new THREE.Vector3())).toArray().map((v) => +v.toFixed(3));
+    return { id: m.id, fov: this.camera.fov, rig: this.rig.position.toArray().map((v) => +v.toFixed(3)), left: cs(m.leftHand), muzzle: cs(m.muzzle), hip: m.hip.toArray() };
   }
 
   /** Muzzle position in camera space (used to place world-space tracers). */
