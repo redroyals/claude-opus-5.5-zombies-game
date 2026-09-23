@@ -225,14 +225,15 @@ export const LADDERS: { bottom: [number, number, number]; top: [number, number, 
   { bottom: [46, G, 34.2], top: [46, R, 32.2] }, // south lane -> H3 roof
 ];
 
-export const PLAYER_SPAWN = { x: -2, y: G, z: 18.5, yaw: Math.PI };
-export const COOP_SPAWNS = [{ x: -6, y: G, z: 18.5, yaw: Math.PI }, { x: 2, y: G, z: 18.5, yaw: Math.PI }, { x: -2, y: G, z: -3, yaw: 0 }];
+// Player yaw uses the camera convention (0 looks north, -Z).
+export const PLAYER_SPAWN = { x: -2, y: G, z: 18.5, yaw: 0 };
+export const COOP_SPAWNS = [{ x: -6, y: G, z: 18.5, yaw: 0 }, { x: 2, y: G, z: 18.5, yaw: 0 }, { x: -2, y: G, z: -3, yaw: Math.PI }];
 
 export interface SpotSpec { x: number; y: number; z: number; face: number }
 const HP = Math.PI / 2;
 export const BOX_SPOTS: SpotSpec[] = [
   { x: -2, y: P, z: 8, face: Math.PI }, // baradari (start)
-  { x: -16, y: P, z: -35, face: HP }, // Diwan-e-Aam hall, west end
+  { x: 6, y: P, z: -38.6, face: 0 }, // Diwan-e-Aam hall, beside the jharokha
   { x: 22, y: B, z: -45.2, face: 0 }, // Toshakhana vault
   { x: 62.5, y: G, z: 11.2, face: Math.PI }, // chowk
   { x: 48, y: R, z: 31.2, face: Math.PI }, // Kothay (H3 roof)

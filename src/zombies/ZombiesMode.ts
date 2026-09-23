@@ -142,6 +142,7 @@ export class ZombiesMode {
   get spawn() { const s = this.def.playerSpawn; return { x: s.x, y: s.y ?? 0, z: s.z, yaw: s.yaw }; }
 
   reset(): void {
+    this.host.audio.setMapAmbience(this.def.audio?.ambience ?? null);
     this.zp = createZPlayer();
     this.rounds = createRoundState();
     this.box = createBox(this.def.box.start ?? 0);
@@ -174,6 +175,7 @@ export class ZombiesMode {
 
   /** Called when leaving Zombies so extraction runs with stock stats. */
   clearMods(): void {
+    this.host.audio.setMapAmbience(null);
     WEAPON_MODS.damageMult = WEAPON_MODS.rpmMult = WEAPON_MODS.reloadMult = 1;
     PLAYER.maxHealth = 100;
     const e = this.host.enemies;
@@ -252,6 +254,7 @@ export class ZombiesMode {
     this.perks.update(this.time, this.power);
     this.powerSwitch?.update(dt);
     this.map.update(this.time, dt, this.power, player);
+    this.host.audio.updateMapAmbience(dt, this.power);
 
     // Perk jingles when standing near a lit machine
     this.jingleT -= dt;

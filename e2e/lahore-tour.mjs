@@ -26,7 +26,7 @@ await ds('godMode', true);
 await ds('timeScale', 0.0001);
 // [name, x, y, z, yaw, pitch]  (yaw 0 looks +Z/south, PI looks -Z/north)
 const VIEWS = [
-  ['z00-hazuri-bagh', -2, 3, 18, Math.PI, -0.05],
+  ['z00-hazuri-bagh', -2, 3, 18, Math.PI, 0.05],
   ['z00-baradari', 10, 3, 18, Math.PI * 0.8, 0.02],
   ['z01-top-khana', -22, 3, 16, -Math.PI * 0.7, 0.0],
   ['z01-hathi-pol', -49, 3, 0, Math.PI, 0.1],
@@ -52,8 +52,8 @@ const VIEWS = [
 ];
 async function tour(tag) {
   for (const [n, x, y, z, yaw, pitch] of VIEWS) {
-    await ds('teleport', x, z, yaw, y);
-    await ds('look', yaw, pitch);
+    await ds('teleport', x, z, yaw + Math.PI, y);
+    await ds('look', yaw + Math.PI, pitch);
     await shot(`${n}-${tag}`);
   }
 }

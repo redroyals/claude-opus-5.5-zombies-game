@@ -698,7 +698,89 @@ export class AudioEngine {
     this.zombieVoice({ x: this.listener.x + Math.cos(a) * 22, z: this.listener.z + Math.sin(a) * 22 }, Math.random() < 0.2 ? 'scream' : 'groan', 0.7 + Math.random() * 0.4);
   }
 
+  // ------------------------------------------------------------------------------------------
+  // Per-map ambience beds (Zombies). 'lahore': tanpura-like drone, dusk birds, distant naqqara drums
+  // that become a slow march once the power (the drums themselves) is on.
+  // ------------------------------------------------------------------------------------------
+  private mapStyle: string | null = null;
+  private mapNodes: AudioNode[] = [];
+  private mapDrone: { g: GainNode; lp: BiquadFilterNode } | null = null;
+  private mapT = { bird: 4, drum: 12, beat: 0, beatN: 0 };
+  private mapPower = false;
+
+  private mapWant: string | null | undefined = undefined;
+
+  setMapAmbience(style: string | null): void {
+    if (!this.ctx) { this.mapWant = style; return; }
+    if (style === this.mapStyle) return;
+    for (const n of this.mapNodes) {
+      try { (n as AudioScheduledSourceNode).stop?.(); } catch { /* not a source */ }
+      try { n.disconnect(); } catch { /* ignore */ }
+    }
+    this.mapNodes = []; this.mapDrone = null; this.mapStyle = style; this.mapPower = false;
+    if (!this.ctx || style !== 'lahore') return;
+    const ctx = this.ctx;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520; lp.Q.value = 0.8;
+    const g = ctx.createGain(); g.gain.value = 0.0;
+    g.gain.setTargetAtTime(0.05, ctx.currentTime, 3);
+    lp.connect(g); g.connect(this.amb);
+    // Sa (D2), Pa (A2), upper Sa and a detuned Sa: a slow-beating tanpura-ish bed.
+    for (const [f, type, gain] of [[73.4, 'sawtooth', 0.5], [110, 'sawtooth', 0.35], [146.8, 'triangle', 0.4], [73.9, 'sawtooth', 0.3]] as const) {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = f;
+      const og = ctx.createGain(); og.gain.value = gain;
+      o.connect(og); og.connect(lp); o.start();
+      this.mapNodes.push(o, og);
+    }
+    // "Jawari" shimmer: a slow LFO sweeping the drone filter.
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.11;
+    const lg = ctx.createGain(); lg.gain.value = 260;
+    lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    this.mapNodes.push(lp, g, lfo, lg);
+    this.mapDrone = { g, lp };
+  }
+
+  /** Big naqqara hit: a pitched-down sine thump with a skin slap. */
+  naqqara(t: number, gain = 1, far = false): void {
+    if (!this.ctx) return;
+    const o = this.out(null, (far ? 0.35 : 0.8) * gain, 2.2)!;
+    this.tone(o, t, 1.4, { type: 'sine', freq: far ? 62 : 78, freqEnd: 38, gain: 0.9 });
+    this.tone(o, t, 0.5, { type: 'triangle', freq: 150, freqEnd: 70, gain: 0.25 });
+    this.noise(o, t, far ? 0.9 : 0.35, { type: 'lowpass', freq: far ? 300 : 900, freqEnd: 90, gain: far ? 0.35 : 0.6, brown: true });
+  }
+
+  updateMapAmbience(dt: number, power: boolean): void {
+    if (this.mapWant !== undefined && this.ctx) { const w = this.mapWant; this.mapWant = undefined; this.setMapAmbience(w); }
+    if (this.mapStyle !== 'lahore' || !this.ok()) return;
+    const t0 = this.ctx!.currentTime;
+    if (power !== this.mapPower) {
+      this.mapPower = power;
+      if (power) { this.naqqara(t0, 1.3); this.naqqara(t0 + 0.55, 1.1); this.naqqara(t0 + 1.4, 1.4); this.mapT.beat = 3; }
+      if (this.mapDrone) this.mapDrone.lp.frequency.setTargetAtTime(power ? 900 : 520, t0, 2);
+    }
+    const T = this.mapT;
+    T.bird -= dt; T.drum -= dt;
+    if (T.bird <= 0 && !power) {
+      T.bird = 5 + Math.random() * 9;
+      const a = Math.random() * Math.PI * 2;
+      const o = this.out({ x: this.listener.x + Math.cos(a) * 25, z: this.listener.z + Math.sin(a) * 25 }, 0.25, 1.2, 10);
+      if (o) for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) {
+        const f = 2400 + Math.random() * 1400;
+        this.tone(o, t0 + i * 0.16, 0.12, { type: 'sine', freq: f, freqEnd: f * 1.25, gain: 0.12 });
+      }
+    }
+    if (!power && T.drum <= 0) { T.drum = 20 + Math.random() * 20; this.naqqara(t0, 1, true); this.naqqara(t0 + 0.7, 0.8, true); }
+    if (power) {
+      // A slow processional march: DUM . dum . DUM dum . . (one bar every 4.8 s), quiet under the action.
+      T.beat -= dt;
+      if (T.beat <= 0) {
+        T.beat = 4.8;
+        for (const [d, gn] of [[0, 0.5], [1.2, 0.3], [2.4, 0.45], [3.0, 0.3]] as const) this.naqqara(t0 + d, gn, true);
+      }
+    }
+  }
+
   stopAll(): void {
     this.stopHeli();
+    this.setMapAmbience(null);
   }
 }
