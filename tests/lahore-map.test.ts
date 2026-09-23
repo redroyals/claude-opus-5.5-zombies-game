@@ -14,9 +14,11 @@ describe('Lahore Darbar raster', () => {
 
 describe('Lahore plan', () => {
   it('writes the SVG plan when LAHORE_PLAN=1', async () => {
-    if (!process.env.LAHORE_PLAN) return;
+    const env = (globalThis as unknown as { process?: { env: Record<string, string | undefined> } }).process?.env;
+    if (!env?.LAHORE_PLAN) return;
     const { planSvg } = await import('../src/zombies/maps/lahore/plan');
-    const fs = await import('node:fs');
+    const fsName = 'node:fs';
+    const fs = (await import(/* @vite-ignore */ fsName)) as { writeFileSync(p: string, d: string): void };
     fs.writeFileSync('docs/maps/lahore-darbar.svg', planSvg(rasterize()));
   });
 });

@@ -2,11 +2,13 @@
 import { NIGHTFALL } from './nightfall/def';
 import { decorateNightfall } from './nightfall/decorate';
 import type { ZombiesMapEntry } from './types';
+import { LAHORE_ENTRY } from './lahore/entry';
 
 export type { ZombiesMapEntry } from './types';
 
 export const MAPS: ZombiesMapEntry[] = [
   { def: NIGHTFALL, decorate: decorateNightfall },
+  LAHORE_ENTRY,
 ];
 
 export const DEFAULT_MAP_ID = NIGHTFALL.id;

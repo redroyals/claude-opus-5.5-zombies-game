@@ -199,7 +199,7 @@ export const WINDOWS: WindowSpec[] = [
   W(Z.sheesh, -24, -70, '-z', U), W(Z.sheesh, -34, -64, '-x', U),
   W(Z.ramparts, -58, -30, '-x', U), W(Z.ramparts, -58, 5, '-x', U),
   W(Z.roshnai, 24, 14, '+z', G), W(Z.roshnai, 34, -2, '-x', G), W(Z.roshnai, 34, 24, '-x', G),
-  W(Z.wazir, 50, -16, '-z', G), W(Z.wazir, 54, -2, '+x', G),
+  W(Z.wazir, 43, -16, '-z', G), W(Z.wazir, 54, -2, '+x', G),
   W(Z.kucha, 60, -24, '-z', G), W(Z.kucha, 78, -24, '-z', G), W(Z.kucha, 87, 0, '+x', G), W(Z.kucha, 87, 25, '+x', G),
   W(Z.kucha, 50, 36, '+z', G), W(Z.kucha, 75, 36, '+z', G), W(Z.kucha, 41, 7.5, '-x', G),
   W(Z.naqqar, 80, 5, '+x', G), W(Z.naqqar, 74, -16, '-z', G), W(Z.naqqar, 72, 10, '+z', G),
@@ -264,7 +264,7 @@ export const WALL_BUY_SPOTS: { key: string; x: number; y: number; z: number; fac
 
 /** Easter egg objects ("The Mountain of Light"). */
 export const EGG = {
-  mirrors: [{ x: -33.75, y: 9.6, z: -66 }, { x: -6.25, y: 10.2, z: -62 }, { x: -28, y: 11, z: -69.75 }],
+  mirrors: [{ x: -33.6, y: U + 1.5, z: -66 }, { x: -6.4, y: U + 1.5, z: -62 }, { x: -28, y: U + 1.5, z: -69.6 }],
   keys: [{ x: 40, y: B + 0.35, z: -44.5 }, { x: 40.5, y: R + 0.35, z: 29.5 }, { x: 39, y: U + 0.35, z: -19 }],
   pedestal: { x: 18, y: B, z: -44.4 },
 };
