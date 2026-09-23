@@ -1,5 +1,7 @@
 // Zombies map registry. Adding a map is one import + one line in MAPS.
 import { EXAMPLE_HOUSE } from './_example/def';
+import { FAVELA } from './favela/def';
+import { decorateFavela, updateFavela } from './favela/decorate';
 import { NIGHTFALL } from './nightfall/def';
 import { decorateNightfall } from './nightfall/decorate';
 import type { ZombiesMapEntry } from './types';
@@ -8,6 +10,7 @@ export type { ZombiesMapEntry } from './types';
 
 export const MAPS: ZombiesMapEntry[] = [
   { def: NIGHTFALL, decorate: decorateNightfall },
+  { def: FAVELA, decorate: decorateFavela, update: updateFavela },
   { def: EXAMPLE_HOUSE, hidden: true },
 ];
 
