@@ -29,6 +29,8 @@ export type TexName = 'concrete' | 'brick' | 'plaster' | 'wood' | 'metalPanel' |
 export interface MatSpec {
   color: number; roughness?: number; metalness?: number; texture?: TexName;
   emissive?: number; emissiveIntensity?: number; opacity?: number; doubleSided?: boolean;
+  /** Key into the map entry's `materials()` library (bespoke textured materials); the fields above are the fallback. */
+  custom?: string;
 }
 export type MatRef = MatName | MatSpec;
 
@@ -43,7 +45,8 @@ export type Collide = 'solid' | 'floor' | 'nonsolid' | 'none';
 
 /** Axis-aligned box: [x0, y0, z0, x1, y1, z1]. */
 export type BoxTuple = [number, number, number, number, number, number];
-export interface BoxDef { box: BoxTuple; mat?: MatRef; tile?: number; collide?: Collide; surface?: Surface; shadow?: boolean }
+/** `mat: null` makes an invisible collider (e.g. the solid core of a GLB prop that draws itself). */
+export interface BoxDef { box: BoxTuple; mat?: MatRef | null; tile?: number; collide?: Collide; surface?: Surface; shadow?: boolean }
 /** Horizontal quad (visual floor/decal plane, no collider). */
 export interface QuadDef { rect: Rect; y: number; mat: MatRef; tile?: number }
 /** Vertical cylinder (drums, pillars). Collider is its bounding box. */
@@ -185,6 +188,22 @@ export interface EggReward {
   refillAmmo?: boolean;
   /** Drop a power-up at the player spawn. */
   powerup?: PowerUpKind;
+  /** Hand the player a weapon (e.g. a wonder weapon on a pedestal). */
+  weapon?: WeaponId;
+  /** Grant every perk this map has (ignores the perk limit). */
+  allPerks?: boolean;
+}
+
+/**
+ * Per-map machine models (paths under /models, e.g. 'favela/perk_fv_bulwark.glb', or bare file names resolved
+ * via the manifest). Omitted entries use the stock models. A perk may give `foot` [width along its X, depth along
+ * its Z] to match its collider to the model. Gameplay is unchanged.
+ */
+export interface MachineModels {
+  box?: string;
+  pap?: string;
+  power?: string;
+  perks?: Partial<Record<PerkId, string | { model: string; foot?: [number, number] }>>;
 }
 export interface EggDef { name: string; steps: EggStepDef[]; reward: EggReward }
 
@@ -239,7 +258,9 @@ export interface ZombiesMapDef {
   lighting: LightingDef;
   audio?: { ambience?: string };
   /** HUD/flavour strings. */
-  flavor?: { powerHint?: string; bossTitle?: string; gameOverSub?: string };
+  flavor?: { powerHint?: string; powerPrompt?: string; powerOnHint?: string; bossTitle?: string; gameOverSub?: string };
+  /** Map-specific machine models (see MachineModels). */
+  machines?: MachineModels;
   /** Model paths (under /models) to preload when the map is selected. */
   assets?: string[];
 }

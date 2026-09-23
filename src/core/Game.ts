@@ -1104,7 +1104,7 @@ export class Game {
       contracts.length = 0;
       contracts.push({ title: this.zm.def.name.toUpperCase(), tag: r.spec.special ? 'SCUTTLERS' : r.spec.blackout ? 'BLACKOUT' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
         sub: r.phase === 'break' ? `Next round in ${Math.ceil(r.timer)}s` : `${r.toSpawn + this.enemies.aliveCount} remaining`, state: 'active' });
-      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? 'Reforger + perks live' : this.zm.def.flavor?.powerHint ?? 'Find the power switch', state: this.zm.power ? 'done' : 'active' });
+      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? this.zm.def.flavor?.powerOnHint ?? 'Reforger + perks live' : this.zm.def.flavor?.powerHint ?? 'Find the power switch', state: this.zm.power ? 'done' : 'active' });
       this.zhud.update(dt, { round: r.round, points: this.zm.zp.points, perks: this.zm.zp.perks, pups: this.zm.activePowerUps, zone: this.zm.zoneName({ x: p.pos.x, y: p.pos.y, z: p.pos.z }) });
     }
     const boss = zmode ? this.enemies.boss : null;

@@ -19,12 +19,22 @@ export interface MapDecorateContext {
   mat: (m: import('../mapdef').MatRef) => THREE.Material;
 }
 
-export interface MapUpdateContext { time: number; dt: number; power: boolean }
+export interface MapUpdateContext {
+  time: number; dt: number; power: boolean;
+  /** Player feet position (for proximity effects, light pools). */
+  player?: { x: number; y: number; z: number };
+  /** Lights-out round in progress. */
+  blackout?: boolean;
+  /** True once the map's easter egg is complete. */
+  egg?: boolean;
+}
 
 export interface ZombiesMapEntry {
   def: ZombiesMapDef;
   /** Optional procedural dressing, run once when the map is built. */
   decorate?: (ctx: MapDecorateContext) => void;
+  /** Optional bespoke material library, built before the geometry; MatSpec `custom` keys resolve here. */
+  materials?: () => Record<string, THREE.Material>;
   /** Optional per-frame hook (animated set dressing). Keep it cheap. */
   update?: (ctx: MapUpdateContext) => void;
   /** Loadable via ?map=<id> but not shown on the title screen (examples, test maps). */

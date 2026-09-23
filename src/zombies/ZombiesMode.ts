@@ -119,13 +119,15 @@ export class ZombiesMode {
       root.add(map.root);
       // Machines stand on the floor their spot names (the world already contains their own colliders).
       const ground = () => 0;
-      const cache = new CacheView(def.box.spots, ground);
+      const mm = def.machines ?? {};
+      const perkModels = Object.fromEntries(Object.entries(mm.perks ?? {}).map(([k, v]) => [k, typeof v === 'string' ? v : v!.model]));
+      const cache = new CacheView(def.box.spots, ground, mm.box);
       root.add(cache.group);
-      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0) : null;
+      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0, mm.pap) : null;
       if (reforger) root.add(reforger.root);
-      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), ground);
+      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), ground, perkModels);
       root.add(perks.group);
-      const powerSwitch = def.power ? new PowerSwitchView(def.power) : null;
+      const powerSwitch = def.power ? new PowerSwitchView(def.power, mm.power) : null;
       if (powerSwitch) root.add(powerSwitch.root);
       for (const s of def.wallBuys) root.add(buildChalk(s.key, s.x, (s.y ?? 0) + 1.7, s.z, s.face));
       b = { map, root, cache, reforger, perks, powerSwitch };
@@ -262,7 +264,7 @@ export class ZombiesMode {
     this.reforger?.update(dt, this.time, this.power, (x, y, z) => this.host.fx.sparkBurst(x, y, z, 18, [1.4, 0.6, 2]));
     this.perks.update(this.time, this.power);
     this.powerSwitch?.update(dt);
-    this.map.update(this.time, dt, this.power, this.blackout);
+    this.map.update(this.time, dt, this.power, this.blackout, { player, egg: this.egg.complete });
 
     // Perk jingles when standing near a lit machine
     this.jingleT -= dt;
@@ -646,7 +648,7 @@ export class ZombiesMode {
         const price = w ? papPrice(w.tier, UPGRADE_TIERS.length - 1) : null;
         return price === null ? 'Reforger <span class="denied">WEAPON MAXED</span>' : `<kbd>E</kbd> Reforge ${w ? WEAPONS[w.id].shortName : ''} → ${w ? papName(w.id, WEAPONS[w.id].name, w.tier + 1) : ''} <span class="cost">${price}</span>`;
       }
-      case 'power': return this.power ? 'Power is on' : '<kbd>E</kbd> Throw the main breaker';
+      case 'power': return this.power ? 'Power is on' : `<kbd>E</kbd> ${this.def.flavor?.powerPrompt ?? 'Throw the main breaker'}`;
       case 'perk': {
         const d = PERKS[it.id];
         if (this.zp.perks.includes(it.id)) return `${d.name} <span class="denied">OWNED</span>`;
@@ -802,6 +804,11 @@ export class ZombiesMode {
     if (rw.refillAmmo) for (const s of l.slots) if (s) refillAmmo(s);
     if (rw.points) this.addPoints(rw.points);
     if (rw.powerup) this.dropPowerUp(rw.powerup, ...this.eggDropPos());
+    if (rw.allPerks) {
+      for (const [id] of perkEntries(this.def)) if (!this.zp.perks.includes(id)) this.zp.perks.push(id);
+      this.applyMods();
+    }
+    if (rw.weapon) this.giveWeapon(rw.weapon);
   }
 
   private eggDropPos(): [number, number, number] { const s = this.spawn; return [s.x, s.y, s.z]; }
