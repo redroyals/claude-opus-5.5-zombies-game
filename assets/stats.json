@@ -224,5 +224,155 @@
   "tris": 7999,
   "kb": 343,
   "tex": 512
+ },
+ "box_casket": {
+  "id": "box_casket",
+  "tris": 9345,
+  "kb": 603,
+  "tex": 1024
+ },
+ "perk_bulwark_lh": {
+  "id": "perk_bulwark_lh",
+  "tris": 8269,
+  "kb": 374,
+  "tex": 1024
+ },
+ "chandelier": {
+  "id": "chandelier",
+  "tris": 8787,
+  "kb": 610,
+  "tex": 1024
+ },
+ "armour_stand": {
+  "id": "armour_stand",
+  "tris": 8424,
+  "kb": 488,
+  "tex": 1024
+ },
+ "perk_quickhands_lh": {
+  "id": "perk_quickhands_lh",
+  "tris": 8671,
+  "kb": 451,
+  "tex": 1024
+ },
+ "perk_hammerfall_lh": {
+  "id": "perk_hammerfall_lh",
+  "tris": 8253,
+  "kb": 395,
+  "tex": 1024
+ },
+ "perk_lifeline_lh": {
+  "id": "perk_lifeline_lh",
+  "tris": 9130,
+  "kb": 463,
+  "tex": 1024
+ },
+ "forge_pap": {
+  "id": "forge_pap",
+  "tris": 9999,
+  "kb": 519,
+  "tex": 1024
+ },
+ "naqqara": {
+  "id": "naqqara",
+  "tris": 9999,
+  "kb": 520,
+  "tex": 1024
+ },
+ "torch_bracket": {
+  "id": "torch_bracket",
+  "tris": 9999,
+  "kb": 378,
+  "tex": 1024
+ },
+ "throne_dais": {
+  "id": "throne_dais",
+  "tris": 9999,
+  "kb": 590,
+  "tex": 1024
+ },
+ "weapon_rack": {
+  "id": "weapon_rack",
+  "tris": 9641,
+  "kb": 443,
+  "tex": 1024
+ },
+ "chest_gold": {
+  "id": "chest_gold",
+  "tris": 9633,
+  "kb": 562,
+  "tex": 1024
+ },
+ "strongboxes": {
+  "id": "strongboxes",
+  "tris": 9520,
+  "kb": 382,
+  "tex": 1024
+ },
+ "pedestal": {
+  "id": "pedestal",
+  "tris": 8984,
+  "kb": 249,
+  "tex": 1024
+ },
+ "great_gun": {
+  "id": "great_gun",
+  "tris": 9999,
+  "kb": 493,
+  "tex": 1024
+ },
+ "cannonballs": {
+  "id": "cannonballs",
+  "tris": 9431,
+  "kb": 310,
+  "tex": 1024
+ },
+ "pipal_tree": {
+  "id": "pipal_tree",
+  "tris": 10000,
+  "kb": 461,
+  "tex": 1024
+ },
+ "charpai": {
+  "id": "charpai",
+  "tris": 9715,
+  "kb": 291,
+  "tex": 1024
+ },
+ "matka_pots": {
+  "id": "matka_pots",
+  "tris": 10000,
+  "kb": 285,
+  "tex": 1024
+ },
+ "well": {
+  "id": "well",
+  "tris": 10000,
+  "kb": 496,
+  "tex": 1024
+ },
+ "haveli_door": {
+  "id": "haveli_door",
+  "tris": 10000,
+  "kb": 354,
+  "tex": 1024
+ },
+ "palki": {
+  "id": "palki",
+  "tris": 9246,
+  "kb": 487,
+  "tex": 1024
+ },
+ "chai_stall": {
+  "id": "chai_stall",
+  "tris": 9999,
+  "kb": 380,
+  "tex": 1024
+ },
+ "spice_stall": {
+  "id": "spice_stall",
+  "tris": 9756,
+  "kb": 457,
+  "tex": 1024
  }
 }

@@ -15,10 +15,10 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 const byId = Object.fromEntries(ALL.map((a) => [a.id, a]));
 const NOTE = /^(lid|body|lever|door|frame|panel|plank_\d|mount_\w+|socket_grip)$/;
 const kindOf = (id, dir) => dir === 'weapons' ? (id.startsWith('ww_') ? 'wonder_weapon' : id === 'sp_knife' ? 'melee' : 'weapon')
-  : id.startsWith('z_') ? 'zombie' : id.startsWith('kit_') ? 'kit' : id.startsWith('perk_') ? 'perk_machine'
+  : id.startsWith('z_') ? 'zombie' : id.startsWith('kit_') ? 'kit' : dir === 'lahore' ? 'lahore_prop' : id.startsWith('perk_') ? 'perk_machine'
   : ['mystery_box', 'reforger', 'power_switch'].includes(id) ? 'machine' : 'prop';
 const out = [];
-for (const dir of ['weapons', 'zombies']) {
+for (const dir of ['weapons', 'zombies', 'lahore']) {
   for (const f of fs.readdirSync(path.join(DIR, dir)).filter((f) => f.endsWith('.glb')).sort()) {
     const id = f.slice(0, -4); const doc = await io.read(path.join(DIR, dir, f)); const r = doc.getRoot();
     const skinned = r.listSkins().length > 0;

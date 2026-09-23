@@ -38,4 +38,5 @@ export const ZOMBIES = [
   z('z_fast', 1.75, 'skeletal feral zombie with glowing orange eyes, charred black cracked skin with ember glow, very thin'),
   z('z_boss', 2.8, 'giant armored zombie boss wearing welded scrap metal plates and a riveted iron helmet, chains, glowing blue eyes'),
 ];
-export const ALL = [...WEAPONS, ...MACHINES, ...ZOMBIES];
+import { LAHORE } from './lahore-assets.mjs';
+export const ALL = [...WEAPONS, ...MACHINES, ...ZOMBIES, ...LAHORE];

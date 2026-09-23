@@ -168,5 +168,205 @@
   "task": "01a0cac5-787d-72e1-bdc5-0054375c116a",
   "status": "ok",
   "at": "2026-09-22T20:19:48.701Z"
+ },
+ "box_casket": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce09-383e-7398-97da-54b0fa068419",
+  "task": "01a0ce0a-abc9-718e-85ee-ce1723945a52",
+  "status": "ok",
+  "at": "2026-09-23T11:34:20.610Z"
+ },
+ "armour_stand": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce09-3842-7061-90b6-b1bdf68791b0",
+  "task": "01a0ce0b-0e4f-7512-864b-20378b76da1c",
+  "status": "ok",
+  "at": "2026-09-23T11:34:46.032Z"
+ },
+ "chandelier": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce09-3953-7618-bddc-3cd6c42109f3",
+  "task": "01a0ce0a-492e-7714-b4fe-5c5554176ffa",
+  "status": "ok",
+  "at": "2026-09-23T11:33:55.462Z"
+ },
+ "perk_bulwark_lh": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce09-3841-76ff-a84e-32631052ddf8",
+  "task": "01a0ce0a-48b5-7629-bd8c-ea0ced8f7a6a",
+  "status": "ok",
+  "at": "2026-09-23T11:33:51.872Z"
+ },
+ "perk_quickhands_lh": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0d-8731-7735-81b0-1696c5a1dc5f",
+  "task": "01a0ce0f-bf78-7238-83cd-450e9448c07e",
+  "status": "ok",
+  "at": "2026-09-23T11:39:41.125Z"
+ },
+ "perk_lifeline_lh": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0d-8733-77f5-8854-fabadd550bbe",
+  "task": "01a0ce10-e5d1-756a-8e25-9f466e0419af",
+  "status": "ok",
+  "at": "2026-09-23T11:41:00.448Z"
+ },
+ "perk_hammerfall_lh": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0d-8849-770b-b19a-65e612fbbcb2",
+  "task": "01a0ce0e-76f0-73f8-b065-1eb5c0441f3a",
+  "status": "ok",
+  "at": "2026-09-23T11:38:20.873Z"
+ },
+ "naqqara": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0d-8736-751a-a2fd-cc552a5ad516",
+  "task": "01a0ce0e-d973-7579-a6d6-d7670c770e04",
+  "status": "ok",
+  "at": "2026-09-23T11:38:54.383Z"
+ },
+ "forge_pap": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0d-873b-76c8-882e-1de761cbd937",
+  "task": "01a0ce0e-b81a-7287-a59f-0f432a7e1280",
+  "status": "ok",
+  "at": "2026-09-23T11:38:42.688Z"
+ },
+ "torch_bracket": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0d-8741-7121-b47c-31e9df913b76",
+  "task": "01a0ce0e-5582-7345-8330-7cc51bd0e6d3",
+  "status": "ok",
+  "at": "2026-09-23T11:38:12.212Z"
+ },
+ "throne_dais": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0f-1e58-730d-a254-b8f83a5a572d",
+  "task": "01a0ce10-e5b2-711a-9e8a-906860bda940",
+  "status": "ok",
+  "at": "2026-09-23T11:41:18.685Z"
+ },
+ "weapon_rack": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0f-402a-7578-bcd9-a9d31bc74f36",
+  "task": "01a0ce11-06e2-71bc-ac7e-e9179de0283b",
+  "status": "ok",
+  "at": "2026-09-23T11:45:42.316Z"
+ },
+ "chest_gold": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0f-966e-76f3-aff3-f00f61d9160a",
+  "task": "01a0ce11-6a26-7777-bf44-68b3bcc60379",
+  "status": "ok",
+  "at": "2026-09-23T11:45:42.022Z"
+ },
+ "strongboxes": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce0f-c312-74e7-a7c0-462ee32a97fc",
+  "task": "01a0ce11-6a7a-75e1-9e1b-b049e5cbfef8",
+  "status": "ok",
+  "at": "2026-09-23T11:45:41.757Z"
+ },
+ "pedestal": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce10-7aba-72ae-91d4-42640a944470",
+  "task": "01a0ce11-48b7-764c-a940-d7d5d484400d",
+  "status": "ok",
+  "at": "2026-09-23T11:45:41.526Z"
+ },
+ "great_gun": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce11-af7e-710a-8a35-44a62e5b9fcc",
+  "task": "01a0ce15-e27d-734f-8553-6bf4cf02a441",
+  "status": "ok",
+  "at": "2026-09-23T11:46:29.160Z"
+ },
+ "cannonballs": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce15-e165-706d-abb9-c03025b3f4dc",
+  "task": "01a0ce18-182a-7299-804b-96dea4df1792",
+  "status": "ok",
+  "at": "2026-09-23T11:49:10.272Z"
+ },
+ "pipal_tree": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce15-fb92-76bf-a8bf-be7a049c0664",
+  "task": "01a0ce18-dd8e-7624-83d1-11a98d000a94",
+  "status": "ok",
+  "at": "2026-09-23T11:49:52.408Z"
+ },
+ "charpai": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce15-fc81-713d-89b3-2556b5e7c54a",
+  "task": "01a0ce17-f74b-73e4-ad2f-dcdf9b4ca1ab",
+  "status": "ok",
+  "at": "2026-09-23T11:48:35.264Z"
+ },
+ "matka_pots": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce15-fb81-728e-8a5a-bfdfa1e99804",
+  "task": "01a0ce16-fd70-77b5-abd9-0fdcf2970c13",
+  "status": "ok",
+  "at": "2026-09-23T11:47:40.933Z"
+ },
+ "well": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce15-fd9e-758b-8be1-395629b4c841",
+  "task": "01a0ce17-73a5-7272-94df-78f76b6bf57f",
+  "status": "ok",
+  "at": "2026-09-23T11:48:09.742Z"
+ },
+ "haveli_door": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce16-b5b0-7353-bfce-406c768f9894",
+  "task": "01a0ce17-b56b-77e4-9f4e-137de3e05528",
+  "status": "ok",
+  "at": "2026-09-23T11:48:26.509Z"
+ },
+ "palki": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce17-ce04-75d3-97e3-b6344fe79b72",
+  "task": "01a0ce19-11f7-74de-8444-e3aa59347cf0",
+  "status": "ok",
+  "at": "2026-09-23T11:50:06.421Z"
+ },
+ "chai_stall": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce18-3c6d-779c-9896-5dae2e3ed62e",
+  "task": "01a0ce19-53ce-72c4-83cd-133a266586e7",
+  "status": "ok",
+  "at": "2026-09-23T11:50:09.392Z"
+ },
+ "spice_stall": {
+  "cat": "lahore",
+  "method": "text",
+  "preview": "01a0ce18-7df1-7486-ac85-424f90493b61",
+  "task": "01a0ce19-9591-7507-905e-abcbc0031749",
+  "status": "ok",
+  "at": "2026-09-23T11:50:27.116Z"
  }
 }

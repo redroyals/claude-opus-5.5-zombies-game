@@ -25,9 +25,9 @@ const ROOT = path.resolve(new URL('..', import.meta.url).pathname);
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, arr) => a.startsWith('--') ? [a.slice(2), arr[i + 1] ?? true] : null).filter(Boolean));
 await MeshoptSimplifier.ready; await MeshoptEncoder.ready; await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-const PPCAT = { machines: 'equipment', props: 'equipment', zombies: 'characters' };
-const OUTDIR = { weapons: 'public/models/weapons', machines: 'public/models/zombies', props: 'public/models/zombies', zombies: 'public/models/zombies' };
-const BUDGET = { machines: [800e3, 14000, 1024], props: [500e3, 8000, 1024], zombies: [1500e3, 18000, 2048], weapons: [600e3, 7000, 1024], attachments: [250e3, 3000, 512], equipment: [250e3, 2500, 512], characters: [1500e3, 18000, 2048], kits: [1000e3, 6000, 1024] };
+const PPCAT = { machines: 'equipment', props: 'equipment', zombies: 'characters', lahore: 'equipment' };
+const OUTDIR = { weapons: 'public/models/weapons', machines: 'public/models/zombies', props: 'public/models/zombies', zombies: 'public/models/zombies', lahore: 'public/models/lahore' };
+const BUDGET = { lahore: [700e3, 10000, 1024], machines: [800e3, 14000, 1024], props: [500e3, 8000, 1024], zombies: [1500e3, 18000, 2048], weapons: [600e3, 7000, 1024], attachments: [250e3, 3000, 512], equipment: [250e3, 2500, 512], characters: [1500e3, 18000, 2048], kits: [1000e3, 6000, 1024] };
 const framesF = path.join(ROOT, 'public/models/weapons/frames.json');
 const frames = fs.existsSync(framesF) ? JSON.parse(fs.readFileSync(framesF, 'utf8')) : { convention: '', weapons: {} };
 
