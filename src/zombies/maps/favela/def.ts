@@ -19,6 +19,7 @@ export const PAINT = {
 const ASPHALT = 'asphalt' as const;
 const SLAB: MatSpec = { color: 0x9a968e, texture: 'concrete', roughness: 0.95 };
 const TILE_FLOOR: MatSpec = { color: 0xb5a58a, texture: 'sidewalk', roughness: 0.8 };
+const CEIL: MatSpec = { color: 0x57514a, texture: 'plaster', roughness: 0.97 };
 const COURT: MatSpec = { color: 0x3f6f78, texture: 'concrete', roughness: 0.85 };
 
 // ---- Helpers --------------------------------------------------------------------------------------
@@ -98,21 +99,21 @@ const RIDES: RideDef[] = [
 const ROOMS: RoomDef[] = [
   // Z0 bottom street + the lanchonete
   room(Z.street, 'BOTTOM STREET', -18, 30, 36, 38, T0, null, { floorMat: ASPHALT }),
-  room(Z.street, 'LANCHONETE', -4, 38, 10, 46, T0, T0 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: PAINT.cream }),
+  room(Z.street, 'LANCHONETE', -4, 38, 10, 46, T0, T0 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: CEIL }),
   // Z1 stair alley (two flights, a T1 landing and a top landing)
   room(Z.beco, 'STAIR ALLEY', -16, 21, -13.6, 30, T0),
   room(Z.beco, 'STAIR ALLEY', -16, 17, -13.6, 21, T1),
   room(Z.beco, 'STAIR ALLEY', -16, 8, -13.6, 17, T1),
   room(Z.beco, 'STAIR ALLEY', -16, 3, -13.6, 8, T2),
   // Z2 stacked houses: row A (T0), row B (T1), row C (T2), each with a stairwell to the next row
-  room(Z.houses, 'STACKED HOUSES', -13.6, 24, 0, 30, T0, T0 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: PAINT.cream }),
-  room(Z.houses, 'STACKED HOUSES', 0, 26.4, 14, 30, T0, T0 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: PAINT.cream }),
+  room(Z.houses, 'STACKED HOUSES', -13.6, 24, 0, 30, T0, T0 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: CEIL }),
+  room(Z.houses, 'STACKED HOUSES', 0, 26.4, 14, 30, T0, T0 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: CEIL }),
   room(Z.houses, 'STACKED HOUSES', 0, 24, 14, 26.4, T0, T1 + 3.4, { floorMat: TILE_FLOOR }),
-  room(Z.houses, 'STACKED HOUSES', -13.6, 16, -3, 24, T1, T1 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: PAINT.cream }),
-  room(Z.houses, 'STACKED HOUSES', -3, 18.6, 14, 24, T1, T1 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: PAINT.cream }),
+  room(Z.houses, 'STACKED HOUSES', -13.6, 16, -3, 24, T1, T1 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: CEIL }),
+  room(Z.houses, 'STACKED HOUSES', -3, 18.6, 14, 24, T1, T1 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: CEIL }),
   room(Z.houses, 'STACKED HOUSES', -3, 16, 14, 18.6, T1, T2 + 3.4, { floorMat: TILE_FLOOR }),
-  room(Z.houses, 'STACKED HOUSES', -13.6, 10.6, 14, 16, T2, T2 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: PAINT.cream }),
-  room(Z.houses, 'STACKED HOUSES', -13.6, 8, 1, 10.6, T2, T2 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: PAINT.cream }),
+  room(Z.houses, 'STACKED HOUSES', -13.6, 10.6, 14, 16, T2, T2 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: CEIL }),
+  room(Z.houses, 'STACKED HOUSES', -13.6, 8, 1, 10.6, T2, T2 + 3.4, { floorMat: TILE_FLOOR, ceilingMat: CEIL }),
   room(Z.houses, 'STACKED HOUSES', 1, 8, 14, 10.6, T2, T3 + 3.4, { floorMat: TILE_FLOOR }),
   // Z3 big laje + the plank bridge over the ravine
   room(Z.laje, 'BIG LAJE', -2, -24, 34, 8, T3),
@@ -338,20 +339,22 @@ const LINKS: NavLinkDef[] = [
   vault([6.5, T3, -13.4], [6.5, T3 + 0.8, -14.6]),
 ];
 
+// Climb yards and roof ledges sit off the play floor, and the director counts height difference 3x as distance,
+// so their weights compensate: vertical entries should be a regular part of every zone, not a rarity.
 const SPAWNS: SpawnPointDef[] = [
-  { zone: Z.street, x: 23.8, y: 0, z: 40.2, kind: 'point', weight: 1.4 },
-  { zone: Z.street, x: 24, y: T0 + 6, z: 27.8, kind: 'point' },
-  { zone: Z.beco, x: -18.4, y: 11, z: 25, kind: 'point', weight: 1.3 },
+  { zone: Z.street, x: 23.8, y: 0, z: 40.2, kind: 'point', weight: 4 },
+  { zone: Z.street, x: 24, y: T0 + 6, z: 27.8, kind: 'point', weight: 4 },
+  { zone: Z.beco, x: -18.4, y: 11, z: 25, kind: 'point', weight: 2.5 },
   { zone: Z.houses, x: -8, y: T0, z: 27.5, kind: 'ground' },
   { zone: Z.houses, x: -8, y: T2, z: 13, kind: 'ground' },
-  { zone: Z.laje, x: 36.5, y: 11, z: -7, kind: 'point', weight: 1.2 },
-  { zone: Z.laje, x: 20, y: T5 + 0.4, z: -31, kind: 'point', weight: 1.2 },
-  { zone: Z.laje, x: 8, y: T5 + 0.4, z: -31, kind: 'point' },
-  { zone: Z.quadra, x: -29, y: T2 - 5, z: 18.6, kind: 'point', weight: 1.3 },
-  { zone: Z.quadra, x: -51, y: T2 + 6, z: 3, kind: 'point', weight: 1.3 },
+  { zone: Z.laje, x: 36.5, y: 11, z: -7, kind: 'point', weight: 3 },
+  { zone: Z.laje, x: 20, y: T5 + 0.4, z: -31, kind: 'point', weight: 3.5 },
+  { zone: Z.laje, x: 8, y: T5 + 0.4, z: -31, kind: 'point', weight: 3 },
+  { zone: Z.quadra, x: -29, y: T2 - 5, z: 18.6, kind: 'point', weight: 3 },
+  { zone: Z.quadra, x: -51, y: T2 + 6, z: 3, kind: 'point', weight: 3 },
   { zone: Z.samba, x: 20, y: T3, z: -30, kind: 'ground' },
-  { zone: Z.station, x: 18, y: T5 + 7.7, z: -52, kind: 'point', weight: 1.4 },
-  { zone: Z.mirante, x: -41, y: T5 - 3, z: -62.3, kind: 'point', weight: 1.2 },
+  { zone: Z.station, x: 18, y: T5 + 7.7, z: -52, kind: 'point', weight: 3.5 },
+  { zone: Z.mirante, x: -41, y: T5 - 3, z: -62.3, kind: 'point', weight: 2 },
   { zone: Z.power, x: -4, y: T5, z: -52, kind: 'ground' },
 ];
 
@@ -362,11 +365,11 @@ const LAMPS: LampDef[] = [
   // T0 sodium street lamps + the bar tube
   { x: -8, y: T0 + 5.9, z: 32.3, range: 22, pre: { color: SODIUM, intensity: 55, flicker: 'buzz' }, post: { color: SODIUM, intensity: 70, flicker: 'none' }, fixture: 'none' },
   { x: 22, y: T0 + 5.9, z: 32.3, range: 22, pre: { color: SODIUM, intensity: 50, flicker: 'faulty' }, post: { color: SODIUM, intensity: 70, flicker: 'none' }, fixture: 'none' },
-  { x: 3, y: T0 + 2.35, z: 41.5, range: 11, pre: { color: 0xdfffe8, intensity: 7, flicker: 'faulty' }, post: { color: 0xe8fff0, intensity: 13, flicker: 'none' }, fixture: 'pendant' },
+  { x: 3, y: T0 + 3.0, z: 41.5, range: 11, pre: { color: 0xdfffe8, intensity: 5, flicker: 'faulty' }, post: { color: 0xe8fff0, intensity: 10, flicker: 'none' }, fixture: 'pendant' },
   // T1-T2 house bulbs + beco landing
-  { x: -6, y: T0 + 2.3, z: 27, range: 9, pre: { color: BULB, intensity: 6, flicker: 'faulty' }, post: { color: BULB, intensity: 11, flicker: 'none' }, fixture: 'pendant' },
-  { x: 4, y: T1 + 2.3, z: 21, range: 10, pre: { color: BULB, intensity: 6, flicker: 'faulty' }, post: { color: BULB, intensity: 11, flicker: 'none' }, fixture: 'pendant' },
-  { x: -5, y: T2 + 2.3, z: 13, range: 10, pre: { color: BULB, intensity: 6, flicker: 'faulty' }, post: { color: BULB, intensity: 11, flicker: 'none' }, fixture: 'pendant' },
+  { x: -6, y: T0 + 3.0, z: 27, range: 9, pre: { color: BULB, intensity: 4.5, flicker: 'faulty' }, post: { color: BULB, intensity: 8, flicker: 'none' }, fixture: 'pendant' },
+  { x: 4, y: T1 + 3.0, z: 21, range: 10, pre: { color: BULB, intensity: 4.5, flicker: 'faulty' }, post: { color: BULB, intensity: 8, flicker: 'none' }, fixture: 'pendant' },
+  { x: -5, y: T2 + 3.0, z: 13, range: 10, pre: { color: BULB, intensity: 4.5, flicker: 'faulty' }, post: { color: BULB, intensity: 8, flicker: 'none' }, fixture: 'pendant' },
   { x: -14.8, y: T1 + 4.5, z: 19, range: 14, pre: { color: SODIUM, intensity: 26, flicker: 'buzz' }, post: { color: SODIUM, intensity: 34, flicker: 'none' }, fixture: 'none' },
   // T2 quadra floodlights (dark before power) + the cable-car base
   { x: -28, y: T2 + 10.5, z: 4, range: 42, pre: { color: 0x8090b0, intensity: 0, flicker: 'none' }, post: { color: 0xe8f0ff, intensity: 260, flicker: 'none' }, fixture: 'none' },
@@ -382,8 +385,10 @@ const LAMPS: LampDef[] = [
 
 // ---- Props (GLBs; colliders authored here) -------------------------------------------------------------
 const F = (m: string) => `favela/${m}.glb`;
+/** Props with a generated LOD1 twin (`<id>.lod1.glb`, a quarter of the triangles) swap to it beyond 28 m. */
+const HAS_LOD = new Set(['fv_water_tower', 'fv_motorbike', 'fv_bullwheel', 'fv_transformer', 'fv_bar_counter', 'fv_goal', 'fv_costume_rack', 'fv_drums', 'fv_fridge', 'fv_wires', 'fv_speakers', 'fv_table_chairs']);
 const prop = (model: string, x: number, y: number, z: number, yaw = 0, collider?: PropDef['collider'], extra: Partial<PropDef> = {}): PropDef =>
-  ({ model: F(model), x, y, z, yaw, collider, fallback: false, ...extra });
+  ({ model: F(model), x, y, z, yaw, collider, fallback: false, ...(HAS_LOD.has(model) ? { lod: { model: F(`${model}.lod1`), distance: 28 } } : {}), ...extra });
 const PROPS: PropDef[] = [
   // Street + lanchonete
   prop('fv_bar_counter', 1.9, T0, 44.3, Math.PI, undefined),
@@ -492,9 +497,9 @@ export const FAVELA: ZombiesMapDef = {
     { key: 'pi_warden', x: -6, z: 30.17, face: 0, y: T0 },
     { key: 'pi_magnus', x: -3.83, z: 42, face: Math.PI / 2, y: T0 },
     { key: 'smg_wren', x: -8, z: 24.17, face: 0, y: T0 },
-    { key: 'sg_hullbreaker', x: -13.77, z: 5.5, face: -Math.PI / 2, y: T2 },
+    { key: 'sg_hullbreaker', x: -8, z: 8.17, face: 0, y: T2 },
     { key: 'ar_kestrel', x: 6, z: -23.83, face: 0, y: T3 },
-    { key: 'smg_skiff', x: -47.83, z: -5.5, face: Math.PI / 2, y: T2 },
+    { key: 'smg_skiff', x: -47.83, z: -2.5, face: Math.PI / 2, y: T2 },
     { key: 'ar_corvid', x: 24, z: -24.17, face: Math.PI, y: T3 },
     { key: 'dmr_sentry', x: -30, z: -59.83, face: 0, y: T5 },
   ],

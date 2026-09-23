@@ -92,6 +92,24 @@ describe('favela: layout', () => {
       expect(n, z.name).toBeGreaterThan(0);
     }
   });
+  it('no wall-buy, machine or ride steals a door\'s E prompt (interaction radii from ZombiesMode.find)', () => {
+    const near = (p: { x: number; z: number; y: number }, x: number, z: number, r: number, y = 0) => Math.hypot(x - p.x, z - p.z) < r && Math.abs(p.y - y) < 1.4;
+    for (const d of def.doors) {
+      const mid = (d.a0 + d.a1) / 2;
+      const c = d.axis === 'x' ? { x: mid, z: d.at } : { x: d.at, z: mid };
+      for (const off of [-1.3, 1.3]) {
+        const p = d.axis === 'x' ? { x: c.x, z: c.z + off, y: d.y0 } : { x: c.x + off, z: c.z, y: d.y0 };
+        const thieves = [
+          ...def.wallBuys.filter((w) => near(p, w.x, w.z, 1.6, w.y)).map((w) => w.key),
+          ...Object.entries(def.perks).filter(([, s]) => near(p, s.x, s.z, 1.7, s.y)).map(([k]) => k),
+          ...def.box.spots.filter((s) => near(p, s.x, s.z, 2, s.y)).map(() => 'box'),
+          ...(def.pap && near(p, def.pap.x, def.pap.z, 2.4, def.pap.y) ? ['pap'] : []),
+          ...(def.power && near(p, def.power.x, def.power.z, 1.8, def.power.y) ? ['power'] : []),
+        ];
+        expect(thieves, `${d.id} at ${off}`).toEqual([]);
+      }
+    }
+  });
   it('uses the street-art machines with footprints that match the models', () => {
     for (const id of ['lifeline', 'bulwark', 'quickhands', 'hammerfall'] as const) {
       expect(def.machines!.perks![id]!.model).toMatch(/^favela\/perk_fv_/);

@@ -207,7 +207,7 @@ const HOUSES = [
 ];
 
 function buildTerrain(ctx: MapDecorateContext): void {
-  const W = 460, D = 560, sx = 115, sz = 140;
+  const W = 460, D = 560, sx = 84, sz = 104;
   const g = new THREE.PlaneGeometry(W, D, sx, sz);
   g.rotateX(-Math.PI / 2);
   g.translate(-10, 0, 60);
