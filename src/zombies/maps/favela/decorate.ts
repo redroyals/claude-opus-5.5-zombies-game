@@ -300,7 +300,7 @@ function buildHouses(ctx: MapDecorateContext, merger: KitMerger): void {
   const crownG = new THREE.IcosahedronGeometry(1.7, 0); crownG.scale(1, 0.8, 1); crownG.translate(0, 3.8, 0);
   const trees: THREE.Matrix4[] = [];
   for (let i = 0; i < 46; i++) {
-    const x = -17 + r() * 18, z = -44 + r() * 47;
+    const x = -16 + r() * 16, z = -32 + r() * 34; // south of the mirante/substation edge so no crown pokes above T5
     if (Math.abs(x - PYLON.x) < 2.5 && Math.abs(z - PYLON.z) < 2.5) continue;
     const sc = 0.7 + r() * 0.9;
     trees.push(new THREE.Matrix4().compose(new THREE.Vector3(x, hill(x, z) - 0.2, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * 6), new THREE.Vector3(sc, sc * (0.8 + r() * 0.5), sc)));
@@ -532,12 +532,24 @@ export function decorateFavela(ctx: MapDecorateContext): void {
   // Summit: rocks, a railing, a pedestal glow
   const rockM = new THREE.MeshStandardMaterial({ color: 0x4a4038, roughness: 1, flatShading: true });
   const rr = rng(5);
+  // Rock outcrop under the summit platform: every rock's top stays below the walkable top (y = PEAK.y).
+  const rockGeos: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 9; i++) {
-    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(2.5 + rr() * 4, 0), rockM);
-    m.position.set(PEAK.x0 + rr() * (PEAK.x1 - PEAK.x0), PEAK.y - 6 - rr() * 8, PEAK.z0 + rr() * (PEAK.z1 - PEAK.z0));
-    m.scale.y = 2.2;
-    root.add(m);
+    const rad = 2.5 + rr() * 3.5;
+    const a = (i / 9) * Math.PI * 2;
+    const cx = (PEAK.x0 + PEAK.x1) / 2 + Math.cos(a) * 3.5, cz = (PEAK.z0 + PEAK.z1) / 2 + Math.sin(a) * 3.5;
+    rockGeos.push(new THREE.DodecahedronGeometry(rad, 0).scale(1, 2.2, 1).translate(cx, PEAK.y - 0.4 - rad * 2.2, cz).toNonIndexed());
   }
+  const rocks = mergeGeometries(rockGeos, false);
+  if (rocks) { rocks.computeVertexNormals(); root.add(new THREE.Mesh(rocks, rockM)); }
+  // Summit railing so the view reads as a lookout
+  const prGeos: THREE.BufferGeometry[] = [];
+  for (const [x0, z0, x1, z1] of [[PEAK.x0, PEAK.z0, PEAK.x1, PEAK.z0], [PEAK.x0, PEAK.z1, PEAK.x1, PEAK.z1], [PEAK.x0, PEAK.z0, PEAK.x0, PEAK.z1], [PEAK.x1, PEAK.z0, PEAK.x1, PEAK.z1]]) {
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    prGeos.push(new THREE.BoxGeometry(x1 === x0 ? 0.06 : len, 0.06, z1 === z0 ? 0.06 : len).translate((x0 + x1) / 2, PEAK.y + 1.05, (z0 + z1) / 2));
+  }
+  const pr = mergeGeometries(prGeos, false);
+  if (pr) root.add(new THREE.Mesh(pr, ctx.mat('steel')));
   const ped = glowSprite(0x80f0ff, 3.5);
   ped.position.set(24, PEAK.y + 1.3, -84.2);
   root.add(ped);
@@ -743,9 +755,11 @@ export function updateFavela(ctx: MapUpdateContext): void {
       const upU = ride.id === 'gondola_up' ? u : 1 - u;
       placeCabin(c0, GONDOLA_UP, upU, time, 0.01);
       placeCabin(c1, GONDOLA_UP, 1 - upU, time, 0.03);
+      c0.visible = false; // the rider's camera is inside this cabin: hide it so the ride shows the view
       anim.lastRide = ride.id;
     } else {
       const atTop = anim.lastRide === 'gondola_up';
+      c0.visible = true;
       placeCabin(c0, GONDOLA_UP, atTop ? 1 : 0, time, 0.008);
       placeCabin(c1, GONDOLA_UP, atTop ? 0 : 1, time, 0.008);
     }
@@ -754,8 +768,12 @@ export function updateFavela(ctx: MapUpdateContext): void {
     if (ride && (ride.id === 'peak_up' || ride.id === 'peak_down')) {
       const u = rideEase(ride.t);
       placeCabin(anim.peakCab, PEAK_UP, ride.id === 'peak_up' ? u : 1 - u, time, 0.02);
-    } else placeCabin(anim.peakCab, PEAK_UP, ctx.egg ? 0 : 1, time, 0.02);
-    anim.peakCab.visible = true;
+      anim.peakCab.visible = false;
+    } else {
+      // The peak car waits at the summit until the station is held, then waits at the station for you.
+      placeCabin(anim.peakCab, PEAK_UP, ctx.egg || (ctx.eggStep ?? 0) >= 3 ? 0 : 1, time, 0.02);
+      anim.peakCab.visible = true;
+    }
   }
   // Power: floodlights slam on, festoons chase, neon comes alive.
   const flood = power ? 3.2 : 0.18;

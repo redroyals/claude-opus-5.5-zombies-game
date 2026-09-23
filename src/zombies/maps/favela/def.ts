@@ -378,7 +378,7 @@ const LAMPS: LampDef[] = [
   { x: 14, y: T3 + 4, z: -8, range: 26, pre: { color: 0xffb070, intensity: 0, flicker: 'none' }, post: { color: 0xffc080, intensity: 60, flicker: 'none' }, fixture: 'none' },
   { x: 16, y: T3 + 5, z: -32, range: 26, pre: { color: 0xd09060, intensity: 40, flicker: 'faulty' }, post: { color: 0xff40c0, intensity: 70, flicker: 'none' }, fixture: 'none' },
   // T5 station / substation / mirante
-  { x: 18, y: T5 + 4.2, z: -51, range: 24, pre: { color: 0xff3020, intensity: 9, flicker: 'faulty' }, post: { color: 0xa8c8ff, intensity: 70, flicker: 'none' }, fixture: 'none' },
+  { x: 18, y: T5 + 3.2, z: -44.6, range: 24, pre: { color: 0xff3020, intensity: 8, flicker: 'faulty' }, post: { color: 0xa8c8ff, intensity: 45, flicker: 'none' }, fixture: 'none' },
   { x: -4, y: T5 + 3.5, z: -54, range: 14, pre: { color: 0xff3020, intensity: 10, flicker: 'faulty' }, post: { color: 0xa0ffd0, intensity: 30, flicker: 'buzz' }, fixture: 'none' },
   { x: -30, y: T5 + 5, z: -46, range: 30, pre: { color: 0x8aa0d8, intensity: 34, flicker: 'none' }, post: { color: 0xc0d0ff, intensity: 34, flicker: 'none' }, fixture: 'none' },
 ];
