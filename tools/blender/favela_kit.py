@@ -154,8 +154,8 @@ def house(name, w, d, storeys, seed, *, plaster_floors=(), lit=(), tank=True, ba
         p.box(-hw + 0.3, y, hd + 1.05, hw - 0.3, y + 0.95, hd + 1.1, M['steel'] if rnd.random() < 0.5 else M['concrete_dark'], collide=False)
     if tank and not tinroof:
         tx, tz = rnd.uniform(-hw + 0.9, hw - 0.9), rnd.uniform(-hd + 0.9, hd - 0.9)
-        p.cyl((tx, H + 0.55, tz), 'y', 1.1, 0.6, M['tank'], seg=12)
-        p.cyl((tx, H + 1.12, tz), 'y', 0.06, 0.64, M['tank'], seg=12)
+        p.cyl((tx, H + 0.55, tz), 'y', 1.1, 0.6, M['tank'], seg=8)
+        p.cyl((tx, H + 1.12, tz), 'y', 0.06, 0.64, M['tank'], seg=8)
     if stair:  # external concrete stair up the side (+X)
         n = storeys * 10
         for k in range(n):
@@ -168,11 +168,11 @@ def house(name, w, d, storeys, seed, *, plaster_floors=(), lit=(), tank=True, ba
 
 HOUSES = [
     ('fv_house_a', dict(w=4.2, d=4.0, storeys=2, seed=11, plaster_floors=(0,), balcony=1)),
-    ('fv_house_b', dict(w=5.0, d=4.5, storeys=3, seed=12, plaster_floors=(0, 1), lit={(1, 0)})),
+    ('fv_house_b', dict(w=5.0, d=4.5, storeys=3, seed=12, plaster_floors=(0, 1), lit={(1, 0)}, rebar=False)),
     ('fv_house_c', dict(w=3.6, d=4.0, storeys=1, seed=13, tinroof=True, tank=False)),
-    ('fv_house_d', dict(w=6.0, d=5.0, storeys=2, seed=14, plaster_floors=(0, 1), lit={(0, 2), (1, 1)})),
-    ('fv_house_e', dict(w=4.0, d=5.5, storeys=4, seed=15, stair=True, plaster_floors=(3,))),
-    ('fv_house_f', dict(w=5.2, d=5.0, storeys=2, seed=16, balcony=1, plaster_floors=(1,))),
+    ('fv_house_d', dict(w=6.0, d=5.0, storeys=2, seed=14, plaster_floors=(0, 1), lit={(0, 2), (1, 1)}, rebar=False)),
+    ('fv_house_e', dict(w=4.0, d=5.5, storeys=4, seed=15, stair=True, plaster_floors=(3,), rebar=False)),
+    ('fv_house_f', dict(w=5.2, d=5.0, storeys=2, seed=16, balcony=1, plaster_floors=(1,), rebar=False)),
 ]
 
 

@@ -227,146 +227,146 @@
  },
  "fv_house_block": {
   "id": "fv_house_block",
-  "tris": 5257,
-  "kb": 418,
+  "tris": 4000,
+  "kb": 403,
   "tex": 1024
  },
  "fv_barrel": {
   "id": "fv_barrel",
-  "tris": 6092,
-  "kb": 234,
-  "tex": 1024
+  "tris": 1499,
+  "kb": 78,
+  "tex": 512
  },
  "fv_gas_cylinder": {
   "id": "fv_gas_cylinder",
-  "tris": 6192,
-  "kb": 214,
-  "tex": 1024
+  "tris": 1500,
+  "kb": 85,
+  "tex": 512
  },
  "fv_water_tank": {
   "id": "fv_water_tank",
-  "tris": 5991,
-  "kb": 214,
-  "tex": 1024
+  "tris": 1499,
+  "kb": 78,
+  "tex": 512
  },
  "fv_satellite": {
   "id": "fv_satellite",
-  "tris": 5918,
-  "kb": 322,
-  "tex": 1024
+  "tris": 1500,
+  "kb": 109,
+  "tex": 512
  },
  "fv_gondola_cabin": {
   "id": "fv_gondola_cabin",
-  "tris": 8999,
-  "kb": 529,
+  "tris": 4000,
+  "kb": 306,
   "tex": 1024
  },
  "fv_bullwheel": {
   "id": "fv_bullwheel",
-  "tris": 8999,
-  "kb": 475,
+  "tris": 4000,
+  "kb": 356,
   "tex": 1024
  },
  "fv_transformer": {
   "id": "fv_transformer",
-  "tris": 9000,
-  "kb": 400,
+  "tris": 3499,
+  "kb": 276,
   "tex": 1024
  },
  "fv_bar_counter": {
   "id": "fv_bar_counter",
-  "tris": 8908,
-  "kb": 433,
+  "tris": 3999,
+  "kb": 367,
   "tex": 1024
  },
  "fv_fridge": {
   "id": "fv_fridge",
-  "tris": 7057,
-  "kb": 493,
-  "tex": 1024
+  "tris": 3725,
+  "kb": 223,
+  "tex": 512
  },
  "fv_motorbike": {
   "id": "fv_motorbike",
-  "tris": 9000,
-  "kb": 729,
+  "tris": 4000,
+  "kb": 605,
   "tex": 1024
  },
  "fv_wires": {
   "id": "fv_wires",
-  "tris": 9000,
-  "kb": 459,
-  "tex": 1024
+  "tris": 2999,
+  "kb": 177,
+  "tex": 512
  },
  "fv_goal": {
   "id": "fv_goal",
-  "tris": 5912,
-  "kb": 428,
-  "tex": 1024
+  "tris": 4717,
+  "kb": 235,
+  "tex": 512
  },
  "fv_drums": {
   "id": "fv_drums",
-  "tris": 9000,
-  "kb": 494,
-  "tex": 1024
+  "tris": 2999,
+  "kb": 190,
+  "tex": 512
  },
  "fv_speakers": {
   "id": "fv_speakers",
-  "tris": 8999,
-  "kb": 369,
-  "tex": 1024
+  "tris": 2402,
+  "kb": 130,
+  "tex": 512
  },
  "fv_table_chairs": {
   "id": "fv_table_chairs",
-  "tris": 9000,
-  "kb": 284,
-  "tex": 1024
+  "tris": 2881,
+  "kb": 114,
+  "tex": 512
  },
  "fv_water_tower": {
   "id": "fv_water_tower",
-  "tris": 8999,
-  "kb": 493,
+  "tris": 4999,
+  "kb": 424,
   "tex": 1024
  },
  "fv_costume_rack": {
   "id": "fv_costume_rack",
-  "tris": 7341,
-  "kb": 551,
-  "tex": 1024
+  "tris": 6332,
+  "kb": 307,
+  "tex": 512
  },
  "perk_fv_lifeline": {
   "id": "perk_fv_lifeline",
-  "tris": 8053,
-  "kb": 377,
+  "tris": 6000,
+  "kb": 336,
   "tex": 1024
  },
  "perk_fv_bulwark": {
   "id": "perk_fv_bulwark",
-  "tris": 8895,
-  "kb": 433,
+  "tris": 5999,
+  "kb": 369,
   "tex": 1024
  },
  "perk_fv_quickhands": {
   "id": "perk_fv_quickhands",
-  "tris": 8999,
-  "kb": 554,
+  "tris": 5999,
+  "kb": 483,
   "tex": 1024
  },
  "perk_fv_hammerfall": {
   "id": "perk_fv_hammerfall",
-  "tris": 8999,
-  "kb": 365,
+  "tris": 5999,
+  "kb": 321,
   "tex": 1024
  },
  "fv_reforger": {
   "id": "fv_reforger",
-  "tris": 9000,
-  "kb": 413,
+  "tris": 5999,
+  "kb": 344,
   "tex": 1024
  },
  "fv_mystery_box": {
   "id": "fv_mystery_box",
-  "tris": 8394,
-  "kb": 553,
+  "tris": 5000,
+  "kb": 497,
   "tex": 1024
  }
 }
