@@ -21,3 +21,7 @@ Meshy start balance 9570 (2026-09-22). Budget: spend <= 4000, script floor 5800 
 - Zombies: /v1/rigging + /v1/animations action_ids (scripts/clips.mjs); renamed in scripts/optimize-zombies.mjs.
 - Kit + power switch: tools/blender/zombies_kit.py. Mystery box = sample split into body+lid (tools/blender/split_lid.py).
 - Review renders: scripts/review-sheet.mjs (Blender workbench).
+
+- 2026-09-23 (zcore) no Meshy spend. Crawler legless variant = collapse the GLB leg chains at runtime (LeftUpLeg/RightUpLeg
+  scale 0) instead of a new asset. Zombie distance LODs generated locally: `node scripts/zombie-lods.mjs` ->
+  public/models/zombies/z_*_lod1.glb (geometry-only, meshopt simplify error 0.06: ~14.5k -> ~6.2k tris; boss 11.2k).
