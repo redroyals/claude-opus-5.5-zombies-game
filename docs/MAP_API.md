@@ -86,7 +86,8 @@ walls: [{ axis: 'x', at: 18, a0: -22, a1: 24, y0: 0, y1: 5.4, mat: 'brick' }],  
 boxes: [{ box: [x0, y0, z0, x1, y1, z1], mat: 'wood', collide: 'solid', surface: 'wood' }],
 quads: [{ rect, y, mat }],                 // flat visual planes (rugs, water, paint)
 cylinders: [{ x, z, r, h, mat }],          // drums, columns (box collider)
-props: [{ model: 'zombies/generator.glb', x, z, yaw, fit: { height: 1.8 }, collider: { w, d, h } }],
+props: [{ model: 'zombies/generator.glb', x, z, yaw, fit: { height: 1.8 }, collider: { w, d, h },
+          lod?: { model: 'favela/fv_water_tower.lod1.glb', distance: 28 } }],   // far-away low-detail twin
 signs: [{ lines: ['DARBAR HALL'], x, y, z, ry }],
 decals: [{ x, z, size, kind: 'blood' }],
 ground: { mat: 'dirt', tile: 6 },          // outdoor ground plane (visual)
