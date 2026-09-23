@@ -10,6 +10,7 @@ import type { Loadout } from '../mission/Economy';
 import type { Player } from '../player/Player';
 import type { CollisionWorld } from '../world/Collision';
 import type { ViewModel } from './ViewModel';
+import { LIMB_MULT } from '../enemies/hitbox';
 import { BREATH, adsSway, penBudget, penetrate, recoilKick, sprayReset } from './gunplay';
 import {
   canFire, cancelReload, damageAtRange, effectiveStats, fire, isReloading, reloadProgress, startReload, updateWeapon, type WeaponState,
@@ -264,6 +265,7 @@ export class WeaponSystem {
         endDist = zh.dist;
         let dmg = damageAtRange(w.id, baseDamage, zh.dist) * penMult;
         if (zh.head) dmg *= def.headMult;
+        else if (zh.part === 'limb') dmg *= LIMB_MULT;
         const e = acc.get(zh.z);
         if (e) { e.dmg += dmg; e.head = e.head || zh.head; }
         else acc.set(zh.z, { dmg, head: zh.head, x: zh.x, y: zh.y, z: zh.z_, dx: dir.x, dz: dir.z });

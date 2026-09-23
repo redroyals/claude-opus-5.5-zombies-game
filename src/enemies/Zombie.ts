@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { REGIONS, ZOMBIES, type RegionId, type ZombieDef, type ZombieType } from '../config';
 import { BONE, type ZombieVariant } from './ZombieModel';
+import { GLB_CAPSULES, MAX_CAPSULES, SEG } from './hitbox';
 
 export type ZState = 'idle' | 'alert' | 'chase' | 'attack' | 'stagger' | 'dead';
 
@@ -76,7 +77,14 @@ export class Zombie {
   linkFrom = { x: 0, y: 0, z: 0 };
   linkTo = { x: 0, y: 0, z: 0 };
   /** Skinned GLB instance (when a model exists); the procedural mesh is hidden then. */
-  glb: { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>; current: string; head: THREE.Object3D | null } | null = null;
+  glb: { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>; current: string; head: THREE.Object3D | null;
+    /** Rig bones per hit capsule endpoint (see GLB_CAPSULES) and the thigh bones hidden when legless. */
+    capBones?: (THREE.Object3D | null)[][]; legs?: THREE.Object3D[] } | null = null;
+  /** Bone-attached hit capsules (world space), rebuilt every render frame. */
+  readonly hitSegs = new Float32Array(SEG * MAX_CAPSULES);
+  hitCount = 0;
+  /** False when the capsules are stale (culled far away); the manager falls back to a box. */
+  hitValid = false;
 
   spawn(type: ZombieType, region: RegionId, x: number, z: number, y: number, rngSeed: number): void {
     this.type = type;
@@ -93,6 +101,7 @@ export class Zombie {
     this.hitReactT = 0;
     this.riseT = 0;
     this.link = -1;
+    this.hitValid = false;
     if (this.bones) {
       this.bones[BONE.head].scale.setScalar(1);
       const ls = this.legless ? 0.001 : 1;
@@ -186,6 +195,50 @@ export class Zombie {
     if (a && (g.current === 'walk' || g.current === 'run')) a.timeScale = Math.max(0.5, speed / (g.current === 'run' ? 4 : 1.4));
     g.mixer.update(this.frozenT > 0 ? 0 : dt);
     if (g.head) g.head.scale.setScalar(this.headless ? 0.001 : 1);
+    // Legless crawlers (spawned or shot off) drag a torso: collapse the leg chains.
+    if (g.legs) for (const l of g.legs) l.scale.setScalar(this.legless ? 0.001 : 1);
+  }
+
+  /** Rebuild the hit capsules from the drawn skeleton (GLB rig if present, else the procedural one). */
+  updateHitboxes(): void {
+    const segs = this.hitSegs;
+    const s = this.scale;
+    const g = this.glb;
+    const va = new THREE.Vector3(), vb = new THREE.Vector3();
+    let n = 0;
+    const put = (a: THREE.Vector3, b: THREE.Vector3, r: number) => {
+      const k = n * SEG;
+      segs[k] = a.x; segs[k + 1] = a.y; segs[k + 2] = a.z; segs[k + 3] = b.x; segs[k + 4] = b.y; segs[k + 5] = b.z; segs[k + 6] = r;
+      n++;
+    };
+    if (g && g.capBones && g.root.visible) {
+      GLB_CAPSULES.forEach((c, i) => {
+        const [ba, bb] = g.capBones![i];
+        if (!ba || !bb || (c.legs && this.legless) || (i === 0 && this.headless)) { put(va.set(0, -999, 0), vb.set(0, -999, 0), 0); return; }
+        ba.getWorldPosition(va); bb.getWorldPosition(vb);
+        put(va, vb, c.r * s);
+      });
+    } else {
+      const b = this.bones;
+      const p = (i: number, v: THREE.Vector3) => b[i].getWorldPosition(v);
+      const ext = (i: number, j: number, len: number, out: THREE.Vector3) => { const a = p(i, new THREE.Vector3()), c = p(j, new THREE.Vector3()); return out.copy(c).sub(a).setLength(len * s).add(c); };
+      p(BONE.head, va); vb.copy(va).y += 0.2 * s;
+      put(va, vb, this.headless ? 0 : 0.13 * s);
+      put(p(BONE.hips, va), p(BONE.neck, vb), 0.19 * s);
+      for (const [arm, fore] of [[BONE.armL, BONE.foreL], [BONE.armR, BONE.foreR]]) {
+        put(p(arm, va), p(fore, vb), 0.065 * s);
+        put(p(fore, va), ext(arm, fore, 0.26, vb), 0.055 * s);
+      }
+      for (const [th, sh] of [[BONE.thighL, BONE.shinL], [BONE.thighR, BONE.shinR]]) {
+        const r = this.legless ? 0 : 1;
+        put(p(th, va), p(sh, vb), 0.085 * s * r);
+        put(p(sh, va), ext(th, sh, 0.43, vb), 0.065 * s * r);
+      }
+    }
+    this.hitCount = n;
+    this.hitValid = true;
+    // The head target follows the drawn head.
+    if (segs[6] > 0) this.headPos.set((segs[0] + segs[3]) / 2, (segs[1] + segs[4]) / 2, (segs[2] + segs[5]) / 2);
   }
 
   /** Procedural animation. Runs at render rate with the frame delta. */

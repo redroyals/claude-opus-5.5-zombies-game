@@ -21,6 +21,7 @@ const CSS = `
 .zpup.blink { animation: zblink .25s steps(2) infinite; }
 @keyframes zblink { 50% { opacity:.25 } }
 #zzone { position:absolute; top:24px; left:50%; transform:translateX(-50%); font:700 13px monospace; letter-spacing:.3em; color:#c8b89a; opacity:.8; }
+#zzone.below { top:62px; }
 #zpoints { position:absolute; left:34px; bottom:100px; font:900 30px Georgia, serif; color:#f0d890; text-shadow:0 0 10px rgba(0,0,0,.8); }
 #hud.zmode .hud-tr, #hud.zmode .region-row, #hud.zmode .salvage, #hud.zmode .armor-row, #hud.zmode .inv:first-child { display:none !important; }
 #zover { position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; flex-direction:column;
@@ -117,6 +118,8 @@ export class ZHud {
       }).join('');
     }
     if (this.zone.textContent !== f.zone) this.zone.textContent = f.zone;
+    // Drop the zone label under the boss bar while it is up.
+    this.zone.classList.toggle('below', (document.getElementById('boss')?.style.display ?? 'none') === 'block');
   }
 
   showGameOver(s: ZRunStats | null): void {

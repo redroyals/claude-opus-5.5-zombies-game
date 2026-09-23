@@ -12,6 +12,7 @@ import type { FlowOut, NavGrid, NavLink } from '../world/NavGrid';
 import { models, findNode, type LoadedModel } from '../render/ModelRegistry';
 import { crawlerFromLegHit } from '../zombies/rules';
 import { TEAR_SECONDS } from '../zombies/zones';
+import { GLB_CAPSULES, HIT_PARTS, rayCapsules, type HitPart } from './hitbox';
 
 /** Zombies-mode barricade hooks: zombies spawned outside walk to a window, tear planks, then climb in. */
 export interface BarricadeHost {
@@ -27,7 +28,7 @@ const GLB_FOR: Partial<Record<ZombieType, string>> = {
   shambler: 'z_shambler', runner: 'z_runner', brute: 'z_brute', armored: 'z_brute', crawler: 'z_crawler', fast: 'z_fast', boss: 'z_boss', elite: 'z_boss',
 };
 
-export interface ZombieHit { z: Zombie; dist: number; head: boolean; x: number; y: number; z_: number }
+export interface ZombieHit { z: Zombie; dist: number; head: boolean; x: number; y: number; z_: number; part: HitPart }
 
 export interface DamageOutcome { killed: boolean; head: boolean; armor: boolean; dealt: number }
 
@@ -110,7 +111,10 @@ export class EnemyManager {
     if (Object.keys(actions).length === 0 && m.animations[0]) actions.walk = mixer.clipAction(m.animations[0]);
     inst.traverse((o) => { o.frustumCulled = false; });
     const head = findNode(inst, 'head') ?? findNode(inst, 'mixamorig:head') ?? findNode(inst, 'Head');
-    z.glb = { root: holder, mixer, actions, current: '', head };
+    const byName = (n: string) => { let f: THREE.Object3D | null = null; inst.traverse((o) => { if (!f && o.name === n) f = o; }); return f as THREE.Object3D | null; };
+    const capBones = GLB_CAPSULES.map((c) => [byName(c.a), byName(c.b)]);
+    const legs = ['LeftUpLeg', 'RightUpLeg'].map(byName).filter((o): o is THREE.Object3D => !!o);
+    z.glb = { root: holder, mixer, actions, current: '', head, capBones: capBones.every(([a, b]) => a && b) ? capBones : undefined, legs };
     this.group.add(holder);
   }
 
@@ -529,11 +533,11 @@ export class EnemyManager {
   animate(dt: number, camX: number, camZ: number): void {
     for (const z of this.zombies) {
       const far = Math.hypot(z.pos.x - camX, z.pos.z - camZ) > 70;
-      if (far && z.alive) { z.mesh.position.set(z.pos.x, z.pos.y, z.pos.z); z.mesh.rotation.set(0, z.yaw, 0); continue; }
+      if (far && z.alive) { z.mesh.position.set(z.pos.x, z.pos.y, z.pos.z); z.mesh.rotation.set(0, z.yaw, 0); z.hitValid = false; continue; }
       z.animate(dt, this.time);
     }
     this.group.updateMatrixWorld(true);
-    for (const z of this.zombies) if (z.alive) z.updateHeadPos();
+    for (const z of this.zombies) if (z.alive) { z.updateHeadPos(); if (z.hitValid || Math.hypot(z.pos.x - camX, z.pos.z - camZ) <= 70) z.updateHitboxes(); }
   }
 
   // --------------------------------------------------------------------------------------------
@@ -547,19 +551,29 @@ export class EnemyManager {
       const cx = z.pos.x - ox, cz = z.pos.z - oz;
       const along = cx * dx + cz * dz;
       if (along < -1 || along > bestD + 1.5) continue;
+      if (z.hitValid) {
+        // Bone-attached capsules: head first (index 0), then torso and limbs.
+        const h = rayCapsules(z.hitSegs, z.hitCount, ox, oy, oz, dx, dy, dz, bestD);
+        if (h) {
+          bestD = h.dist;
+          const part = HIT_PARTS[h.index];
+          best = { z, dist: h.dist, head: part === 'head', x: ox + dx * h.dist, y: oy + dy * h.dist, z_: oz + dz * h.dist, part };
+        }
+        continue;
+      }
       const hr = 0.14 * z.scale;
       const hp = z.headPos;
       const t = raySphere(ox, oy, oz, dx, dy, dz, hp.x, hp.y, hp.z, hr);
       if (t !== null && t < bestD) {
         bestD = t;
-        best = { z, dist: t, head: true, x: ox + dx * t, y: oy + dy * t, z_: oz + dz * t };
+        best = { z, dist: t, head: true, x: ox + dx * t, y: oy + dy * t, z_: oz + dz * t, part: 'head' };
       }
       const r = z.elite ? 0.42 : 0.27 * z.scale;
       const top = z.pos.y + (hp.y - z.pos.y) - hr * 0.9;
       const tb = rayAABB(ox, oy, oz, dx, dy, dz, z.pos.x - r, z.pos.y, z.pos.z - r, z.pos.x + r, top, z.pos.z + r);
       if (tb !== null && tb < bestD - 1e-4) {
         bestD = tb;
-        best = { z, dist: tb, head: false, x: ox + dx * tb, y: oy + dy * tb, z_: oz + dz * tb };
+        best = { z, dist: tb, head: false, x: ox + dx * tb, y: oy + dy * tb, z_: oz + dz * tb, part: 'body' };
       }
     }
     return best;

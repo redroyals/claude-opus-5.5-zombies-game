@@ -93,6 +93,8 @@ export class ViewModel {
   private camoTex: THREE.CanvasTexture;
   private time = 0;
   private frames: Record<string, FrameData> = {};
+  /** Weapon frames load asynchronously; GLBs are attached only once they are known (else they draw unfitted). */
+  private framesReady: Promise<void>;
 
   constructor(tex: TextureLib) {
     this.tex = tex;
@@ -118,11 +120,12 @@ export class ViewModel {
     this.polymer = new THREE.MeshStandardMaterial({ color: 0x34373a, roughness: 0.7, metalness: 0.1, map: tex.grime });
     this.wood = new THREE.MeshStandardMaterial({ color: 0x8a5a36, roughness: 0.6, map: tex.wood.map });
 
+    this.framesReady = models.json<{ weapons?: Record<string, FrameData> }>('weapons/frames.json').then((f) => { if (f?.weapons) this.frames = f.weapons; });
     this.camoTex = this.buildCamo();
     for (const id of ['rifle', 'pistol', 'shotgun'] as WeaponId[]) this.ensure(id);
     this.knife = this.buildKnife();
     this.camera.add(this.knife);
-    void models.json<{ weapons?: Record<string, FrameData> }>('weapons/frames.json').then((f) => { if (f?.weapons) this.frames = f.weapons; });
+
 
     this.plate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.025), new THREE.MeshStandardMaterial({ color: 0x3d4238, roughness: 0.6, metalness: 0.4, map: tex.grime }));
     this.plate.visible = false;
@@ -146,7 +149,7 @@ export class ViewModel {
     this.setTier(id, 0);
     const mid = def.modelId ?? id;
     const model = m;
-    models.whenAvailable(`weapons/${mid}.glb`, (lm) => this.attachGlb(model, models.instance(lm), mid));
+    models.whenAvailable(`weapons/${mid}.glb`, (lm) => { void this.framesReady.then(() => this.attachGlb(model, models.instance(lm), mid)); });
     return m;
   }
 
@@ -722,11 +725,16 @@ export class ViewModel {
     }
     m.root.visible = true;
     // Springs (critically-damped-ish)
+    // Sub-stepped so a slow frame (low fps, tab hitch) cannot blow the explicit spring up.
     const k = 170, d = 20;
-    this.kickV += (-k * this.kick - d * this.kickV) * dt;
-    this.kick += this.kickV * dt;
-    this.kickRotV += (-k * this.kickRot - d * this.kickRotV) * dt;
-    this.kickRot += this.kickRotV * dt;
+    for (let left = Math.min(dt, 0.25); left > 1e-6;) {
+      const h = Math.min(left, 1 / 120);
+      left -= h;
+      this.kickV += (-k * this.kick - d * this.kickV) * h;
+      this.kick += this.kickV * h;
+      this.kickRotV += (-k * this.kickRot - d * this.kickRotV) * h;
+      this.kickRot += this.kickRotV * h;
+    }
     const motion = s.reducedMotion ? 0.35 : 1;
     // Sway from look input (lagging)
     const tx = THREE.MathUtils.clamp(-s.lookDX * 0.0009, -0.06, 0.06) * motion;

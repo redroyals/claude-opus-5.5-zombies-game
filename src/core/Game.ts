@@ -1225,10 +1225,16 @@ export class Game {
         zombies: this.enemies.aliveCount, stats: { ...this.mission.stats }, weaponStats: { ...this.weapons.stats }, station: this.station,
         interaction: this.currentInteraction?.kind ?? null,
       }),
-      zombies: () => this.enemies.zombies.filter((z) => z.alive).map((z) => ({ type: z.type, x: +z.pos.x.toFixed(2), z: +z.pos.z.toFixed(2), y: +z.pos.y.toFixed(2), state: z.state, hp: Math.round(z.hp), elite: z.elite })),
+      zombies: () => this.enemies.zombies.filter((z) => z.alive).map((z) => ({ type: z.type, x: +z.pos.x.toFixed(2), z: +z.pos.z.toFixed(2), y: +z.pos.y.toFixed(2), state: z.state, hp: Math.round(z.hp), elite: z.elite, caps: z.hitValid ? Array.from(z.hitSegs.slice(0, z.hitCount * 7)).map((v) => +v.toFixed(2)) : null })),
       spawnZombie: (type: 'shambler' | 'runner' | 'armored', x: number, z: number, state: 'idle' | 'chase' = 'chase') => this.enemies.spawn(type, regionAt(z), x, z, state),
-      clearZombies: () => { for (const z of this.enemies.zombies) if (z.alive && !z.elite) { z.alive = false; z.state = 'dead'; z.deathT = 99; } },
+      clearZombies: (all?: boolean) => { for (const z of this.enemies.zombies) if (z.alive && (all || !z.elite)) { z.alive = false; z.state = 'dead'; z.deathT = 99; } },
       damagePlayer: (n: number) => this.onPlayerHit(n, this.player.pos.x + 1, this.player.pos.z, false),
+      aimRay: () => {
+        const c = this.renderer.camera; const f = new THREE.Vector3(0, 0, -1).applyQuaternion(c.quaternion);
+        const w = this.world.raycast(c.position.x, c.position.y, c.position.z, f.x, f.y, f.z, 200);
+        const z = this.enemies.raycast(c.position.x, c.position.y, c.position.z, f.x, f.y, f.z, w ? w.dist : 200);
+        return { cam: c.position.toArray(), dir: f.toArray(), world: w ? { dist: w.dist, s: w.box?.surface ?? 'ground' } : null, zombie: z ? { dist: z.dist, part: z.part, type: z.z.type } : null };
+      },
       frameStats: () => {
         const a = [...this.frameTimes].sort((x, y) => x - y);
         const avg = a.reduce((s, x) => s + x, 0) / Math.max(1, a.length);
