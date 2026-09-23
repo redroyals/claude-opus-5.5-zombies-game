@@ -408,3 +408,24 @@ describe('hidden songs', () => {
     expect(JSON.stringify(easterSong('nightfall'))).not.toBe(JSON.stringify(easterSong('favela')));
   });
 });
+
+describe('no prompt stealing', () => {
+  it('buildable parts, benches and trap switches stay out of every other interactable\'s E range', () => {
+    const near = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }, r: number) => Math.hypot(a.x - b.x, a.z - b.z) < r && Math.abs(a.y - b.y) < 1.4;
+    for (const d of PLAYABLE) {
+      // Where a player stands to use each existing interactable.
+      const stands: { what: string; p: { x: number; y: number; z: number } }[] = [
+        ...Object.entries(d.perks).map(([k, s]) => ({ what: `perk ${k}`, p: frontOf(s!, 1.3) })),
+        ...d.wallBuys.map((w) => ({ what: `wall ${w.key}`, p: frontOf({ ...w }, 0.8) })),
+        ...d.box.spots.map((s, i) => ({ what: `box ${i}`, p: frontOf(s, 1.1) })),
+        ...(d.pap ? [{ what: 'pap', p: frontOf(d.pap, 1.4) }] : []),
+        ...(d.power ? [{ what: 'power', p: frontOf(d.power, 1.0) }] : []),
+      ];
+      for (const b of d.buildables ?? []) {
+        for (const pt of b.parts) for (const s of stands) expect(near({ x: pt.x, y: pt.y - 0.35, z: pt.z }, s.p, 1.6), `${d.id}: ${pt.name} steals ${s.what}`).toBe(false);
+        for (const s of stands) expect(near({ x: b.bench.x, y: b.bench.y ?? 0, z: b.bench.z }, s.p, 2.0), `${d.id}: ${b.id} bench steals ${s.what}`).toBe(false);
+      }
+      for (const t of d.traps ?? []) for (const s of stands) expect(near({ x: t.switch.x, y: t.switch.y ?? 0, z: t.switch.z }, s.p, 1.7), `${d.id}: ${t.id} switch steals ${s.what}`).toBe(false);
+    }
+  });
+});

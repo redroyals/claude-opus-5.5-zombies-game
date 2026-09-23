@@ -1171,7 +1171,8 @@ export class Game {
       health: v.health, armor: v.armor, plates: v.plates, grenades: this.loadout.grenades, cash: zmode ? this.zm.zp.points : this.loadout.cash,
       weaponName: w ? (zmode ? this.zm.weaponName(w.id, w.tier) : WEAPONS[w.id].name) : '', tier: w?.tier ?? 0, mag: w?.mag ?? 0, magSize: stats?.magSize ?? 1, reserve: w?.reserve ?? 0,
       reloading: w ? isReloading(w) : false,
-      secondary: other ? `[${this.loadout.active === 0 ? 2 : 1}] ${WEAPONS[other.id].shortName}  ${other.mag}/${other.reserve}` : '',
+      secondary: (other ? `[${this.loadout.active === 0 ? 2 : 1}] ${WEAPONS[other.id].shortName}  ${other.mag}/${other.reserve}` : '')
+        + (zmode && this.zm.mule ? `  ·  [+] ${WEAPONS[this.zm.mule.id].shortName}` : ''),
       stamina: v.stamina, exhausted: v.exhausted, sprinting: p.sprinting,
       plateProgress: v.plateT > 0 ? 1 - v.plateT / PLAYER.plateApplyTime : 0,
       adsT: this.weapons.adsT, spreadPx: Math.min(60, spreadPx),

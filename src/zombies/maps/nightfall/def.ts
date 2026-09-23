@@ -212,7 +212,7 @@ export const NIGHTFALL: ZombiesMapDef = {
     bench: { x: 12, z: 13, face: Math.PI },
     parts: [
       { name: 'Shield plate', x: 7, y: 0.9, z: -11, model: 'plate' },
-      { name: 'Viewport glass', x: -14, y: 0.9, z: 10, model: 'orb' },
+      { name: 'Viewport glass', x: -9.5, y: 0.9, z: 12, model: 'orb' },
       { name: 'Grip strap', x: 12.5, y: PF + 0.9, z: -2, model: 'gear' },
     ],
     result: { kind: 'shield', hp: 1500 },

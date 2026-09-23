@@ -150,6 +150,15 @@ if (newPerk) {
   await shot('05-new-perk');
 }
 
+// Every new perk machine can be walked up to (map art added by decorate hooks must not block it).
+for (const k of ['strider', 'hawkeye', 'packmule', 'nova'].filter((id) => def.perks[id])) {
+  const s = def.perks[k];
+  const f = front(s, 1.3);
+  await stand(f.x, f.z, f.y, s.x, s.z, 0.1);
+  const q = await find();
+  check(`${k} machine reachable (E prompt from its front)`, q?.kind === 'perk' && q.id === k, JSON.stringify(q));
+}
+
 // ---- 5. The Reforger, three passes ----------------------------------------------------------------
 {
   const s = def.pap;
