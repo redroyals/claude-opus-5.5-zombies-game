@@ -76,6 +76,7 @@ export class ZombiesMap {
   private bulbOff: THREE.MeshBasicMaterial;
   private plankMat: THREE.MeshStandardMaterial;
   private chalk = new Map<string, THREE.Mesh>();
+  private custom: Record<string, THREE.Material> = {};
 
   constructor(private M: Materials, readonly entry: ZombiesMapEntry) {
     const def = (this.def = entry.def);
@@ -83,6 +84,7 @@ export class ZombiesMap {
     this.bulbOn = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd29a).multiplyScalar(3) });
     this.bulbOff = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x802010).multiplyScalar(1.5) });
     this.plankMat = new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 0.9, map: M.tex.wood.map });
+    this.custom = entry.materials?.() ?? {};
     const cm = (this.compiled = compileMap(def));
     const col = buildColliders(def, cm);
     this.world = col.world;
@@ -105,7 +107,10 @@ export class ZombiesMap {
     for (const a of def.assets ?? []) void models.load(a);
   }
 
-  mat(m: MatRef): THREE.Material { return resolveMat(this.M, m); }
+  mat(m: MatRef): THREE.Material {
+    if (typeof m !== 'string' && m.custom) { const c = this.custom[m.custom]; if (c) return c; }
+    return resolveMat(this.M, m);
+  }
 
   // ------------------------------------------------------------------------------------------
   private buildGround(): void {
@@ -433,7 +438,7 @@ export class ZombiesMap {
     });
   }
 
-  update(time: number, dt: number, power: boolean): void {
+  update(time: number, dt: number, power: boolean, player?: { x: number; y: number; z: number }): void {
     for (const d of this.doors) {
       if (!d.open || d.openT >= 1) { if (d.open) d.mesh.visible = false; continue; }
       d.openT = Math.min(1, d.openT + dt / 1.1);
@@ -466,7 +471,7 @@ export class ZombiesMap {
       const s = r.userData.spin as THREE.Object3D | undefined;
       if (s) s.rotation.y = time * 2;
     }
-    this.entry.update?.({ time, dt, power });
+    this.entry.update?.({ time, dt, power, player });
   }
 
   groundHeight(x: number, z: number): number {

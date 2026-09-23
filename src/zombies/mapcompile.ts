@@ -201,7 +201,7 @@ export function compileMap(def: ZombiesMapDef): CompiledMap {
   }
 
   // ---- Authored static geometry ----
-  for (const b of def.boxes ?? []) add(b.box, b.mat ?? 'concrete', b.tile ?? 2, b.collide ?? 'solid', b.surface ?? 'concrete', b.shadow ?? true);
+  for (const b of def.boxes ?? []) add(b.box, b.mat === null ? null : b.mat ?? 'concrete', b.tile ?? 2, b.collide ?? 'solid', b.surface ?? 'concrete', b.shadow ?? true);
   for (const c of def.cylinders ?? []) {
     const y = c.y ?? 0;
     if ((c.collide ?? 'solid') !== 'none') add(tuple(c.x - c.r, y, c.z - c.r, c.x + c.r, y + c.h, c.z + c.r), null, 1, c.collide ?? 'solid', c.surface ?? 'metal');

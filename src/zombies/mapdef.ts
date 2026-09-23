@@ -29,6 +29,8 @@ export type TexName = 'concrete' | 'brick' | 'plaster' | 'wood' | 'metalPanel' |
 export interface MatSpec {
   color: number; roughness?: number; metalness?: number; texture?: TexName;
   emissive?: number; emissiveIntensity?: number; opacity?: number; doubleSided?: boolean;
+  /** Key into the map entry's `materials()` library (bespoke textured materials); the fields above are the fallback. */
+  custom?: string;
 }
 export type MatRef = MatName | MatSpec;
 
@@ -43,7 +45,8 @@ export type Collide = 'solid' | 'floor' | 'nonsolid' | 'none';
 
 /** Axis-aligned box: [x0, y0, z0, x1, y1, z1]. */
 export type BoxTuple = [number, number, number, number, number, number];
-export interface BoxDef { box: BoxTuple; mat?: MatRef; tile?: number; collide?: Collide; surface?: Surface; shadow?: boolean }
+/** `mat: null` = collider only (invisible). */
+export interface BoxDef { box: BoxTuple; mat?: MatRef | null; tile?: number; collide?: Collide; surface?: Surface; shadow?: boolean }
 /** Horizontal quad (visual floor/decal plane, no collider). */
 export interface QuadDef { rect: Rect; y: number; mat: MatRef; tile?: number }
 /** Vertical cylinder (drums, pillars). Collider is its bounding box. */
@@ -185,7 +188,12 @@ export interface EggReward {
   refillAmmo?: boolean;
   /** Drop a power-up at the player spawn. */
   powerup?: PowerUpKind;
+  /** Grant every perk this map has (ignores the perk limit). */
+  allPerks?: boolean;
+  /** Give a weapon (e.g. a map-specific wonder weapon). */
+  weapon?: WeaponId;
 }
+export interface MachineModels { box?: string; pap?: string; power?: string; perks?: Partial<Record<PerkId, string>> }
 export interface EggDef { name: string; steps: EggStepDef[]; reward: EggReward }
 
 export interface PowerUpRules {
@@ -240,6 +248,8 @@ export interface ZombiesMapDef {
   audio?: { ambience?: string };
   /** Model paths (under /models) to preload when the map is selected. */
   assets?: string[];
+  /** Per-map machine skins (paths under /models, or bare file names resolved via the manifest). Gameplay is unchanged. */
+  machineModels?: MachineModels;
 }
 
 // ------------------------------------------------------------------------------------------------------

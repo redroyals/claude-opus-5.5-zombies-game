@@ -114,14 +114,14 @@ export class CacheView {
   private reelIdx = 0;
   private spinSeen = false;
 
-  constructor(spots: Spot[], ground: (x: number, z: number) => number) {
+  constructor(spots: Spot[], ground: (x: number, z: number) => number, model = 'mystery_box.glb') {
     const wood = new THREE.MeshStandardMaterial({ color: 0x5a3c22, roughness: 0.8 });
     const trim = new THREE.MeshStandardMaterial({ color: 0x8a6a2a, roughness: 0.4, metalness: 0.7 });
     const qMat = new THREE.MeshBasicMaterial({ map: this.questionTex(), transparent: true, depthWrite: false });
     const beamMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x70d8ff), transparent: true, opacity: 0.08, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     for (const sp of spots) {
       const root = new THREE.Group();
-      root.position.set(sp.x, ground(sp.x, sp.z), sp.z);
+      root.position.set(sp.x, sp.y ?? ground(sp.x, sp.z), sp.z);
       root.rotation.y = sp.face;
       const body = new THREE.Group();
       const crate = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.55, 0.7), wood);
@@ -163,7 +163,7 @@ export class CacheView {
     }
     this.moth = this.buildMoth();
     this.group.add(this.moth);
-    watchModel('mystery_box.glb', (m) => {
+    watchModel(model, (m) => {
       for (const v of this.views) {
         const inst = models.instance(m);
         placeModel(inst, 1.0);
@@ -330,7 +330,7 @@ export class ReforgerView {
   private dur = 1;
   private glb: THREE.Object3D | null = null;
 
-  constructor(spot: Spot, y: number) {
+  constructor(spot: Spot, y: number, model = 'reforger.glb') {
     this.root.position.set(spot.x, y, spot.z);
     this.root.rotation.y = spot.face;
     const dark = new THREE.MeshStandardMaterial({ color: 0x24222a, roughness: 0.5, metalness: 0.7 });
@@ -360,7 +360,7 @@ export class ReforgerView {
     this.light = new THREE.PointLight(0xa060ff, 0, 6, 1.6);
     this.light.position.set(0, 1.6, 0.9);
     this.root.add(this.light);
-    watchModel('reforger.glb', (m) => {
+    watchModel(model, (m) => {
       const inst = models.instance(m);
       placeModel(inst, 1.75);
       for (const c of [...this.root.children]) if (c !== this.light && c !== sign) c.visible = false;
@@ -417,7 +417,7 @@ export class PerkViews {
   readonly group = new THREE.Group();
   private views: PerkView[] = [];
 
-  constructor(spots: Partial<Record<PerkId, Spot>>, ground: (x: number, z: number, y?: number) => number) {
+  constructor(spots: Partial<Record<PerkId, Spot>>, ground: (x: number, z: number, y?: number) => number, models_?: Partial<Record<PerkId, string>>) {
     for (const id of Object.keys(spots) as PerkId[]) {
       const sp = spots[id]!;
       const def = PERKS[id];
@@ -476,7 +476,7 @@ export class PerkViews {
       this.group.add(root);
       const view: PerkView = { id, root, neon, glass, light, lit: false };
       this.views.push(view);
-      watchModel(`perk_${id}.glb`, (m) => {
+      watchModel(models_?.[id] ?? `perk_${id}.glb`, (m) => {
         const inst = models.instance(m);
         placeModel(inst, 2.1);
         for (const c of [...root.children]) if (c !== light && c !== sign) c.visible = false;
@@ -512,7 +512,7 @@ export class PowerSwitchView {
   private t = 0;
   private on = false;
 
-  constructor(spot: Spot) {
+  constructor(spot: Spot, model = 'power_switch.glb') {
     this.root.position.set(spot.x, spot.y ?? 0, spot.z);
     this.root.rotation.y = spot.face;
     const dark = new THREE.MeshStandardMaterial({ color: 0x2c3034, roughness: 0.6, metalness: 0.6 });
@@ -537,7 +537,7 @@ export class PowerSwitchView {
     pivot.rotation.x = 0.9;
     this.root.add(pivot);
     this.lever = pivot;
-    watchModel('power_switch.glb', (m) => {
+    watchModel(model, (m) => {
       const inst = models.instance(m);
       placeModel(inst, 2.1);
       for (const c of [...this.root.children]) if (c !== lampM) c.visible = false;

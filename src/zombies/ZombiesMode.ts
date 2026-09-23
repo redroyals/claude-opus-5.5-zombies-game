@@ -112,13 +112,14 @@ export class ZombiesMode {
       const root = new THREE.Group();
       root.add(map.root);
       const ground = (x: number, z: number, y = 0) => map.world.groundHeight(x, z, 0.3, y + 3.2);
-      const cache = new CacheView(def.box.spots, (x, z) => ground(x, z));
+      const mm = def.machineModels ?? {};
+      const cache = new CacheView(def.box.spots, (x, z) => ground(x, z), mm.box);
       root.add(cache.group);
-      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0) : null;
+      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0, mm.pap) : null;
       if (reforger) root.add(reforger.root);
-      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), (x, z) => ground(x, z));
+      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), (x, z) => ground(x, z), mm.perks);
       root.add(perks.group);
-      const powerSwitch = def.power ? new PowerSwitchView(def.power) : null;
+      const powerSwitch = def.power ? new PowerSwitchView(def.power, mm.power) : null;
       if (powerSwitch) root.add(powerSwitch.root);
       for (const s of def.wallBuys) root.add(buildChalk(s.key, s.x, (s.y ?? 0) + 1.7, s.z, s.face));
       b = { map, root, cache, reforger, perks, powerSwitch };
@@ -250,7 +251,7 @@ export class ZombiesMode {
     this.reforger?.update(dt, this.time, this.power, (x, y, z) => this.host.fx.sparkBurst(x, y, z, 18, [1.4, 0.6, 2]));
     this.perks.update(this.time, this.power);
     this.powerSwitch?.update(dt);
-    this.map.update(this.time, dt, this.power);
+    this.map.update(this.time, dt, this.power, player);
 
     // Perk jingles when standing near a lit machine
     this.jingleT -= dt;
@@ -750,6 +751,11 @@ export class ZombiesMode {
     if (rw.refillAmmo) for (const s of l.slots) if (s) refillAmmo(s);
     if (rw.points) this.addPoints(rw.points);
     if (rw.powerup) this.dropPowerUp(rw.powerup, ...this.eggDropPos());
+    if (rw.allPerks) {
+      for (const [id] of perkEntries(this.def)) if (!this.zp.perks.includes(id)) this.zp.perks.push(id);
+      this.applyMods();
+    }
+    if (rw.weapon) this.giveWeapon(rw.weapon);
   }
 
   private eggDropPos(): [number, number, number] { const s = this.spawn; return [s.x, s.y, s.z]; }

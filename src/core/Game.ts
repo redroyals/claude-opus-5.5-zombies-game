@@ -1187,8 +1187,8 @@ export class Game {
     return {
       game: this,
       lock: (on: boolean) => { this.input.virtualLock = on; },
-      teleport: (x: number, z: number, yaw?: number) => {
-        const y = this.level.world.groundHeight(x, z, 0.3, 1.5);
+      teleport: (x: number, z: number, yaw?: number, yHint?: number) => {
+        const y = yHint !== undefined ? this.world.groundHeight(x, z, 0.3, yHint + 0.5) : this.level.world.groundHeight(x, z, 0.3, 1.5);
         this.player.pos = { x, y, z };
         this.player.vel = { x: 0, y: 0, z: 0 };
         if (yaw !== undefined) this.player.yaw = yaw;
