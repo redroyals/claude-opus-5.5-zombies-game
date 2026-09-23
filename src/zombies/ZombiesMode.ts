@@ -111,12 +111,13 @@ export class ZombiesMode {
       const def = entry.def;
       const root = new THREE.Group();
       root.add(map.root);
-      const ground = (x: number, z: number, y = 0) => map.world.groundHeight(x, z, 0.3, y + 3.2);
-      const cache = new CacheView(def.box.spots, (x, z) => ground(x, z));
+      // Machines stand on the floor their spot names (the world already contains their own colliders).
+      const ground = () => 0;
+      const cache = new CacheView(def.box.spots, ground);
       root.add(cache.group);
       const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0) : null;
       if (reforger) root.add(reforger.root);
-      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), (x, z) => ground(x, z));
+      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), ground);
       root.add(perks.group);
       const powerSwitch = def.power ? new PowerSwitchView(def.power) : null;
       if (powerSwitch) root.add(powerSwitch.root);

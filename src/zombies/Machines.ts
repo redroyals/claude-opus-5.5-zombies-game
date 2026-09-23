@@ -121,7 +121,7 @@ export class CacheView {
     const beamMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x70d8ff), transparent: true, opacity: 0.08, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     for (const sp of spots) {
       const root = new THREE.Group();
-      root.position.set(sp.x, ground(sp.x, sp.z), sp.z);
+      root.position.set(sp.x, sp.y ?? ground(sp.x, sp.z), sp.z);
       root.rotation.y = sp.face;
       const body = new THREE.Group();
       const crate = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.55, 0.7), wood);
@@ -411,7 +411,10 @@ export class ReforgerView {
 // ----------------------------------------------------------------------------------------------
 // Perk machines: four distinct silhouettes, neon signs lit only with power.
 // ----------------------------------------------------------------------------------------------
-interface PerkView { id: PerkId; root: THREE.Group; neon: THREE.MeshBasicMaterial; glass: THREE.MeshStandardMaterial; light: THREE.PointLight; lit: boolean }
+interface PerkView { id: PerkId; root: THREE.Group; neon: THREE.MeshBasicMaterial; glass: THREE.MeshStandardMaterial; light: THREE.PointLight; spot: THREE.SpotLight; cone: THREE.Mesh; lit: boolean; glbEmissive: THREE.MeshStandardMaterial[] }
+
+/** Perk machine light levels (tuned so a lit machine reads from across a room without blooming the screen). */
+export const PERK_GLOW = { neon: 1.05, glass: 0.45, fill: 1.4, spot: 4.5, cone: 0.035, glbEmissive: 0.25 } as const;
 
 export class PerkViews {
   readonly group = new THREE.Group();
@@ -470,16 +473,32 @@ export class PerkViews {
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.45), neon);
       sign.position.set(0, signY, 0.46);
       root.add(sign);
-      const light = new THREE.PointLight(def.color, 0, 4.5, 1.6);
-      light.position.set(0, 1.6, 1.0);
+      // Soft fill on the floor in front, plus a down-cone from a hood lamp (the classic lit-machine pool).
+      const light = new THREE.PointLight(def.color, 0, 3.2, 2);
+      light.position.set(0, 0.6, 1.1);
       root.add(light);
+      const spot = new THREE.SpotLight(0xfff2e0, 0, 6, 0.55, 0.6, 1.6);
+      spot.position.set(0, 3.1, 0.9);
+      spot.target.position.set(0, 0, 1.2);
+      root.add(spot, spot.target);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(1.15, 3.0, 20, 1, true), new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true }));
+      cone.position.set(0, 1.6, 1.05);
+      cone.raycast = () => {};
+      root.add(cone);
       this.group.add(root);
-      const view: PerkView = { id, root, neon, glass, light, lit: false };
+      const view: PerkView = { id, root, neon, glass, light, spot, cone, lit: false, glbEmissive: [] };
       this.views.push(view);
       watchModel(`perk_${id}.glb`, (m) => {
         const inst = models.instance(m);
         placeModel(inst, 2.1);
-        for (const c of [...root.children]) if (c !== light && c !== sign) c.visible = false;
+        for (const c of [...root.children]) if (c !== light && c !== sign && c !== spot && c !== spot.target && c !== cone) c.visible = false;
+        // Authored emissive panels are strong; they are driven by the power state below.
+        inst.traverse((o) => {
+          const me = o as THREE.Mesh;
+          if (!me.isMesh) return;
+          const mt = me.material as THREE.MeshStandardMaterial;
+          if (mt?.isMeshStandardMaterial && (mt.emissiveMap || mt.emissive.getHex() !== 0)) { const c = mt.clone(); me.material = c; view.glbEmissive.push(c); }
+        });
         root.add(inst);
       });
     }
@@ -489,9 +508,13 @@ export class PerkViews {
     for (const v of this.views) {
       const on = power || !PERKS[v.id].needsPower;
       const flick = on && Math.sin(time * 13 + v.id.length) > 0.97 ? 0.4 : 1;
-      v.neon.color.setScalar(on ? 1.8 * flick : 0.18);
-      v.glass.emissiveIntensity = on ? 1.4 * flick : 0.05;
-      v.light.intensity = on ? 7 * flick : 0;
+      v.neon.color.setScalar(on ? PERK_GLOW.neon * flick : 0.18);
+      v.glass.emissiveIntensity = on ? PERK_GLOW.glass * flick : 0.05;
+      v.light.intensity = on ? PERK_GLOW.fill * flick : 0;
+      v.spot.intensity = on ? PERK_GLOW.spot * flick : 0;
+      (v.cone.material as THREE.MeshBasicMaterial).opacity = on ? PERK_GLOW.cone * flick : 0;
+      v.cone.visible = on;
+      for (const m of v.glbEmissive) m.emissiveIntensity = on ? PERK_GLOW.glbEmissive * flick : 0.02;
       v.lit = on;
     }
   }
