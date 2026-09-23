@@ -138,19 +138,49 @@ spawnPoints: [{ zone: 2, kind: 'ground' | 'drop' | 'point', x, y, z, weight?: 1 
 ### Player, machines, buys
 ```ts
 playerSpawn: { x, y?, z, yaw },  coopSpawns?: [...],
-box:   { spots: [{ x, z, face, y? }], start?: 0 },
-perks: { lifeline: { x, z, face }, bulwark: {...}, quickhands: {...}, hammerfall: {...} },  // any subset
+box:   { spots: [{ x, z, face, y? }], start?: 0,
+         reveal?: { doors?: 2, zones?: [3], round?: 5, power?: true, spot?: 1, hint?: '...' } },  // hidden until ANY holds
+perks: { lifeline: { x, z, face }, bulwark: {...}, quickhands: {...}, hammerfall: {...},
+         strider, hawkeye, packmule, nova },     // any subset; the last four borrow a stock machine, repainted
 pap:   { x, z, face, y? } | null,
 power: { x, z, face, y? } | null,        // null = power on from the start
-wallBuys: [{ key: 'smg_wren', x, z, face, y? }],   // key from WALL_BUYS (src/zombies/rules.ts)
+wallBuys: [{ key: 'smg_wren', x, z, face, y? }],   // key from WALL_BUYS (src/zombies/rules.ts); starter tier only in the start zone
 startWeapon?: 'pi_warden',
 machines?: { box: 'lahore/box.glb', pap, power, perks: { bulwark: 'x.glb' | { model: 'x.glb', foot: [w, d] } } },
 powerups?: { exclude?: ['carpenter'], maxPerRound?: 4, dropChanceMult?: 1 },
+rounds?: { special?: { first: [5, 6], every: [4, 6] } | null, bossEvery?: 8, blackoutFirst?: 13, blackoutEvery?: 10 },
 ```
 `machines` reskins the machines per map (gameplay unchanged); `foot` resizes a perk's collider to its model.
 `face` is the direction the front of the machine faces; the player stands in front of it. Machine
 footprints come from the models (`PERK_FOOT` in `mapcompile.ts`), so the validator checks the spot in front is
 reachable. **Give `y` for anything on an upper floor.**
+
+### Pacing: the Cache reveal, wall-buy tiers, buildables, traps
+See `docs/PACING.md` for the design and every map's values.
+- `box.reveal` hides the Cache at the start; it surfaces (light column, sting, HUD line) as soon as any condition
+  holds, at `reveal.spot` if that zone is open, else the first open spot outside the start zone. Pick a spot outside
+  the start zone and add a `round` safety net.
+- Wall-buy tiers live in `WALL_BUYS` (`starter`/`standard`/`heavy`): the start zone must carry starters only (and at
+  least one); standard guns belong one door in, heavy guns two (the validator warns otherwise).
+
+```ts
+buildables: [{
+  id: 'riot_shield', name: 'Riot Shield',
+  bench: { x, z, face, y? },                               // 1.6 x 0.8 m footprint, stand 1.2 m in front
+  parts: [{ name: 'Shield plate', x, y, z, model?: 'plate' | 'gear' | 'orb' | 'relic' | 'radio' | 'x.glb' }],  // y = floor + 0.9
+  result: { kind: 'shield', hp: 1500 } | { kind: 'trap', trap: 'aam_fire' },
+  requiresPower?, model?: 'map/bench.glb',
+}],
+traps: [{
+  id: 'dock_arc', name: 'Arc Fence', kind: 'electric' | 'fire',
+  switch: { x, z, face, y? },                              // 0.9 x 0.35 m panel, stand 0.9 m in front
+  area: { x0, z0, x1, z1, y },                             // killing floor
+  cost?: 1000, seconds?: 20, cooldown?: 45, requiresPower?, requiresBuild?: 'buildable id', model?,
+}],
+sideEggs: [{ name, steps: [...], reward: { title, perk?: 'strider', music?: 'nightfall', perkSlot?: 1, ... } }],
+```
+Parts are picked up with E; spread them over at least two zones. Traps kill non-elites in the area (50 points each)
+and hurt players standing in it.
 
 ### Rides (cable cars, ziplines, slides)
 ```ts
@@ -227,8 +257,14 @@ An `update(ctx)` hook can animate set dressing (keep it cheap). `ctx` carries `t
 | `outside`, `wrong-zone` | a spawn/machine/window is outside every room or in the wrong zone |
 | `box-/perk-/pap-/power-/wallbuy-/window-/spawnpoint-unreachable` | the stand point in front is not reachable |
 | `window-id`, `window-normal`, `door-*`, `room-*`, `id`, ... | structural errors |
+| `box-reveal-never`, `-start`, `-reach`, `-spot`, `-doors`, `-zone`, `-round` | the Cache reveal can never fire, surfaces in the start zone or somewhere no door reaches |
+| `wallbuy-tier`, `wallbuy-starter` | a non-starter gun in the start zone; a start zone without a starter gun |
+| `part-unreachable`, `bench-unreachable`, `trap-unreachable`, `trap-area-unreachable` | a buildable part, bench, trap switch or killing floor cannot be reached |
+| `build-trap`, `trap-build`, `build-parts`, `build-dup`, `trap-area`, `perk-id`, `egg-perk` | dangling references and empty definitions |
 
-Warnings (non-fatal): zones without spawns, maps without perks/Reforger, egg objects that may be out of reach.
+Warnings (non-fatal): zones without spawns, maps without perks/Reforger, egg objects that may be out of reach,
+`wallbuy-depth` (a standard/heavy gun too close to the start), `build-spread` (all parts in one zone),
+`box-spots-start`, `trap-spawn`.
 
 ## Minimal example
 
@@ -292,7 +328,7 @@ draws any def as a plan and a side elevation.
 
 ## Rounds a map should expect
 
-Every 5th round is a Scuttler round (fast, fragile), every 8th a Warden round (boss spawns from a window, or the
+By default every 5th round is a Scuttler round (fast, fragile; a map may randomise the cadence with `rounds`), every 8th a Warden round (boss spawns from a window, or the
 first spawn point if the map has no windows), and rounds 13, 23, 33 ... are **blackouts**: every lamp drops to
 a dim red flicker (`lamps[].pre` at 25 %), the fog thickens and the hemisphere light dims, so make sure a map is
 still readable at that level. From round 10 a share of runners sprint (x1.3).

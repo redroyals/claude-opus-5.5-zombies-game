@@ -52,24 +52,34 @@ online). All names, characters, weapons, maps and art are our own.
 ## 4. Modes
 
 ### Zombies (co-op 1–4, solo offline)
-- **Rounds.** Round size is `6 + 3(n−1)` up to round 5, then `18 + 4(n−5)`, ×(1 + 0.5 per extra player), with a cap of 120.
-  HP is +10% per round to round 9, then ×1.1 compounding. Runners start at round 3, and armored brutes at round 8.
-  Every 5th round is a special fast round. At most 24 zombies are alive at once, and there is a 10 s break between rounds. (`src/zombies/rules.ts`)
-- **Points.** Start 500; hit 10, kill 60, headshot kill 100, melee kill 130; round bonus 50 + 10n.
-- **Wall-buys.** Chalk outlines on walls. Buying a weapon you already own buys ammo, and ammo for an upgraded weapon costs 4500.
-- **Mystery box ("the Cache").** Costs 950, spins for 4 s, and the offer stays up for 12 s. Only the player who paid can take it.
-  It never offers a weapon you already hold. After 4 safe pulls there is an 18% chance per pull of **the Moth**: the
-  pull is refunded and the Cache flies to another spot.
-- **Pack-a-punch ("the Reforger").** Needs power. Costs 5000 for the first tier and 2500 for each repack, up to 2 tiers (more tiers come with the roster).
-- **Perks (original names), limit 4.** You lose them when you go down.
+Full pacing design and per-map values: `docs/PACING.md`.
+- **Rounds.** Solo counts 6, 8, 13, 18, 24 for rounds 1-5, then +4 a round, ×(1 + 0.5 per extra player), cap 120.
+  HP is +10% per round to round 9, then ×1.1 compounding. Runners start at round 3, and armored brutes at round 6.
+  Special (Scuttler) rounds come every 5th round by default; a map can randomise them in windows like the classic hound
+  rounds. At most 24 zombies are alive at once, and there is a 10 s break between rounds. (`src/zombies/rules.ts`)
+- **Points.** Start 500; hit 10, kill 60, headshot kill 100, melee kill 130, trap kill 50; round bonus 50 + 10n.
+  After round 1 a pistol player can afford a starter gun or the first door, not both.
+- **Wall-buys.** Chalk outlines, tiered: starter guns (500-1000) are the only guns in the spawn zone, standard guns hang
+  one door in, heavy guns (marksman, LMG, Moraine) two doors in. Wonder weapons are box-only. Ammo is half price;
+  reforged ammo costs 3000 / 4500 / 6000 by tier.
+- **Mystery box ("the Cache").** Hidden at the start: it surfaces in a deeper zone once enough doors are open (with a
+  round safety net) under a column of light. Costs 950, spins for 4 s, and the offer stays up for 12 s. Only the player
+  who paid can take it. It never offers a weapon you already hold. After 4 safe pulls there is an 18% chance per pull of
+  **the Moth**: the pull is refunded and the Cache flies to another spot.
+- **Pack-a-punch ("the Reforger").** Needs power. Three passes: 5000, 7000, 9000; each adds damage, magazine and
+  reserve and a new camo; from tier II the gun's hits can proc its element (fire, shock or freeze).
+- **Perks (original names), limit 4** (+1 slot from each map's main quest, up to 6). You lose them when you go down.
   - **Bulwark Brew** (2500): max health ×2.5
   - **Quickhands Fizz** (3000): reload ×2 speed
   - **Hammerfall Root** (2000): +33% fire rate, +20% damage
   - **Lifeline Soda** (500, works without power): self-revive in solo (3 buys) and faster regen. In co-op it becomes faster revives.
+  - **Strider Tonic** (2000): faster sprint, 3× stamina, faster aim
+  - **Hawkeye Draught** (1500): aim snaps to heads, tighter spread, +25% headshots
+  - **Packmule Malt** (4000): a third weapon
+  - **Nova Nectar** (2000): immune to your own blasts; a slide sets off a blast
 - **Doors / power.** A debris or door price opens each zone (`tryOpenDoor`). A power switch enables perks and the Reforger.
-  The phase-1 slice has the power switch. Doors need map-authored zones and come in M2.
-- **Later:** barricades and repair, power-ups (max ammo, insta-kill, double points, nuke), a trap per map, and a
-  main quest per map.
+- **Quests.** Every map has a main quest (multi-step, +1 perk slot), a side quest (collectibles → a free perk and a
+  hidden song), a buildable (parts across zones, assembled at a bench: a back shield or a trap) and at least one trap.
 
 ### PvP
 - **Team Deathmatch**: 6v6, first to 75 kills or 10 min.
