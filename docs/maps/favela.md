@@ -397,6 +397,10 @@ map-favela build, after = favela-art:
 dressing a wide view is ~150 calls of engine runtime (compiled walls per material, door kits, window planks,
 machines, signs, chalk) plus the shadow pass, which is why the widest views still sit at 215–240.
 
+**Play-through after the art pass** (swiftshader, the no-reload server): every check passes; on a heavily loaded
+machine two runs tripped the script's fixed 400/700 ms waits (door presses, one perk) while the screenshot showed the
+perk bought, so re-run on a quiet box before reading a single FAIL as a regression.
+
 **Known issues**
 - Wide views run at 215–240 calls, over the 200 target; the map-owned part is ~45 (a dozen pools, instanced props,
   one mesh each for cables, festoons, neon, bits, glows, pools, sky pieces). The rest is shared runtime; the next

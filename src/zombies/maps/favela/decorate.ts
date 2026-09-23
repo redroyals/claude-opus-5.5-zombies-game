@@ -675,7 +675,7 @@ function buildStreetLife(ctx: MapDecorateContext, merger: KitMerger): void {
   solid(19.3, T0, 36.95, 1.8, 0.95, 2.4, 0);
   merger.add('favela/fv_kiosk.glb', -14.6, T0, 36.8, Math.PI);
   solid(-14.8, T0, 36.8, 1.3, 0.8, 2.3, 0);
-  merger.add('favela/fv_awning.glb', 3, T0 + 3.05, 38.05, Math.PI);
+  merger.add('favela/fv_awning.glb', 3, T0 + 2.7, 38.05, Math.PI);
   merger.add('favela/fv_pots.glb', 33.8, T0, 31.0, 0);
   solid(33.8, T0, 31.0, 0.75, 0.4, 0.6);
   merger.add('favela/fv_bush.glb', -16.8, T0, 32.2, 0.4);
@@ -1134,7 +1134,7 @@ export function decorateFavela(ctx: MapDecorateContext): void {
     neonGeos[k].push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.045, 5, false));
   };
   loop(22.2, T3 + 6.6, -23.8, 1.1, 1.1, 1); loop(22.2, T3 + 6.6, -23.8, 1.5, 1.5, 0); wave(17.5, 27, T3 + 6.9, -23.8, 0.25, 2); wave(8, 13.2, T3 + 4.4, -23.8, 0.3, 0);
-  loop(3, T0 + 3.2, 37.8, 0.6, 0.35, 0); wave(-3.4, 1.6, T0 + 3.25, 37.8, 0.12, 1); wave(4.4, 9.4, T0 + 3.25, 37.8, 0.12, 2);
+  loop(3, T0 + 3.45, 37.8, 0.5, 0.2, 0); wave(-3.4, 1.6, T0 + 3.47, 37.8, 0.1, 1); wave(4.4, 9.4, T0 + 3.47, 37.8, 0.1, 2); // above the awning
   {
     const all: THREE.BufferGeometry[] = [];
     neonGeos.forEach((gs, k) => gs.forEach((g) => {
