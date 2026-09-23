@@ -238,6 +238,8 @@ export interface ZombiesMapDef {
   egg?: EggDef;
   lighting: LightingDef;
   audio?: { ambience?: string };
+  /** HUD/flavour strings. */
+  flavor?: { powerHint?: string; bossTitle?: string; gameOverSub?: string };
   /** Model paths (under /models) to preload when the map is selected. */
   assets?: string[];
 }

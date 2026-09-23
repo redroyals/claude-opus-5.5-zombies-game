@@ -181,6 +181,7 @@ export const NIGHTFALL: ZombiesMapDef = {
     lights: MOON,
   },
   audio: { ambience: 'relay' },
+  flavor: { powerHint: 'The breaker is in the Power Room', bossTitle: 'THE WARDEN · RELAY GUARDIAN', gameOverSub: 'NIGHTFALL RELAY · SIGNAL LOST' },
   assets: [
     'zombies/kit_door.glb', 'zombies/kit_debris.glb', 'zombies/mystery_box.glb', 'zombies/reforger.glb', 'zombies/power_switch.glb',
     'zombies/perk_lifeline.glb', 'zombies/perk_bulwark.glb', 'zombies/perk_quickhands.glb', 'zombies/perk_hammerfall.glb',

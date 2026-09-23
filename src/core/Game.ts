@@ -201,7 +201,7 @@ export class Game {
     if (this.state === 'title') this.resetMission();
   }
 
-  get zombiesMaps() { return MAPS.map((m) => m.def); }
+  get zombiesMaps() { return MAPS.filter((m) => !m.hidden || m.def.id === this.zm.def.id).map((m) => m.def); }
 
   // ------------------------------------------------------------------------------------------
   // Lifecycle
@@ -232,6 +232,7 @@ export class Game {
     this.applyAtmosphere(zombies);
     this.zhud.show(false);
     this.zhud.showGameOver(null);
+    this.zhud.setMap(this.zm.def.name, this.zm.def.flavor);
     if (zombies) {
       this.enemies.setArena(this.zm.map);
       const sp = this.zm.spawn;
@@ -390,7 +391,7 @@ export class Game {
       if (steps >= 8) this.acc = 0;
       this.input.endFrame();
     } else if (this.state === 'dying') {
-      this.dyingT += frameDt;
+      this.dyingT += Math.min(rawDt, 0.5); // real time, so a slow frame rate cannot stall the results screen
       this.enemies.update(frameDt, this.playerTarget());
       if (this.dyingT > 2.6 && !this.resultShown) this.showResults(this.mission.outcome === 'timeout' ? 'timeout' : 'dead');
     } else if (this.state === 'extracting') {
@@ -1083,9 +1084,9 @@ export class Game {
     if (zmode) {
       const r = this.zm.rounds;
       contracts.length = 0;
-      contracts.push({ title: 'NIGHTFALL RELAY', tag: r.spec.special ? 'SCUTTLERS' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
+      contracts.push({ title: this.zm.def.name.toUpperCase(), tag: r.spec.special ? 'SCUTTLERS' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
         sub: r.phase === 'break' ? `Next round in ${Math.ceil(r.timer)}s` : `${r.toSpawn + this.enemies.aliveCount} remaining`, state: 'active' });
-      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? 'Reforger + perks live' : 'The breaker is in the Power Room', state: this.zm.power ? 'done' : 'active' });
+      contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? 'Reforger + perks live' : this.zm.def.flavor?.powerHint ?? 'Find the power switch', state: this.zm.power ? 'done' : 'active' });
       this.zhud.update(dt, { round: r.round, points: this.zm.zp.points, perks: this.zm.zp.perks, pups: this.zm.activePowerUps, zone: this.zm.zoneName({ x: p.pos.x, y: p.pos.y, z: p.pos.z }) });
     }
     const boss = zmode ? this.enemies.boss : null;
@@ -1187,8 +1188,8 @@ export class Game {
     return {
       game: this,
       lock: (on: boolean) => { this.input.virtualLock = on; },
-      teleport: (x: number, z: number, yaw?: number) => {
-        const y = this.level.world.groundHeight(x, z, 0.3, 1.5);
+      teleport: (x: number, z: number, yaw?: number, atY?: number) => {
+        const y = this.world.groundHeight(x, z, 0.3, atY === undefined ? 3 : atY + 0.5);
         this.player.pos = { x, y, z };
         this.player.vel = { x: 0, y: 0, z: 0 };
         if (yaw !== undefined) this.player.yaw = yaw;
@@ -1209,7 +1210,7 @@ export class Game {
         zombies: this.enemies.aliveCount, stats: { ...this.mission.stats }, weaponStats: { ...this.weapons.stats }, station: this.station,
         interaction: this.currentInteraction?.kind ?? null,
       }),
-      zombies: () => this.enemies.zombies.filter((z) => z.alive).map((z) => ({ type: z.type, x: +z.pos.x.toFixed(2), z: +z.pos.z.toFixed(2), state: z.state, hp: Math.round(z.hp), elite: z.elite })),
+      zombies: () => this.enemies.zombies.filter((z) => z.alive).map((z) => ({ type: z.type, x: +z.pos.x.toFixed(2), z: +z.pos.z.toFixed(2), y: +z.pos.y.toFixed(2), state: z.state, hp: Math.round(z.hp), elite: z.elite })),
       spawnZombie: (type: 'shambler' | 'runner' | 'armored', x: number, z: number, state: 'idle' | 'chase' = 'chase') => this.enemies.spawn(type, regionAt(z), x, z, state),
       clearZombies: () => { for (const z of this.enemies.zombies) if (z.alive && !z.elite) { z.alive = false; z.state = 'dead'; z.deathT = 99; } },
       damagePlayer: (n: number) => this.onPlayerHit(n, this.player.pos.x + 1, this.player.pos.z, false),

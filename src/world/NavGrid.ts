@@ -10,7 +10,8 @@
 import type { CollisionWorld } from './Collision';
 
 export const CLIMB = 0.5; // max step between neighbouring cells
-const STAIR_MAX = 1.1; // max height difference between neighbouring cells along a staircase
+const STAIR_MAX = 1.1;
+const SWEEP_R = 0.2; // body radius used when sweeping between cell centres // max height difference between neighbouring cells along a staircase
 const AGENT_R = 0.32;
 const BODY = 1.7; // clearance needed above a surface
 const LEGACY_MAX = 3; // legacy primary-surface cap
@@ -163,10 +164,12 @@ export class NavGrid {
    */
   private crossBlocked(world: CollisionWorld, ax: number, az: number, bx: number, bz: number, h0: number, h1: number): boolean {
     const lo = Math.max(h0, h1) + 0.46, hi = Math.min(h0, h1) + BODY;
-    const list = world.query(Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx), Math.max(az, bz));
+    const R = SWEEP_R;
+    const list = world.query(Math.min(ax, bx) - R, Math.min(az, bz) - R, Math.max(ax, bx) + R, Math.max(az, bz) + R);
     for (const b of list) {
       if (b.maxY <= lo || b.minY >= hi) continue;
-      if (segHitsRect(ax, az, bx, bz, b.minX, b.minZ, b.maxX, b.maxZ)) return true;
+      // Boxes are inflated by the body radius so a path cannot hug a post or rail end the body won't clear.
+      if (segHitsRect(ax, az, bx, bz, b.minX - R, b.minZ - R, b.maxX + R, b.maxZ + R)) return true;
     }
     return false;
   }
