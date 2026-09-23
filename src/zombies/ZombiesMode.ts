@@ -12,7 +12,7 @@ import type { Materials } from '../render/materials';
 import type { Vitals } from '../player/Vitals';
 import { WEAPON_MODS, applyUpgrade, createWeapon, effectiveStats, refillAmmo } from '../weapons/WeaponState';
 import {
-  BOX_PRICE, PAP_SECONDS, PERKS, WALL_BUYS, awardHit, awardKill, bossHpForRound, boxReel, createBox, createRoundState, createZPlayer, goDown,
+  BOX_PRICE, PAP_SECONDS, PERKS, WALL_BUYS, awardHit, awardKill, bossHpForRound, boxReel, createBox, createRoundState, createZPlayer,
   papName, papPrice, perkMods, pickZombieType, pullBox, roundBonus, stepBox, stepRounds, takeBoxOffer, tryBuyPerk, tryPap, trySpend, wallBuyPrice,
   wonderBonus, type BoxState, type PerkId, type RoundState, type SpendResult, type WallBuyKey, type ZPlayer,
 } from './rules';
@@ -24,6 +24,7 @@ import {
   POWERUP, POWERUP_INFO, activate, createPowerUps, isActive, onRoundStart, pointsMult, rollDrop, stepPowerUps, type PowerUpKind, type PowerUpState,
 } from './powerups';
 import { PERK_ORDER, frontOf, perkEntries, topologyOf, zoneAt, type Spot, type ZombiesMapDef } from './mapdef';
+import { DOWN, beginDown, downStatus, hitWhileDown, lastStandPick, stepDown, type DownState } from './down';
 import { createEggRun, currentStep, eggCollect, eggInteract, eggKill, pendingObjects, stepProgress, type EggEvent, type EggRun } from './egg';
 import { getMap, type ZombiesMapEntry } from './maps';
 import { ZombiesMap } from './ZombiesMap';
@@ -79,6 +80,9 @@ export class ZombiesMode {
   egg!: EggRun;
   power = false;
   lifelineBuys = 0;
+  /** Non-null while the player is downed (last stand). */
+  down: DownState | null = null;
+  private lastStand: { slots: Loadout['slots']; active: 0 | 1 } | null = null;
   stats: ZRunStats = { round: 0, kills: 0, headshots: 0, points: 0, doors: 0, time: 0, downs: 0 };
   /** Points earned this run (not spent). */
   private earned = 0;
@@ -153,6 +157,8 @@ export class ZombiesMode {
     this.stats = { round: 0, kills: 0, headshots: 0, points: 0, doors: 0, time: 0, downs: 0 };
     this.earned = 0;
     this.papPending = null;
+    this.down = null;
+    this.lastStand = null;
     for (const p of this.pickups) p.root.removeFromParent();
     this.pickups = [];
     for (const v of this.vortices) v.mesh.removeFromParent();
@@ -455,20 +461,59 @@ export class ZombiesMode {
     return (Object.keys(this.pu.timers) as PowerUpKind[]).map((k) => ({ kind: k, t: this.pu.timers[k] ?? 0 }));
   }
 
-  /** Returns true if the player was saved by Lifeline. Perks are lost either way. */
-  onDowned(v: Vitals): boolean {
+  /** Health reached zero: go down into last stand (perks are lost). */
+  beginDown(v: Vitals): void {
     this.stats.downs++;
-    const saved = goDown(this.zp);
+    this.down = beginDown(this.zp, 1);
     this.applyMods();
-    if (saved) {
-      v.alive = true;
-      v.health = PLAYER.maxHealth;
+    v.alive = true;
+    v.health = 1;
+    v.sinceDamage = 0;
+    // Last stand: the best pistol you carry, else a stock sidearm.
+    const l = this.host.loadout();
+    this.lastStand = { slots: [...l.slots] as Loadout['slots'], active: l.active };
+    const pick = lastStandPick(l.slots.map((w) => w?.id ?? null));
+    if (pick.slot >= 0) l.slots = [l.slots[pick.slot], null];
+    else { const w = createWeapon(pick.weapon); w.reserve = WEAPONS[pick.weapon].magSize * 3; l.slots = [w, null]; }
+    l.active = 0;
+    this.host.syncWeapons();
+    this.host.toast(this.down.selfRevive !== null ? 'DOWN · LIFELINE KICKS IN' : 'YOU ARE DOWN', 'bad', this.down.selfRevive !== null ? 'Hold on…' : 'Last stand · perks lost', 2.5);
+    this.host.sound('alert');
+  }
+
+  /** A zombie landed a hit while you are down. */
+  hitDown(): void { if (this.down) hitWhileDown(this.down); }
+
+  /** Tick the downed state. Returns 'bledout' when the run is over. */
+  updateDown(dt: number, v: Vitals): 'revived' | 'bledout' | null {
+    if (!this.down) return null;
+    const e = stepDown(this.down, dt);
+    if (e === 'revived') {
+      this.down = null;
+      this.restoreLastStand();
+      v.health = PLAYER.maxHealth * DOWN.reviveHealth;
       v.sinceDamage = 0;
       this.host.toast('LIFELINE · SELF-REVIVED', 'big', 'Perks lost', 3);
       // Knock back nearby zombies so the revive is not instantly undone.
       for (const z of this.host.enemies.zombies) if (z.alive && !z.elite && z.entry < 0) z.setState('stagger');
+    } else if (e === 'bledout') {
+      this.down = null;
+      this.restoreLastStand();
     }
-    return saved;
+    return e;
+  }
+
+  /** HUD countdown while down. */
+  get downInfo(): { label: string; left: number; frac: number } | null { return this.down ? downStatus(this.down) : null; }
+
+  private restoreLastStand(): void {
+    const ls = this.lastStand;
+    if (!ls) return;
+    this.lastStand = null;
+    const l = this.host.loadout();
+    l.slots = ls.slots;
+    l.active = ls.active;
+    this.host.syncWeapons();
   }
 
   // --------------------------------------------------------------------------------------

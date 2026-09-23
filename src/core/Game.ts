@@ -28,6 +28,7 @@ import type { CollisionWorld } from '../world/Collision';
 import { ZHud } from '../ui/ZHud';
 import { ZombiesMode, type ZInteraction } from '../zombies/ZombiesMode';
 import { MAPS, getMap, mapFromUrl } from '../zombies/maps';
+import { DOWN } from '../zombies/down';
 import { Input } from './Input';
 import { loadBest, loadSettings, recordBest, saveSettings, type Settings } from './Settings';
 
@@ -464,7 +465,9 @@ export class Game {
     const plating = v.plateT > 0;
 
     // Movement
-    const ev = p.update(dt, input, world, { canSprintExtra: !input.fireHeld && !plating, speedMult: plating ? 0.65 : 1 });
+    const downed = zmode && !!this.zm.down;
+    if (downed) { input.consume('jump'); input.consume('crouch'); p.crouched = true; }
+    const ev = p.update(dt, input, world, { canSprintExtra: !input.fireHeld && !plating && !downed, speedMult: downed ? DOWN.crawlSpeed : plating ? 0.65 : 1 });
     if (ev.footstep) this.audio.footstep(this.surfaceUnder(), p.sprinting, p.crouched);
     if (ev.landed > 6) this.audio.land();
     for (const z of this.enemies.zombies) {
@@ -558,8 +561,13 @@ export class Game {
       this.hud.toast('AMMO RECOVERED', '', '', 1.2);
     }
 
-    // Defeat checks
-    if (!v.alive && this.mode === 'zombies') this.zm.onDowned(v);
+    // Downed / last stand / bleed-out (Zombies), then defeat checks
+    let bledOut = false;
+    if (zmode && this.zm.down && this.zm.updateDown(dt, v) === 'bledout') bledOut = true;
+    if (!v.alive && zmode && !bledOut) this.zm.beginDown(v);
+    if (bledOut) v.alive = false;
+    const di = zmode ? this.zm.downInfo : null;
+    this.hud.centerMessage(di ? `${di.label}  ${Math.ceil(di.left)}` : null);
     if (!v.alive) this.onDeath();
     else if (this.mission.outcome === 'timeout') this.onTimeout();
   }
@@ -642,7 +650,7 @@ export class Game {
   }
 
   private updateInteraction(): void {
-    const it = this.findInteraction();
+    const it = this.mode === 'zombies' && this.zm.down ? null : this.findInteraction();
     this.currentInteraction = it;
     const pressed = this.input.consume('interact');
     if (!it) {
@@ -804,6 +812,13 @@ export class Game {
   private onPlayerHit(dmg: number, fromX: number, fromZ: number, heavy: boolean): void {
     if (this.state !== 'playing' || this.godMode) return;
     const v = this.player.vitals;
+    if (this.mode === 'zombies' && this.zm.down) {
+      // Down already: hits eat the bleed-out timer instead of health.
+      this.zm.hitDown();
+      this.hud.damageFrom(fromX, fromZ, heavy);
+      this.audio.hurt(heavy);
+      return;
+    }
     const r = applyDamage(v, dmg);
     this.hud.damageFrom(fromX, fromZ, heavy);
     if (r.armorBroke) {
@@ -1020,7 +1035,7 @@ export class Game {
     // Post-processing grade uniforms
     const g = this.renderer.grade.uniforms;
     g.uDamage.value = this.state === 'playing' || this.state === 'dying' ? Math.max(this.hud.damageVignette, this.state === 'dying' ? 0.8 : 0) : 0;
-    g.uLowHealth.value = this.state === 'playing' ? Math.max(0, 1 - p.vitals.health / 40) : this.state === 'dying' ? 1 : 0;
+    g.uLowHealth.value = this.state === 'playing' ? (this.mode === 'zombies' && this.zm.down ? 1 : Math.max(0, 1 - p.vitals.health / 40)) : this.state === 'dying' ? 1 : 0;
     const toxic = this.state === 'playing' && this.mission.inContamination(p.pos.x, p.pos.z);
     g.uToxic.value += ((toxic ? 1 : 0) - g.uToxic.value) * Math.min(1, dt * 3);
 

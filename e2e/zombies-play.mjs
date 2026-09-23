@@ -95,12 +95,13 @@ await ds('zSpawn', 'brute', -2, 6);
 await ds('look', Math.PI, 0.05);
 await wait(1500);
 await shot('13-roster');
-// Die
+// Go down: last stand, then bleed out into the results screen
 await ds('godMode', false);
 await ds('damagePlayer', 9999);
-await wait(200);
-await ds('damagePlayer', 9999);
-await wait(4000);
-await shot('14-gameover');
+await wait(1500);
+await shot('14-downed');
+console.log('down', JSON.stringify(await ds('state')).slice(0, 160));
+await page.waitForFunction(() => document.getElementById('zover')?.classList.contains('on'), null, { timeout: 60000 }).catch(() => console.log('no game-over screen'));
+await shot('15-gameover');
 console.log('errors', errors.slice(0, 10));
 await browser.close();
