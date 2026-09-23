@@ -1,378 +1,522 @@
 {
- "smg_wren": {
-  "id": "smg_wren",
-  "tris": 6999,
-  "kb": 208,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "sp_knife": {
-  "id": "sp_knife",
-  "tris": 7000,
-  "kb": 256,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "ar_kestrel": {
-  "id": "ar_kestrel",
-  "tris": 7000,
-  "kb": 338,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "ar_corvid": {
-  "id": "ar_corvid",
-  "tris": 6999,
-  "kb": 340,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "ar_tern": {
-  "id": "ar_tern",
-  "tris": 7000,
-  "kb": 418,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "bullpup"
- },
- "ar_moraine": {
-  "id": "ar_moraine",
-  "tris": 6999,
-  "kb": 368,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "smg_skiff": {
-  "id": "smg_skiff",
-  "tris": 6999,
-  "kb": 241,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "smg_fennec": {
-  "id": "smg_fennec",
-  "tris": 7000,
-  "kb": 287,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "bullpup"
- },
- "lmg_bastion": {
-  "id": "lmg_bastion",
-  "tris": 7000,
-  "kb": 227,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "sg_hullbreaker": {
-  "id": "sg_hullbreaker",
-  "tris": 6999,
-  "kb": 238,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "sg_tidal": {
-  "id": "sg_tidal",
-  "tris": 7000,
-  "kb": 244,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "dmr_sentry": {
-  "id": "dmr_sentry",
-  "tris": 6999,
-  "kb": 312,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "sr_longwatch": {
-  "id": "sr_longwatch",
-  "tris": 7000,
-  "kb": 315,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "pi_warden": {
-  "id": "pi_warden",
-  "tris": 6999,
-  "kb": 279,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "pistol-rear"
- },
- "pi_magnus": {
-  "id": "pi_magnus",
-  "tris": 6999,
-  "kb": 347,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "pistol-rear"
- },
- "pi_basalt": {
-  "id": "pi_basalt",
-  "tris": 7000,
-  "kb": 303,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "pistol-rear"
- },
- "ln_lotus": {
-  "id": "ln_lotus",
-  "tris": 6999,
-  "kb": 294,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "ww_arc": {
-  "id": "ww_arc",
-  "tris": 6999,
-  "kb": 489,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "perk_bulwark": {
-  "id": "perk_bulwark",
-  "tris": 11574,
-  "kb": 630,
-  "tex": 1024
- },
- "z_shambler": {
-  "id": "z_shambler",
-  "tris": 14550,
-  "kb": 1123,
-  "tex": 2048
- },
- "ww_singularity": {
-  "id": "ww_singularity",
-  "tris": 7000,
-  "kb": 309,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "ww_cryo": {
-  "id": "ww_cryo",
-  "tris": 7000,
-  "kb": 548,
-  "tex": 1024,
-  "confidence": "high",
-  "gripRule": "spike-behind-magazine"
- },
- "mystery_box": {
-  "id": "mystery_box",
-  "tris": 11124,
-  "kb": 438,
-  "tex": 1024
- },
- "perk_quickhands": {
-  "id": "perk_quickhands",
-  "tris": 10720,
-  "kb": 383,
-  "tex": 1024
- },
- "perk_hammerfall": {
-  "id": "perk_hammerfall",
-  "tris": 11627,
-  "kb": 487,
-  "tex": 1024
- },
- "perk_lifeline": {
-  "id": "perk_lifeline",
-  "tris": 11203,
-  "kb": 478,
-  "tex": 1024
- },
- "reforger": {
-  "id": "reforger",
-  "tris": 11316,
-  "kb": 454,
-  "tex": 1024
- },
- "generator": {
-  "id": "generator",
-  "tris": 7999,
-  "kb": 355,
-  "tex": 1024
- },
- "lab_table": {
-  "id": "lab_table",
-  "tris": 7999,
-  "kb": 382,
-  "tex": 1024
- },
- "filing_cabinets": {
-  "id": "filing_cabinets",
-  "tris": 7999,
-  "kb": 324,
-  "tex": 1024
- },
- "lamp": {
-  "id": "lamp",
-  "tris": 7999,
-  "kb": 343,
-  "tex": 512
- },
- "box_casket": {
-  "id": "box_casket",
-  "tris": 9345,
-  "kb": 603,
-  "tex": 1024
- },
- "perk_bulwark_lh": {
-  "id": "perk_bulwark_lh",
-  "tris": 8269,
-  "kb": 374,
-  "tex": 1024
- },
- "chandelier": {
-  "id": "chandelier",
-  "tris": 3500,
-  "kb": 512,
-  "tex": 1024
- },
- "armour_stand": {
-  "id": "armour_stand",
-  "tris": 6473,
-  "kb": 453,
-  "tex": 1024
- },
- "perk_quickhands_lh": {
-  "id": "perk_quickhands_lh",
-  "tris": 8671,
-  "kb": 451,
-  "tex": 1024
- },
- "perk_hammerfall_lh": {
-  "id": "perk_hammerfall_lh",
-  "tris": 8253,
-  "kb": 395,
-  "tex": 1024
- },
- "perk_lifeline_lh": {
-  "id": "perk_lifeline_lh",
-  "tris": 9130,
-  "kb": 463,
-  "tex": 1024
- },
- "forge_pap": {
-  "id": "forge_pap",
-  "tris": 9999,
-  "kb": 519,
-  "tex": 1024
- },
- "naqqara": {
-  "id": "naqqara",
-  "tris": 9999,
-  "kb": 520,
-  "tex": 1024
- },
- "torch_bracket": {
-  "id": "torch_bracket",
-  "tris": 1499,
-  "kb": 247,
-  "tex": 1024
- },
- "throne_dais": {
-  "id": "throne_dais",
-  "tris": 9999,
-  "kb": 590,
-  "tex": 1024
- },
- "weapon_rack": {
-  "id": "weapon_rack",
-  "tris": 3999,
-  "kb": 320,
-  "tex": 1024
- },
- "chest_gold": {
-  "id": "chest_gold",
-  "tris": 4999,
-  "kb": 455,
-  "tex": 1024
- },
- "strongboxes": {
-  "id": "strongboxes",
-  "tris": 3000,
-  "kb": 253,
-  "tex": 1024
- },
- "pedestal": {
-  "id": "pedestal",
-  "tris": 2499,
-  "kb": 158,
-  "tex": 1024
- },
- "great_gun": {
-  "id": "great_gun",
-  "tris": 9999,
-  "kb": 493,
-  "tex": 1024
- },
- "cannonballs": {
-  "id": "cannonballs",
-  "tris": 3193,
-  "kb": 177,
-  "tex": 1024
- },
- "pipal_tree": {
-  "id": "pipal_tree",
-  "tris": 10000,
-  "kb": 461,
-  "tex": 1024
- },
- "charpai": {
-  "id": "charpai",
-  "tris": 3504,
-  "kb": 171,
-  "tex": 1024
- },
- "matka_pots": {
-  "id": "matka_pots",
-  "tris": 2500,
-  "kb": 194,
-  "tex": 1024
- },
- "well": {
-  "id": "well",
-  "tris": 10000,
-  "kb": 496,
-  "tex": 1024
- },
- "haveli_door": {
-  "id": "haveli_door",
-  "tris": 10000,
-  "kb": 354,
-  "tex": 1024
- },
- "palki": {
-  "id": "palki",
-  "tris": 9246,
-  "kb": 487,
-  "tex": 1024
- },
- "chai_stall": {
-  "id": "chai_stall",
-  "tris": 9999,
-  "kb": 380,
-  "tex": 1024
- },
- "spice_stall": {
-  "id": "spice_stall",
-  "tris": 9756,
-  "kb": 457,
-  "tex": 1024
- }
+  "smg_wren": {
+    "id": "smg_wren",
+    "tris": 6999,
+    "kb": 208,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "sp_knife": {
+    "id": "sp_knife",
+    "tris": 7000,
+    "kb": 256,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "ar_kestrel": {
+    "id": "ar_kestrel",
+    "tris": 7000,
+    "kb": 338,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "ar_corvid": {
+    "id": "ar_corvid",
+    "tris": 6999,
+    "kb": 340,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "ar_tern": {
+    "id": "ar_tern",
+    "tris": 7000,
+    "kb": 418,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "bullpup"
+  },
+  "ar_moraine": {
+    "id": "ar_moraine",
+    "tris": 6999,
+    "kb": 368,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "smg_skiff": {
+    "id": "smg_skiff",
+    "tris": 6999,
+    "kb": 241,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "smg_fennec": {
+    "id": "smg_fennec",
+    "tris": 7000,
+    "kb": 287,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "bullpup"
+  },
+  "lmg_bastion": {
+    "id": "lmg_bastion",
+    "tris": 7000,
+    "kb": 227,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "sg_hullbreaker": {
+    "id": "sg_hullbreaker",
+    "tris": 6999,
+    "kb": 238,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "sg_tidal": {
+    "id": "sg_tidal",
+    "tris": 7000,
+    "kb": 244,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "dmr_sentry": {
+    "id": "dmr_sentry",
+    "tris": 6999,
+    "kb": 312,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "sr_longwatch": {
+    "id": "sr_longwatch",
+    "tris": 7000,
+    "kb": 315,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "pi_warden": {
+    "id": "pi_warden",
+    "tris": 6999,
+    "kb": 279,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "pistol-rear"
+  },
+  "pi_magnus": {
+    "id": "pi_magnus",
+    "tris": 6999,
+    "kb": 347,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "pistol-rear"
+  },
+  "pi_basalt": {
+    "id": "pi_basalt",
+    "tris": 7000,
+    "kb": 303,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "pistol-rear"
+  },
+  "ln_lotus": {
+    "id": "ln_lotus",
+    "tris": 6999,
+    "kb": 294,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "ww_arc": {
+    "id": "ww_arc",
+    "tris": 6999,
+    "kb": 489,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "perk_bulwark": {
+    "id": "perk_bulwark",
+    "tris": 11574,
+    "kb": 630,
+    "tex": 1024
+  },
+  "z_shambler": {
+    "id": "z_shambler",
+    "tris": 14550,
+    "kb": 1123,
+    "tex": 2048
+  },
+  "ww_singularity": {
+    "id": "ww_singularity",
+    "tris": 7000,
+    "kb": 309,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "ww_cryo": {
+    "id": "ww_cryo",
+    "tris": 7000,
+    "kb": 548,
+    "tex": 1024,
+    "confidence": "high",
+    "gripRule": "spike-behind-magazine"
+  },
+  "mystery_box": {
+    "id": "mystery_box",
+    "tris": 11124,
+    "kb": 438,
+    "tex": 1024
+  },
+  "perk_quickhands": {
+    "id": "perk_quickhands",
+    "tris": 10720,
+    "kb": 383,
+    "tex": 1024
+  },
+  "perk_hammerfall": {
+    "id": "perk_hammerfall",
+    "tris": 11627,
+    "kb": 487,
+    "tex": 1024
+  },
+  "perk_lifeline": {
+    "id": "perk_lifeline",
+    "tris": 11203,
+    "kb": 478,
+    "tex": 1024
+  },
+  "reforger": {
+    "id": "reforger",
+    "tris": 11316,
+    "kb": 454,
+    "tex": 1024
+  },
+  "generator": {
+    "id": "generator",
+    "tris": 7999,
+    "kb": 355,
+    "tex": 1024
+  },
+  "lab_table": {
+    "id": "lab_table",
+    "tris": 7999,
+    "kb": 382,
+    "tex": 1024
+  },
+  "filing_cabinets": {
+    "id": "filing_cabinets",
+    "tris": 7999,
+    "kb": 324,
+    "tex": 1024
+  },
+  "lamp": {
+    "id": "lamp",
+    "tris": 7999,
+    "kb": 343,
+    "tex": 512
+  },
+  "box_casket": {
+    "id": "box_casket",
+    "tris": 9345,
+    "kb": 603,
+    "tex": 1024
+  },
+  "perk_bulwark_lh": {
+    "id": "perk_bulwark_lh",
+    "tris": 8269,
+    "kb": 374,
+    "tex": 1024
+  },
+  "chandelier": {
+    "id": "chandelier",
+    "tris": 3500,
+    "kb": 512,
+    "tex": 1024
+  },
+  "armour_stand": {
+    "id": "armour_stand",
+    "tris": 6473,
+    "kb": 453,
+    "tex": 1024
+  },
+  "perk_quickhands_lh": {
+    "id": "perk_quickhands_lh",
+    "tris": 8671,
+    "kb": 451,
+    "tex": 1024
+  },
+  "perk_hammerfall_lh": {
+    "id": "perk_hammerfall_lh",
+    "tris": 8253,
+    "kb": 395,
+    "tex": 1024
+  },
+  "perk_lifeline_lh": {
+    "id": "perk_lifeline_lh",
+    "tris": 9130,
+    "kb": 463,
+    "tex": 1024
+  },
+  "forge_pap": {
+    "id": "forge_pap",
+    "tris": 9999,
+    "kb": 519,
+    "tex": 1024
+  },
+  "naqqara": {
+    "id": "naqqara",
+    "tris": 9999,
+    "kb": 520,
+    "tex": 1024
+  },
+  "torch_bracket": {
+    "id": "torch_bracket",
+    "tris": 1499,
+    "kb": 247,
+    "tex": 1024
+  },
+  "throne_dais": {
+    "id": "throne_dais",
+    "tris": 9999,
+    "kb": 590,
+    "tex": 1024
+  },
+  "weapon_rack": {
+    "id": "weapon_rack",
+    "tris": 3999,
+    "kb": 320,
+    "tex": 1024
+  },
+  "chest_gold": {
+    "id": "chest_gold",
+    "tris": 4999,
+    "kb": 455,
+    "tex": 1024
+  },
+  "strongboxes": {
+    "id": "strongboxes",
+    "tris": 3000,
+    "kb": 253,
+    "tex": 1024
+  },
+  "pedestal": {
+    "id": "pedestal",
+    "tris": 2499,
+    "kb": 158,
+    "tex": 1024
+  },
+  "great_gun": {
+    "id": "great_gun",
+    "tris": 9999,
+    "kb": 493,
+    "tex": 1024
+  },
+  "cannonballs": {
+    "id": "cannonballs",
+    "tris": 3193,
+    "kb": 177,
+    "tex": 1024
+  },
+  "pipal_tree": {
+    "id": "pipal_tree",
+    "tris": 10000,
+    "kb": 461,
+    "tex": 1024
+  },
+  "charpai": {
+    "id": "charpai",
+    "tris": 3504,
+    "kb": 171,
+    "tex": 1024
+  },
+  "matka_pots": {
+    "id": "matka_pots",
+    "tris": 2500,
+    "kb": 194,
+    "tex": 1024
+  },
+  "well": {
+    "id": "well",
+    "tris": 10000,
+    "kb": 496,
+    "tex": 1024
+  },
+  "haveli_door": {
+    "id": "haveli_door",
+    "tris": 10000,
+    "kb": 354,
+    "tex": 1024
+  },
+  "palki": {
+    "id": "palki",
+    "tris": 9246,
+    "kb": 487,
+    "tex": 1024
+  },
+  "chai_stall": {
+    "id": "chai_stall",
+    "tris": 9999,
+    "kb": 380,
+    "tex": 1024
+  },
+  "spice_stall": {
+    "id": "spice_stall",
+    "tris": 9756,
+    "kb": 457,
+    "tex": 1024
+  },
+  "fv_house_block": {
+    "id": "fv_house_block",
+    "tris": 4000,
+    "kb": 403,
+    "tex": 1024
+  },
+  "fv_barrel": {
+    "id": "fv_barrel",
+    "tris": 1499,
+    "kb": 78,
+    "tex": 512
+  },
+  "fv_gas_cylinder": {
+    "id": "fv_gas_cylinder",
+    "tris": 1500,
+    "kb": 85,
+    "tex": 512
+  },
+  "fv_water_tank": {
+    "id": "fv_water_tank",
+    "tris": 1499,
+    "kb": 78,
+    "tex": 512
+  },
+  "fv_satellite": {
+    "id": "fv_satellite",
+    "tris": 1500,
+    "kb": 109,
+    "tex": 512
+  },
+  "fv_gondola_cabin": {
+    "id": "fv_gondola_cabin",
+    "tris": 4000,
+    "kb": 306,
+    "tex": 1024
+  },
+  "fv_bullwheel": {
+    "id": "fv_bullwheel",
+    "tris": 4000,
+    "kb": 356,
+    "tex": 1024
+  },
+  "fv_transformer": {
+    "id": "fv_transformer",
+    "tris": 3499,
+    "kb": 276,
+    "tex": 1024
+  },
+  "fv_bar_counter": {
+    "id": "fv_bar_counter",
+    "tris": 3999,
+    "kb": 367,
+    "tex": 1024
+  },
+  "fv_fridge": {
+    "id": "fv_fridge",
+    "tris": 3725,
+    "kb": 223,
+    "tex": 512
+  },
+  "fv_motorbike": {
+    "id": "fv_motorbike",
+    "tris": 4000,
+    "kb": 605,
+    "tex": 1024
+  },
+  "fv_wires": {
+    "id": "fv_wires",
+    "tris": 2999,
+    "kb": 177,
+    "tex": 512
+  },
+  "fv_goal": {
+    "id": "fv_goal",
+    "tris": 4717,
+    "kb": 235,
+    "tex": 512
+  },
+  "fv_drums": {
+    "id": "fv_drums",
+    "tris": 2999,
+    "kb": 190,
+    "tex": 512
+  },
+  "fv_speakers": {
+    "id": "fv_speakers",
+    "tris": 2402,
+    "kb": 130,
+    "tex": 512
+  },
+  "fv_table_chairs": {
+    "id": "fv_table_chairs",
+    "tris": 2881,
+    "kb": 114,
+    "tex": 512
+  },
+  "fv_water_tower": {
+    "id": "fv_water_tower",
+    "tris": 4999,
+    "kb": 424,
+    "tex": 1024
+  },
+  "fv_costume_rack": {
+    "id": "fv_costume_rack",
+    "tris": 6332,
+    "kb": 307,
+    "tex": 512
+  },
+  "perk_fv_lifeline": {
+    "id": "perk_fv_lifeline",
+    "tris": 6000,
+    "kb": 336,
+    "tex": 1024
+  },
+  "perk_fv_bulwark": {
+    "id": "perk_fv_bulwark",
+    "tris": 5999,
+    "kb": 369,
+    "tex": 1024
+  },
+  "perk_fv_quickhands": {
+    "id": "perk_fv_quickhands",
+    "tris": 5999,
+    "kb": 483,
+    "tex": 1024
+  },
+  "perk_fv_hammerfall": {
+    "id": "perk_fv_hammerfall",
+    "tris": 5999,
+    "kb": 321,
+    "tex": 1024
+  },
+  "fv_reforger": {
+    "id": "fv_reforger",
+    "tris": 5999,
+    "kb": 344,
+    "tex": 1024
+  },
+  "fv_mystery_box": {
+    "id": "fv_mystery_box",
+    "tris": 5000,
+    "kb": 497,
+    "tex": 1024
+  }
 }

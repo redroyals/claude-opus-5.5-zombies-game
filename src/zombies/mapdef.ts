@@ -140,6 +140,8 @@ export interface PropDef {
   collider?: { w: number; d: number; h: number; collide?: Collide; surface?: Surface };
   /** Procedural stand-in shown until (or if never) the model loads. Default: a box of the collider size. */
   fallback?: MatRef | false;
+  /** Low-detail model shown beyond `distance` metres (same transform, fit and scale). */
+  lod?: { model: string; distance: number };
 }
 
 export interface SignDef { lines: string[]; x: number; y: number; z: number; ry: number; w?: number; h?: number; bg?: string; fg?: string; border?: string }
@@ -207,6 +209,31 @@ export interface MachineModels {
 }
 export interface EggDef { name: string; steps: EggStepDef[]; reward: EggReward }
 
+/**
+ * A ride: press E at `at` to be carried along `path` (feet positions, first point near `at`) in `seconds`.
+ * Cable cars, ziplines, slides. Rides are one-way; add a second ride for the way back.
+ */
+export interface RideDef {
+  id: string;
+  /** Prompt text, e.g. 'Ride the cable car down'. */
+  label: string;
+  at: P3;
+  /** Interaction radius (default 1.6 m). */
+  radius?: number;
+  path: P3[];
+  seconds: number;
+  cost?: number;
+  requiresPower?: boolean;
+  /** Only available once the easter egg is complete. */
+  requiresEgg?: boolean;
+  /** Only available once the easter egg has reached this step index (earlier steps done), or is complete. */
+  requiresEggStep?: number;
+  /** Zones that must be unlocked (e.g. both ends). */
+  requiresZones?: number[];
+  /** Seconds before the ride can be taken again (default 0). */
+  cooldown?: number;
+}
+
 export interface PowerUpRules {
   /** Kinds that never drop on this map. */
   exclude?: PowerUpKind[];
@@ -255,6 +282,8 @@ export interface ZombiesMapDef {
   startWeapon?: WeaponId;
   powerups?: PowerUpRules;
   egg?: EggDef;
+  /** Cable cars, ziplines, slides (see RideDef). */
+  rides?: RideDef[];
   lighting: LightingDef;
   audio?: { ambience?: string };
   /** HUD/flavour strings. */

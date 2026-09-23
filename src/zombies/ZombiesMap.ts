@@ -174,17 +174,27 @@ export class ZombiesMap {
         fb.castShadow = true;
         holder.add(fb);
       }
-      void models.load(p.model).then((lm) => {
+      void Promise.all([models.load(p.model), p.lod ? models.load(p.lod.model) : Promise.resolve(null)]).then(([lm, lodM]) => {
         if (!lm) return;
         const inst = models.instance(lm);
+        let s = p.scale ?? 1;
         if (p.fit) {
           const box = new THREE.Box3().setFromObject(inst);
           const size = box.getSize(new THREE.Vector3());
-          const s = p.fit.height ? p.fit.height / Math.max(1e-3, size.y) : p.fit.width ? p.fit.width / Math.max(1e-3, Math.max(size.x, size.z)) : 1;
-          inst.scale.multiplyScalar(s);
-        } else if (p.scale) inst.scale.multiplyScalar(p.scale);
+          s = p.fit.height ? p.fit.height / Math.max(1e-3, size.y) : p.fit.width ? p.fit.width / Math.max(1e-3, Math.max(size.x, size.z)) : 1;
+        }
         holder.clear();
-        holder.add(inst);
+        if (lodM && p.lod) {
+          // Far away the prop swaps to its low-detail twin (THREE.LOD updates itself against the render camera).
+          const lod = new THREE.LOD();
+          lod.addLevel(inst, 0);
+          lod.addLevel(models.instance(lodM), p.lod.distance);
+          lod.scale.setScalar(s);
+          holder.add(lod);
+        } else {
+          inst.scale.multiplyScalar(s);
+          holder.add(inst);
+        }
       });
     }
   }
@@ -450,7 +460,7 @@ export class ZombiesMap {
     });
   }
 
-  update(time: number, dt: number, power: boolean, blackout = false, extra: { player?: { x: number; y: number; z: number }; egg?: boolean } = {}): void {
+  update(time: number, dt: number, power: boolean, blackout = false, extra: { player?: { x: number; y: number; z: number }; egg?: boolean; eggStep?: number; ride?: { id: string; t: number } | null } = {}): void {
     for (const d of this.doors) {
       if (!d.open || d.openT >= 1) { if (d.open) d.mesh.visible = false; continue; }
       d.openT = Math.min(1, d.openT + dt / 1.1);
@@ -483,7 +493,7 @@ export class ZombiesMap {
       const s = r.userData.spin as THREE.Object3D | undefined;
       if (s) s.rotation.y = time * 2;
     }
-    this.entry.update?.({ time, dt, power, blackout, player: extra.player, egg: extra.egg ?? false });
+    this.entry.update?.({ time, dt, power, blackout, player: extra.player, egg: extra.egg ?? false, eggStep: extra.eggStep ?? 0, ride: extra.ride ?? null });
   }
 
   groundHeight(x: number, z: number): number {

@@ -21,6 +21,7 @@
 - [x] Bone-attached hit capsules, 2.8 m Warden, legless crawlers; horde lanes/surround, window queues + swipes,
       sprinters (r10+), blackout rounds (13, 23, ...)
 - [x] Perf pass: draw calls ~250 → ~125, triangles ~1M → 100-400k, zombie frustum culling + distance LOD
+- [x] Second map "Rio · Ridgelight" (`src/zombies/maps/favela/`, design `docs/maps/favela.md`): vertical favela at dusk, 9 zones on six terrace tiers, 2-edge-connected door graph, climb/drop/window spawns, cable car + zipline + tin-roof slide (map `rides` API), street-art machines (map `machines` API), peak-line easter egg
 - [ ] Use `kit_barricade_window` / wall kit pieces for the map shell (currently procedural boxes)
 - [ ] Second and third maps (Lahore Darbar, Favela Ridge: in progress on their own branches)
 

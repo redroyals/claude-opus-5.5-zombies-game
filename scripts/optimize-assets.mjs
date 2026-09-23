@@ -25,9 +25,9 @@ const ROOT = path.resolve(new URL('..', import.meta.url).pathname);
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, arr) => a.startsWith('--') ? [a.slice(2), arr[i + 1] ?? true] : null).filter(Boolean));
 await MeshoptSimplifier.ready; await MeshoptEncoder.ready; await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-const PPCAT = { machines: 'equipment', props: 'equipment', zombies: 'characters', lahore: 'equipment' };
-const OUTDIR = { weapons: 'public/models/weapons', machines: 'public/models/zombies', props: 'public/models/zombies', zombies: 'public/models/zombies', lahore: 'public/models/lahore' };
-const BUDGET = { lahore: [700e3, 10000, 1024], machines: [800e3, 14000, 1024], props: [500e3, 8000, 1024], zombies: [1500e3, 18000, 2048], weapons: [600e3, 7000, 1024], attachments: [250e3, 3000, 512], equipment: [250e3, 2500, 512], characters: [1500e3, 18000, 2048], kits: [1000e3, 6000, 1024] };
+const PPCAT = { machines: 'equipment', props: 'equipment', zombies: 'characters', lahore: 'equipment', favela: 'equipment' };
+const OUTDIR = { weapons: 'public/models/weapons', machines: 'public/models/zombies', props: 'public/models/zombies', zombies: 'public/models/zombies', lahore: 'public/models/lahore', favela: 'public/models/favela' };
+const BUDGET = { lahore: [700e3, 10000, 1024], machines: [800e3, 14000, 1024], props: [500e3, 8000, 1024], zombies: [1500e3, 18000, 2048], weapons: [600e3, 7000, 1024], attachments: [250e3, 3000, 512], equipment: [250e3, 2500, 512], characters: [1500e3, 18000, 2048], kits: [1000e3, 6000, 1024], favela: [900e3, 9000, 1024] };
 const framesF = path.join(ROOT, 'public/models/weapons/frames.json');
 const frames = fs.existsSync(framesF) ? JSON.parse(fs.readFileSync(framesF, 'utf8')) : { convention: '', weapons: {} };
 
@@ -101,8 +101,8 @@ async function compress(src, out, maxBytes, tex) {
 async function one(a) {
   const src = path.join(ROOT, 'assets/raw', a.cat, `${a.id}.glb`);
   if (!fs.existsSync(src)) return null;
-  const [maxBytes, catTris, tex] = BUDGET[a.cat];
-  const tris = a.tris ?? catTris;
+  const [maxBytes, catTris, catTex] = BUDGET[a.cat];
+  const tris = a.tris ?? catTris, tex = a.tex ?? catTex; // per-asset overrides (small props need far less)
   const outDir = path.join(ROOT, OUTDIR[a.cat]); fs.mkdirSync(outDir, { recursive: true });
   const out = path.join(outDir, `${a.id}.glb`);
   const work = path.join(ROOT, 'assets/work', a.cat); fs.mkdirSync(work, { recursive: true });
@@ -111,6 +111,7 @@ async function one(a) {
   const bargs = ['-b', '--factory-startup', '-P', path.join(ROOT, 'tools/blender/postprocess.py'), '--', '--in', src, '--out', wGlb, '--cat', PPCAT[a.cat] ?? a.cat, '--size', String(a.size), '--tris', String(tris), '--frame', wFrame, '--name', a.id];
   if (a.cls && a.cls !== 'wonder') bargs.push('--cls', a.cls);
   if (BULLPUP.has(a.id)) bargs.push('--bullpup', '1');
+  if (a.lod) bargs.push('--lod1', wLod); // LOD1 = a quarter of the triangles, written as <id>.lod1.glb
   if (ov.grip !== undefined) bargs.push('--grip', String(ov.grip));
   if (ov.flip) bargs.push('--flip', '1');
   
@@ -118,7 +119,8 @@ async function one(a) {
   if (a.split) execFileSync(BLENDER, ['-b', '--factory-startup', '-P', path.join(ROOT, 'tools/blender/split_lid.py'), '--', '--in', wGlb, '--out', wGlb, '--frac', String(a.splitFrac ?? 0.74)], { stdio: 'pipe' });
   const frame = JSON.parse(fs.readFileSync(wFrame, 'utf8'));
   const texSize = await compress(wGlb, out, maxBytes, tex);
-  if (fs.existsSync(wLod)) await compress(wLod, out.replace(/\.glb$/, '.lod1.glb'), maxBytes / 3, Math.min(512, texSize));
+  if (a.scrub) execFileSync(process.execPath, [path.join(ROOT, 'scripts/scrub-text.mjs'), out, '--radius', String(a.scrub)], { stdio: 'pipe' });
+  if (a.lod && fs.existsSync(wLod)) await compress(wLod, out.replace(/\.glb$/, '.lod1.glb'), maxBytes / 3, Math.min(512, texSize));
   if (a.cat === 'weapons') frames.weapons[a.id] = frame;
   if (a.cat === 'attachments') (frames.attachments ??= {})[a.id] = frame;
   return { id: a.id, tris: frame.tris, kb: Math.round(fs.statSync(out).size / 1024), tex: texSize, confidence: frame.confidence, gripRule: frame.gripRule };

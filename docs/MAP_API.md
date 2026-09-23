@@ -86,7 +86,8 @@ walls: [{ axis: 'x', at: 18, a0: -22, a1: 24, y0: 0, y1: 5.4, mat: 'brick' }],  
 boxes: [{ box: [x0, y0, z0, x1, y1, z1], mat: 'wood', collide: 'solid', surface: 'wood' }],  // mat: null = invisible collider
 quads: [{ rect, y, mat }],                 // flat visual planes (rugs, water, paint)
 cylinders: [{ x, z, r, h, mat }],          // drums, columns (box collider)
-props: [{ model: 'zombies/generator.glb', x, z, yaw, fit: { height: 1.8 }, collider: { w, d, h } }],
+props: [{ model: 'zombies/generator.glb', x, z, yaw, fit: { height: 1.8 }, collider: { w, d, h },
+          lod?: { model: 'favela/fv_water_tower.lod1.glb', distance: 28 } }],   // far-away low-detail twin
 signs: [{ lines: ['DARBAR HALL'], x, y, z, ry }],
 decals: [{ x, z, size, kind: 'blood' }],
 ground: { mat: 'dirt', tile: 6 },          // outdoor ground plane (visual)
@@ -150,6 +151,20 @@ powerups?: { exclude?: ['carpenter'], maxPerRound?: 4, dropChanceMult?: 1 },
 `face` is the direction the front of the machine faces; the player stands in front of it. Machine
 footprints come from the models (`PERK_FOOT` in `mapcompile.ts`), so the validator checks the spot in front is
 reachable. **Give `y` for anything on an upper floor.**
+
+### Rides (cable cars, ziplines, slides)
+```ts
+rides: [{
+  id: 'gondola_up', label: 'Ride the cable car up', at: { x, y, z }, radius?: 1.6,
+  path: [{ x, y, z }, ...],          // feet positions; the first point sits at `at`
+  seconds: 14, cost?: 250, cooldown?: 4,
+  requiresPower?: true, requiresZones?: [3, 7], requiresEgg?: true, requiresEggStep?: 3,
+}],
+```
+Press E at `at` to be carried along `path` (arc-length, eased in and out). Rides are one-way; add a second
+ride for the way back. Pure rules live in `src/zombies/rides.ts` (`rideBlock`, `ridePosition`). The map's
+`update(ctx)` hook receives `ctx.ride = { id, t }` (progress 0..1) to animate the vehicle, plus `ctx.egg` (complete) and `ctx.eggStep`.
+Test ride clearance against the compiled colliders (see `tests/maps-favela.test.ts`).
 
 ### Easter egg (generic step machine)
 ```ts
@@ -269,8 +284,11 @@ export const EXAMPLE_HOUSE: ZombiesMapDef = {
 };
 ```
 
-The full-size reference is `src/zombies/maps/nightfall/def.ts` (Nightfall Relay: five zones, a raised power
-room with stairs and an overlook, ten windows, a three-radio easter egg).
+The full-size references are `src/zombies/maps/nightfall/def.ts` (Nightfall Relay: five zones, a raised power
+room with stairs and an overlook, ten windows, a three-radio easter egg) and the vertical `src/zombies/maps/favela/`
+(Rio · Ridgelight: six terrace tiers, staging rooms for climb and drop spawns, rides, per-map machines, and a hillside
+`decorate` that merges every static kit piece per material). `node scripts/map-svg.mjs <def.ts> <EXPORT> out.svg`
+draws any def as a plan and a side elevation.
 
 ## Rounds a map should expect
 
