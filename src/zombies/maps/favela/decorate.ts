@@ -246,7 +246,11 @@ function buildHouses(ctx: MapDecorateContext, merger: KitMerger): void {
       let y = hill(axis === 'x' ? a : at, axis === 'x' ? at : a) - 0.6;
       const yaw = axis === 'x' ? (out > 0 ? 0 : Math.PI) : (out > 0 ? Math.PI / 2 : -Math.PI / 2);
       while (y < top - 2) {
-        const h = HOUSES[Math.floor(r() * HOUSES.length)];
+        // Only houses that fit under the terrace top: a skin must never rise above the floor it dresses
+        // (it would block the view from that floor, e.g. the sea from the street).
+        const fits = HOUSES.filter((c) => y + c.h <= top + 0.3);
+        if (!fits.length) break;
+        const h = fits[Math.floor(r() * fits.length)];
         const d = h.d;
         const off = at + out * (d / 2 - 0.4 + r() * 0.3);
         const [x, z] = axis === 'x' ? [a + (r() - 0.5) * 0.6, off] : [off, a + (r() - 0.5) * 0.6];
@@ -278,9 +282,14 @@ function buildHouses(ctx: MapDecorateContext, merger: KitMerger): void {
       const y = hill(x, z) - 0.8;
       const near = Math.abs(x) < 58 && z > -78 && z < 56;
       const yaw = [0, Math.PI / 2, Math.PI, -Math.PI / 2][Math.floor(r() * 4)] * (r() < 0.6 ? 0 : 1);
+      // Houses step down the hill: a roof may not rise more than 1.5 m above the ground 10 m uphill, so the
+      // views downhill (street -> sea, laje -> city, mirante -> bay) stay open.
+      const maxTop = hill(x, z - 10) + 1.5;
       if (near) {
-        merger.add(`favela/${h.id}.glb`, x, y, z, yaw, new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)]));
-        if (r() < 0.2) { const h2 = HOUSES[Math.floor(r() * 3)]; merger.add(`favela/${h2.id}.glb`, x, y + h.h + 0.1, z, yaw, new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)])); }
+        const hh = y + h.h <= maxTop ? h : HOUSES.find((c) => c.id === 'fv_house_c')!;
+        if (y + hh.h > maxTop + 1) continue;
+        merger.add(`favela/${hh.id}.glb`, x, y, z, yaw, new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)]));
+        if (r() < 0.2) { const h2 = HOUSES[Math.floor(r() * 3)]; if (y + hh.h + h2.h + 0.1 <= maxTop) merger.add(`favela/${h2.id}.glb`, x, y + hh.h + 0.1, z, yaw, new THREE.Color(PASTEL[Math.floor(r() * PASTEL.length)])); }
       } else {
         const bh = 3 + Math.floor(r() * 4) * 3;
         farBoxes.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y + bh / 2, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(h.w, bh, h.d)));
