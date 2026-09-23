@@ -201,7 +201,7 @@ export function compileMap(def: ZombiesMapDef): CompiledMap {
   }
 
   // ---- Authored static geometry ----
-  for (const b of def.boxes ?? []) add(b.box, b.mat ?? 'concrete', b.tile ?? 2, b.collide ?? 'solid', b.surface ?? 'concrete', b.shadow ?? true);
+  for (const b of def.boxes ?? []) add(b.box, b.mat === null ? null : b.mat ?? 'concrete', b.tile ?? 2, b.collide ?? 'solid', b.surface ?? 'concrete', b.shadow ?? true);
   for (const c of def.cylinders ?? []) {
     const y = c.y ?? 0;
     if ((c.collide ?? 'solid') !== 'none') add(tuple(c.x - c.r, y, c.z - c.r, c.x + c.r, y + c.h, c.z + c.r), null, 1, c.collide ?? 'solid', c.surface ?? 'metal');
@@ -219,7 +219,7 @@ export function compileMap(def: ZombiesMapDef): CompiledMap {
   for (const s of def.box.spots) { const y = s.y ?? 0; mach(tuple(s.x - 0.7, y, s.z - 0.7, s.x + 0.7, y + 0.62, s.z + 0.7), 'wood'); }
   for (const [id, s] of perkEntries(def)) {
     const y = s.y ?? 0;
-    const [fw, fd] = PERK_FOOT[id];
+    const [fw, fd] = def.machines?.perks?.[id]?.foot ?? PERK_FOOT[id];
     const side = Math.abs(Math.sin(s.face)) > 0.5;
     const hx = (side ? fd : fw) / 2, hz = (side ? fw : fd) / 2;
     mach(tuple(s.x - hx, y, s.z - hz, s.x + hx, y + 2.2, s.z + hz), 'metal');

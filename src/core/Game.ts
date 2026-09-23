@@ -522,6 +522,9 @@ export class Game {
     if (this.mode === 'zombies') {
       this.zm.update(dt, { x: p.pos.x, y: p.pos.y, z: p.pos.z }, input.isHeld('interact'));
       if (this.zm.power !== this.atmoPower) this.applyAtmosphere(true, this.zm.power);
+      // Rides (cable car, zipline, slide) carry the player: pin the feet to the ride and drop momentum.
+      const rp = this.zm.ridePos;
+      if (rp) { p.pos = { x: rp.x, y: rp.y, z: rp.z }; p.vel = { x: 0, y: 0, z: 0 }; p.grounded = true; }
     }
     else this.spawner.update(dt, {
       px: p.pos.x, pz: p.pos.z, eyeY: p.eyeY, fx: fwd.x / fl, fz: fwd.z / fl,

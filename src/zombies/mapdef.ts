@@ -43,7 +43,8 @@ export type Collide = 'solid' | 'floor' | 'nonsolid' | 'none';
 
 /** Axis-aligned box: [x0, y0, z0, x1, y1, z1]. */
 export type BoxTuple = [number, number, number, number, number, number];
-export interface BoxDef { box: BoxTuple; mat?: MatRef; tile?: number; collide?: Collide; surface?: Surface; shadow?: boolean }
+/** `mat: null` makes an invisible collider (e.g. the solid core of a GLB prop that draws itself). */
+export interface BoxDef { box: BoxTuple; mat?: MatRef | null; tile?: number; collide?: Collide; surface?: Surface; shadow?: boolean }
 /** Horizontal quad (visual floor/decal plane, no collider). */
 export interface QuadDef { rect: Rect; y: number; mat: MatRef; tile?: number }
 /** Vertical cylinder (drums, pillars). Collider is its bounding box. */
@@ -185,8 +186,46 @@ export interface EggReward {
   refillAmmo?: boolean;
   /** Drop a power-up at the player spawn. */
   powerup?: PowerUpKind;
+  /** Hand the player a weapon (e.g. a wonder weapon on a pedestal). */
+  weapon?: WeaponId;
 }
 export interface EggDef { name: string; steps: EggStepDef[]; reward: EggReward }
+
+/**
+ * Per-map machine models (paths under /models, e.g. 'favela/perk_fv_bulwark.glb'). Omitted entries use the stock
+ * models. `foot` overrides a perk's collider footprint [width along its X, depth along its Z] to match the model.
+ */
+export interface MachineModels {
+  box?: string;
+  pap?: string;
+  power?: string;
+  perks?: Partial<Record<PerkId, { model: string; foot?: [number, number] }>>;
+}
+
+/**
+ * A ride: press E at `at` to be carried along `path` (feet positions, first point near `at`) in `seconds`.
+ * Cable cars, ziplines, slides. Rides are one-way; add a second ride for the way back.
+ */
+export interface RideDef {
+  id: string;
+  /** Prompt text, e.g. 'Ride the cable car down'. */
+  label: string;
+  at: P3;
+  /** Interaction radius (default 1.6 m). */
+  radius?: number;
+  path: P3[];
+  seconds: number;
+  cost?: number;
+  requiresPower?: boolean;
+  /** Only available once the easter egg is complete. */
+  requiresEgg?: boolean;
+  /** Only available once the easter egg has reached this step index (earlier steps done), or is complete. */
+  requiresEggStep?: number;
+  /** Zones that must be unlocked (e.g. both ends). */
+  requiresZones?: number[];
+  /** Seconds before the ride can be taken again (default 0). */
+  cooldown?: number;
+}
 
 export interface PowerUpRules {
   /** Kinds that never drop on this map. */
@@ -236,6 +275,10 @@ export interface ZombiesMapDef {
   startWeapon?: WeaponId;
   powerups?: PowerUpRules;
   egg?: EggDef;
+  /** Map-specific machine models (see MachineModels). */
+  machines?: MachineModels;
+  /** Cable cars, ziplines, slides (see RideDef). */
+  rides?: RideDef[];
   lighting: LightingDef;
   audio?: { ambience?: string };
   /** HUD/flavour strings. */

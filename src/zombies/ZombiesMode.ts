@@ -23,7 +23,8 @@ import {
 import {
   POWERUP, POWERUP_INFO, activate, createPowerUps, isActive, onRoundStart, pointsMult, rollDrop, stepPowerUps, type PowerUpKind, type PowerUpState,
 } from './powerups';
-import { PERK_ORDER, frontOf, perkEntries, topologyOf, zoneAt, type Spot, type ZombiesMapDef } from './mapdef';
+import { PERK_ORDER, frontOf, perkEntries, topologyOf, zoneAt, type RideDef, type Spot, type ZombiesMapDef } from './mapdef';
+import { rideBlock, ridePosition, type RideCtx } from './rides';
 import { createEggRun, currentStep, eggCollect, eggInteract, eggKill, pendingObjects, stepProgress, type EggEvent, type EggRun } from './egg';
 import { getMap, type ZombiesMapEntry } from './maps';
 import { ZombiesMap } from './ZombiesMap';
@@ -39,7 +40,8 @@ export type ZInteraction =
   | { kind: 'power' }
   | { kind: 'door'; id: string }
   | { kind: 'window'; w: number }
-  | { kind: 'relic'; i: number };
+  | { kind: 'relic'; i: number }
+  | { kind: 'ride'; id: string };
 
 /** Everything built for one map (cached so switching maps back and forth is instant). */
 interface BuiltMap {
@@ -96,6 +98,10 @@ export class ZombiesMode {
   private time = 0;
   private rnd = Math.random;
   private boxSpinSounded = false;
+  /** Current ride (cable car / zipline / slide) and per-ride cooldowns. */
+  private ride: { def: RideDef; t: number } | null = null;
+  private rideCool = new Map<string, number>();
+  private ridePt: P3 = { x: 0, y: 0, z: 0 };
 
   constructor(private host: ZHost, private M: Materials, mapId?: string) {
     this.group.visible = false;
@@ -112,13 +118,15 @@ export class ZombiesMode {
       const root = new THREE.Group();
       root.add(map.root);
       const ground = (x: number, z: number, y = 0) => map.world.groundHeight(x, z, 0.3, y + 3.2);
-      const cache = new CacheView(def.box.spots, (x, z) => ground(x, z));
+      const mm = def.machines;
+      const cache = new CacheView(def.box.spots, (x, z) => ground(x, z), mm?.box);
       root.add(cache.group);
-      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0) : null;
+      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0, mm?.pap) : null;
       if (reforger) root.add(reforger.root);
-      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), (x, z) => ground(x, z));
+      const perkModels = Object.fromEntries(Object.entries(mm?.perks ?? {}).map(([k, v]) => [k, v!.model])) as Partial<Record<PerkId, string>>;
+      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), (x, z) => ground(x, z), perkModels);
       root.add(perks.group);
-      const powerSwitch = def.power ? new PowerSwitchView(def.power) : null;
+      const powerSwitch = def.power ? new PowerSwitchView(def.power, mm?.power) : null;
       if (powerSwitch) root.add(powerSwitch.root);
       for (const s of def.wallBuys) root.add(buildChalk(s.key, s.x, (s.y ?? 0) + 1.7, s.z, s.face));
       b = { map, root, cache, reforger, perks, powerSwitch };
@@ -152,6 +160,8 @@ export class ZombiesMode {
     this.stats = { round: 0, kills: 0, headshots: 0, points: 0, doors: 0, time: 0, downs: 0 };
     this.earned = 0;
     this.papPending = null;
+    this.ride = null;
+    this.rideCool.clear();
     for (const p of this.pickups) p.root.removeFromParent();
     this.pickups = [];
     for (const v of this.vortices) v.mesh.removeFromParent();
@@ -250,7 +260,17 @@ export class ZombiesMode {
     this.reforger?.update(dt, this.time, this.power, (x, y, z) => this.host.fx.sparkBurst(x, y, z, 18, [1.4, 0.6, 2]));
     this.perks.update(this.time, this.power);
     this.powerSwitch?.update(dt);
-    this.map.update(this.time, dt, this.power);
+    // Rides
+    for (const [k, v] of this.rideCool) this.rideCool.set(k, Math.max(0, v - dt));
+    if (this.ride) {
+      this.ride.t += dt;
+      ridePosition(this.ride.def, this.ride.t, this.ridePt);
+      if (this.ride.t >= this.ride.def.seconds) {
+        this.rideCool.set(this.ride.def.id, this.ride.def.cooldown ?? 0);
+        this.ride = null;
+      }
+    }
+    this.map.update(this.time, dt, this.power, { ride: this.ride ? { id: this.ride.def.id, t: Math.min(1, this.ride.t / this.ride.def.seconds) } : null, egg: this.egg.complete });
 
     // Perk jingles when standing near a lit machine
     this.jingleT -= dt;
@@ -575,6 +595,7 @@ export class ZombiesMode {
       if (near(dx, dz, 2.3, g.y0)) return { kind: 'door', id: g.id };
     }
     for (const e of pendingObjects(d.egg, this.egg)) if (e.kind === 'interact' && near(e.o.x, e.o.z, e.o.radius ?? 1.3, e.o.y - 0.35)) return { kind: 'relic', i: e.i };
+    for (const r of d.rides ?? []) if (near(r.at.x, r.at.z, r.radius ?? 1.6, r.at.y)) return { kind: 'ride', id: r.id };
     const w = this.windowNear(p);
     if (w >= 0 && this.zones.planks[w] < PLANKS) return { kind: 'window', w };
     return null;
@@ -615,6 +636,17 @@ export class ZombiesMode {
       }
       case 'window': return `Hold <kbd>E</kbd> to rebuild barrier <span class="cost">+10</span>`;
       case 'relic': { const st = currentStep(this.def.egg, this.egg); return `<kbd>E</kbd> ${st && st.kind === 'interact' ? st.prompt ?? 'Examine' : 'Examine'}`; }
+      case 'ride': {
+        const r = this.rideDef(it.id);
+        if (!r) return '';
+        if (this.ride) return '';
+        const b = rideBlock(r, this.rideCtx(r));
+        if (b === 'egg') return '';
+        if (b === 'power') return `${r.label} <span class="denied">REQUIRES POWER</span>`;
+        if (b === 'zone') return `${r.label} <span class="denied">OTHER END LOCKED</span>`;
+        if (b === 'cooldown') return `${r.label} <span class="denied">ON ITS WAY</span>`;
+        return `<kbd>E</kbd> ${r.label}${r.cost ? ` <span class="cost">${r.cost}</span>` : ''}`;
+      }
     }
   }
 
@@ -633,6 +665,19 @@ export class ZombiesMode {
       case 'relic':
         this.useEgg(it.i, 'interact');
         return;
+      case 'ride': {
+        const r = this.rideDef(it.id);
+        if (!r || this.ride) return;
+        const b = rideBlock(r, this.rideCtx(r));
+        if (b === 'egg') return;
+        if (b === 'funds') { this.host.toast(REASON.funds, 'bad', '', 1.4); this.host.sound('deny'); return; }
+        if (b) { this.host.toast(b === 'power' ? REASON.power : b === 'cooldown' ? 'NOT YET' : 'THE OTHER END IS LOCKED', 'bad', '', 1.4); this.host.sound('deny'); return; }
+        if (r.cost) this.zp.points -= r.cost;
+        this.ride = { def: r, t: 0 };
+        ridePosition(r, 0, this.ridePt);
+        this.host.sound('buy');
+        return;
+      }
       case 'door': {
         const r = buyDoor(this.topo, this.zones, this.zp, it.id, this.power);
         if (deny(r)) return;
@@ -687,6 +732,15 @@ export class ZombiesMode {
       }
     }
   }
+
+  private rideDef(id: string): RideDef | undefined { return this.def.rides?.find((r) => r.id === id); }
+
+  private rideCtx(r: RideDef): RideCtx {
+    return { power: this.power, egg: this.egg.complete, eggStep: this.egg.step, unlocked: unlockedZones(this.topo, this.zones), points: this.zp.points, cooldown: this.rideCool.get(r.id) ?? 0 };
+  }
+
+  /** Feet position while the player is being carried by a ride (Game pins the player there), else null. */
+  get ridePos(): P3 | null { return this.ride ? this.ridePt : null; }
 
   /** True while a gun is inside the Reforger (the player holds only the knife). */
   get papBusySlot(): 0 | 1 | null { return this.papPending ? this.papPending.slot : null; }
@@ -750,6 +804,7 @@ export class ZombiesMode {
     if (rw.refillAmmo) for (const s of l.slots) if (s) refillAmmo(s);
     if (rw.points) this.addPoints(rw.points);
     if (rw.powerup) this.dropPowerUp(rw.powerup, ...this.eggDropPos());
+    if (rw.weapon) this.giveWeapon(rw.weapon);
   }
 
   private eggDropPos(): [number, number, number] { const s = this.spawn; return [s.x, s.y, s.z]; }

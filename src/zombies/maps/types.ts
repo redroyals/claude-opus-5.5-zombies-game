@@ -19,7 +19,13 @@ export interface MapDecorateContext {
   mat: (m: import('../mapdef').MatRef) => THREE.Material;
 }
 
-export interface MapUpdateContext { time: number; dt: number; power: boolean }
+export interface MapUpdateContext {
+  time: number; dt: number; power: boolean;
+  /** The ride the player is on (RideDef id) and its progress 0..1, or null. */
+  ride?: { id: string; t: number } | null;
+  /** True once the map's easter egg is complete. */
+  egg?: boolean;
+}
 
 export interface ZombiesMapEntry {
   def: ZombiesMapDef;
