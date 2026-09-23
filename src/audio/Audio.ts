@@ -1,5 +1,6 @@
 // Procedurally synthesised, layered audio via WebAudio. Initialised on the first user gesture.
 // Positional sounds use cheap distance attenuation + stereo panning relative to the listener.
+import { easterSong } from './melody';
 import { PERF, WEAPONS, weaponArch, type WeaponId } from '../config';
 import type { Surface } from '../world/Collision';
 
@@ -722,23 +723,13 @@ export class AudioEngine {
     if (!this.ok(true)) return;
     const t0 = this.ctx!.currentTime + 0.2;
     const o = this.out(null, 0.55, 26)!;
-    let h = 0;
-    for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    const root = 110 * Math.pow(2, (h % 7) / 12);
-    const scale = [0, 3, 5, 7, 10, 12, 15];
-    const beat = 0.3;
-    for (let bar = 0; bar < 10; bar++) {
-      const chord = [0, 5, 3, 4][bar % 4];
-      const base = root * Math.pow(2, scale[chord] / 12);
-      const tb = t0 + bar * beat * 8;
-      this.tone(o, tb, beat * 8, { type: 'sawtooth', freq: base / 2, gain: 0.06, attack: 0.05 });
-      this.tone(o, tb, beat * 8, { type: 'triangle', freq: base * 1.5, gain: 0.04, attack: 0.3 });
-      for (let k = 0; k < 8; k++) {
-        if (k % 2 === 0) this.noise(o, tb + k * beat, 0.08, { type: 'highpass', freq: 6000, gain: 0.12 });
-        if (k === 0 || k === 4) this.tone(o, tb + k * beat, 0.25, { freq: 90, freqEnd: 40, gain: 0.35 });
-        const n = scale[(h >> ((bar * 8 + k) % 24)) % scale.length];
-        if ((h >> (k + bar)) & 1) this.tone(o, tb + k * beat, beat * 0.9, { type: 'square', freq: root * 2 * Math.pow(2, n / 12), gain: 0.035 });
-      }
+    for (const n of easterSong(name)) {
+      const t = t0 + n.t;
+      if (n.voice === 'hat') this.noise(o, t, n.dur, { type: 'highpass', freq: n.freq, gain: 0.12 });
+      else if (n.voice === 'kick') this.tone(o, t, n.dur, { freq: n.freq, freqEnd: 40, gain: 0.35 });
+      else if (n.voice === 'bass') this.tone(o, t, n.dur, { type: 'sawtooth', freq: n.freq, gain: 0.06, attack: 0.05 });
+      else if (n.voice === 'pad') this.tone(o, t, n.dur, { type: 'triangle', freq: n.freq, gain: 0.04, attack: 0.3 });
+      else this.tone(o, t, n.dur, { type: 'square', freq: n.freq, gain: 0.035 });
     }
   }
 

@@ -242,7 +242,7 @@ export class Hud {
     this.set('cash', 'text', f.cash.toLocaleString('en-US'));
     // Weapon
     this.set('weapon-name', 'text', f.weaponName);
-    this.set('weapon-tier', 'text', f.tier === 0 ? '' : f.tier === 1 ? 'TIER I' : 'TIER II');
+    this.set('weapon-tier', 'text', f.tier <= 0 ? '' : `TIER ${'I'.repeat(Math.min(3, f.tier))}`);
     this.set('weapon-tier', 'class', f.tier === 0 ? 'tier hidden' : `tier t${f.tier}`);
     this.set('ammo-mag', 'text', String(f.mag));
     this.set('ammo-mag', 'class', f.mag <= Math.ceil(f.magSize * 0.25) ? 'low' : '');

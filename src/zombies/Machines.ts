@@ -530,9 +530,12 @@ export class PerkViews {
             if (!me.isMesh) return;
             const mt = me.material as THREE.MeshStandardMaterial;
             if (!mt?.isMeshStandardMaterial) return;
+            // Multiplying the stock albedo by a tint keeps its colour (red stays red), so repaint the body in the
+            // perk's colour and keep only the shading maps; emissive panels glow in the perk colour too.
             const c = mt.clone();
-            c.color.lerp(tint, 0.6);
-            if (c.emissive.getHex() !== 0) c.emissive.copy(tint);
+            c.map = null;
+            c.color.copy(tint).multiplyScalar(0.85);
+            if (c.emissive.getHex() !== 0 || c.emissiveMap) { c.emissive.copy(tint); c.emissiveMap = null; }
             me.material = c;
           });
         }

@@ -61,6 +61,8 @@ const TIER_COLORS = [
   { accent: 0x2a2c2e, emissive: 0x000000, ei: 0, body: 0x4a4e52 },
   { accent: 0x1c5a8a, emissive: 0x2aa8ff, ei: 1.6, body: 0x3a4a5c },
   { accent: 0x8a3a1c, emissive: 0xff5a1a, ei: 2.2, body: 0x4a3432 },
+  // Tier III (Zombies Reforger, "Sunforge"): gold veins.
+  { accent: 0x8a6a1c, emissive: 0xffc030, ei: 2.6, body: 0x4a4232 },
 ];
 
 export class ViewModel {
@@ -633,7 +635,7 @@ export class ViewModel {
   setTier(id: WeaponId, tier: number): void {
     const m = this.ensure(id);
     m.tier = tier;
-    const c = TIER_COLORS[Math.min(2, tier)];
+    const c = TIER_COLORS[Math.min(TIER_COLORS.length - 1, tier)];
     m.accents.color.setHex(c.accent);
     m.accents.emissive.setHex(c.emissive);
     m.accents.emissiveIntensity = c.ei;

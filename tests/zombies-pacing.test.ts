@@ -394,3 +394,17 @@ describe('validator: pacing checks', () => {
     expect(getMap('lahore-darbar').def.box.reveal).toBeTruthy();
   });
 });
+
+describe('hidden songs', () => {
+  it('every map song is finite, ~24 s long, and differs by name', async () => {
+    const { easterSong } = await import('../src/audio/melody');
+    const names = ['nightfall', 'lahore', 'favela', 'zzzzzzzzzzzzzzzzzzzzzzzz'];
+    for (const n of names) {
+      const song = easterSong(n);
+      expect(song.every((x) => Number.isFinite(x.freq) && x.freq > 20 && Number.isFinite(x.t) && x.dur > 0), n).toBe(true);
+      expect(Math.max(...song.map((x) => x.t + x.dur))).toBeCloseTo(24, 0);
+      expect(song.some((x) => x.voice === 'lead')).toBe(true);
+    }
+    expect(JSON.stringify(easterSong('nightfall'))).not.toBe(JSON.stringify(easterSong('favela')));
+  });
+});

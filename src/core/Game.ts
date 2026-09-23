@@ -30,6 +30,8 @@ import { ZombiesMode, type ZInteraction } from '../zombies/ZombiesMode';
 import { MAPS, getMap, mapFromUrl } from '../zombies/maps';
 import { DOWN } from '../zombies/down';
 import { aimAssistTarget } from '../zombies/perkfx';
+import { frontOf, zoneAt } from '../zombies/mapdef';
+import { WALL_BUYS } from '../zombies/rules';
 import { Input } from './Input';
 import { loadBest, loadSettings, recordBest, saveSettings, type Settings } from './Settings';
 
@@ -1338,6 +1340,12 @@ export class Game {
           perkLimit: z.zp.perkLimit, perks: [...z.zp.perks], mule: z.mule?.id ?? null, shield: z.shieldHp, eggs: z.eggRuns.map((e) => ({ step: e.step, complete: e.complete })),
           round: z.rounds.round, specials: z.rounds.sched.specials.slice(0, 6), slots: this.loadout.slots.map((s) => s && { id: s.id, tier: s.tier }), active: this.loadout.active };
       },
+      /** Every wall-buy with its tier, the zone its stand point is in and whether that is the start zone. */
+      zWalls: () => this.zm.def.wallBuys.map((w) => {
+        const f = frontOf({ x: w.x, z: w.z, face: w.face, y: w.y }, 0.8);
+        const zone = zoneAt(this.zm.def, f.x, f.z, f.y);
+        return { key: w.key, tier: WALL_BUYS[w.key].tier, price: WALL_BUYS[w.key].price, zone, start: zone === this.zm.def.startZone, x: w.x, z: w.z, y: w.y ?? 0, face: w.face };
+      }),
       /** What E would do right now. */
       zFind: () => { const f = this.zm.find(this.player.pos); return f ? JSON.parse(JSON.stringify(f)) as unknown : null; },
       zPerk: (id: string) => { (this.zm.zp.perks as string[]).push(id); (this.zm as unknown as { applyMods(): void }).applyMods(); },

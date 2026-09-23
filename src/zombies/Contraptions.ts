@@ -247,8 +247,10 @@ export class TrapViews {
       const on = st.phase === 'active';
       v.lamp.color.setHex(on ? 0xffd030 : st.phase === 'cooldown' ? 0xff2010 : 0x30ff50);
       v.lever.rotation.x += ((on ? -0.8 : 0.8) - v.lever.rotation.x) * 0.2;
-      const flick = on ? (v.def.kind === 'electric' ? (Math.sin(time * 53) > 0 ? 3 : 0.6) : 1.6 + Math.sin(time * 11) * 0.6) : 0;
+      const flick = on ? (v.def.kind === 'electric' ? (Math.sin(time * 53) > 0 ? 3 : 0.6) : 0.7 + Math.sin(time * 11) * 0.25 + Math.sin(time * 3.7) * 0.15) : 0;
       v.live.emissiveIntensity = flick;
+      v.live.opacity = on ? (v.def.kind === 'fire' ? 0.55 + Math.sin(time * 7) * 0.1 : 0.9) : 0;
+      for (const m of v.liveMeshes) m.visible = on || v.def.kind === 'electric';
       if (on && Math.random() < 0.35) {
         const a = v.def.area;
         spark(a.x0 + Math.random() * (a.x1 - a.x0), a.y + (v.def.kind === 'fire' ? 0.3 : 0.4 + Math.random() * 1.8), a.z0 + Math.random() * (a.z1 - a.z0), v.def.kind);
