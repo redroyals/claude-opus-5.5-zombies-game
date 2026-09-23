@@ -80,6 +80,9 @@ describe('favela: layout', () => {
     expect(zoneAt(def, def.pap!.x, def.pap!.z, def.pap!.y)).toBe(Z.quadra);
     expect(def.power!.y! - def.pap!.y!).toBeGreaterThanOrEqual(12);
   });
+  it('stays inside the real-light budget (<= 12 lamps + lights, MAP_API)', () => {
+    expect(def.lighting.lamps.length + (def.lighting.lights?.length ?? 0)).toBeLessThanOrEqual(12);
+  });
   it('the Cache moves between tiers (spots on at least five different floors)', () => {
     expect(new Set(def.box.spots.map((s) => s.y)).size).toBeGreaterThanOrEqual(5);
   });

@@ -367,15 +367,13 @@ const LAMPS: LampDef[] = [
   { x: 22, y: T0 + 5.9, z: 32.3, range: 22, pre: { color: SODIUM, intensity: 50, flicker: 'faulty' }, post: { color: SODIUM, intensity: 70, flicker: 'none' }, fixture: 'none' },
   { x: 3, y: T0 + 3.0, z: 41.5, range: 11, pre: { color: 0xdfffe8, intensity: 5, flicker: 'faulty' }, post: { color: 0xe8fff0, intensity: 10, flicker: 'none' }, fixture: 'pendant' },
   // T1-T2 house bulbs + beco landing
-  { x: -6, y: T0 + 3.0, z: 27, range: 9, pre: { color: BULB, intensity: 4.5, flicker: 'faulty' }, post: { color: BULB, intensity: 8, flicker: 'none' }, fixture: 'pendant' },
   { x: 4, y: T1 + 3.0, z: 21, range: 10, pre: { color: BULB, intensity: 4.5, flicker: 'faulty' }, post: { color: BULB, intensity: 8, flicker: 'none' }, fixture: 'pendant' },
   { x: -5, y: T2 + 3.0, z: 13, range: 10, pre: { color: BULB, intensity: 4.5, flicker: 'faulty' }, post: { color: BULB, intensity: 8, flicker: 'none' }, fixture: 'pendant' },
   { x: -14.8, y: T1 + 4.5, z: 19, range: 14, pre: { color: SODIUM, intensity: 26, flicker: 'buzz' }, post: { color: SODIUM, intensity: 34, flicker: 'none' }, fixture: 'none' },
   // T2 quadra floodlights (dark before power) + the cable-car base
   { x: -28, y: T2 + 10.5, z: 4, range: 42, pre: { color: 0x8090b0, intensity: 0, flicker: 'none' }, post: { color: 0xe8f0ff, intensity: 260, flicker: 'none' }, fixture: 'none' },
   { x: -44, y: T2 + 4.6, z: 12, range: 12, pre: { color: 0xff5030, intensity: 8, flicker: 'faulty' }, post: { color: 0xb0d0ff, intensity: 30, flicker: 'none' }, fixture: 'pendant' },
-  // T3 laje festoon glow + samba hall neon
-  { x: 14, y: T3 + 4, z: -8, range: 26, pre: { color: 0xffb070, intensity: 0, flicker: 'none' }, post: { color: 0xffc080, intensity: 60, flicker: 'none' }, fixture: 'none' },
+  // T3 samba hall (the laje is lit by the dusk sky, then its emissive festoon strings)
   { x: 16, y: T3 + 5, z: -32, range: 26, pre: { color: 0xd09060, intensity: 40, flicker: 'faulty' }, post: { color: 0xff40c0, intensity: 70, flicker: 'none' }, fixture: 'none' },
   // T5 station / substation / mirante
   { x: 18, y: T5 + 3.2, z: -44.6, range: 24, pre: { color: 0xff3020, intensity: 8, flicker: 'faulty' }, post: { color: 0xa8c8ff, intensity: 45, flicker: 'none' }, fixture: 'none' },
