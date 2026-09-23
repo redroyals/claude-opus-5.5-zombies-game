@@ -227,7 +227,7 @@ export function lahoreMaterials(): LahoreMaterials {
     cloth: new THREE.MeshStandardMaterial({ color: 0x8a1f24, roughness: 0.95, name: 'lh:cloth' }),
     paper: new THREE.MeshStandardMaterial({ color: 0xe8d8a0, roughness: 0.9, side: THREE.DoubleSide, name: 'lh:paper' }),
     water: new THREE.MeshStandardMaterial({ color: 0x1c3a40, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.85, name: 'lh:water' }),
-    setPower(on) { mirror.emissiveIntensity = on ? 0.07 : 0.015; },
+    setPower(on) { mirror.emissiveIntensity = on ? 0.045 : 0.012; },
   };
   return cached;
 }

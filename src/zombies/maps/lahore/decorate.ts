@@ -93,12 +93,12 @@ type LampKind = 'torch' | 'lantern' | 'chandelier' | 'diya' | 'forge' | 'mirror'
 interface Anchor { x: number; y: number; z: number; kind: LampKind }
 const anchors: Anchor[] = [];
 const LAMP: Record<LampKind, { color: number; pre: number; post: number; range: number; glow: number }> = {
-  torch: { color: 0xff8a3a, pre: 40, post: 45, range: 15, glow: 1.6 },
-  lantern: { color: 0xffb060, pre: 18, post: 28, range: 12, glow: 1.2 },
-  chandelier: { color: 0xffd9a0, pre: 0, post: 38, range: 18, glow: 2.0 },
+  torch: { color: 0xff8a3a, pre: 20, post: 22, range: 15, glow: 1.6 },
+  lantern: { color: 0xffb060, pre: 12, post: 18, range: 12, glow: 1.2 },
+  chandelier: { color: 0xffd9a0, pre: 0, post: 20, range: 18, glow: 2.0 },
   diya: { color: 0xffa040, pre: 0, post: 0, range: 0, glow: 0.9 },
   forge: { color: 0xff5a1a, pre: 14, post: 26, range: 9, glow: 2 },
-  mirror: { color: 0xcfe6ff, pre: 0, post: 10, range: 10, glow: 0 },
+  mirror: { color: 0xcfe6ff, pre: 0, post: 5, range: 10, glow: 0 },
 };
 const lamp = (x: number, y: number, z: number, kind: LampKind) => anchors.push({ x, y, z, kind });
 
@@ -107,6 +107,7 @@ const pool: { light: THREE.PointLight; a: Anchor | null; phase: number }[] = [];
 let glowPre: THREE.Points | null = null, glowPost: THREE.Points | null = null;
 let preAnchors: Anchor[] = [], postAnchors: Anchor[] = [];
 let lastPower = false, poolT = 0;
+const poolAt = { x: 1e9, y: 0, z: 0 };
 const kites: { m: THREE.Object3D; x: number; y: number; z: number; ph: number }[] = [];
 let drumSticks: THREE.Group | null = null;
 
@@ -448,7 +449,7 @@ function facades(): void {
       if (busy(x, f.y, z, step / 2)) continue;
       if (fort) {
         const stone: Surf = f.area === 'bagh' ? 'brick' : f.area === 'burj_quad' ? 'marble' : 'sandstone';
-        put(K('arch_bay'), x, f.y, z, yaw, [1.2, f.area === 'vault' ? 0.85 : 1.2, 0.8], { stone, trim: stone === 'marble' ? 'inlay' : 'marble', shadow: false });
+        put(K('arch_bay'), x, f.y, z, yaw, [1.2, f.area === 'vault' ? 0.85 : 1.2, 0.8], { stone, trim: stone === 'brick' ? 'sandstone' : stone === 'marble' ? 'inlay' : 'stoneDark', shadow: false });
       } else {
         put(K('shutter_window'), x, f.y + 1.1, z, yaw, 1, { shadow: false });
         if (lane) {
@@ -483,7 +484,7 @@ function wallDressing(): void {
         const x = w.axis === 'x' ? a : w.at + sgn * 0.17, z = w.axis === 'x' ? w.at + sgn * 0.17 : a;
         if (busy(x, area.floor, z, 1.8)) continue;
         const stone: Surf = area.id === 'bagh' ? 'brick' : area.id === 'burj_quad' ? 'marble' : 'sandstone';
-        put(K('arch_bay'), x, area.floor, z, yaw, [1.2, 1.2, 0.8], { stone, trim: stone === 'marble' ? 'inlay' : 'marble', shadow: false });
+        put(K('arch_bay'), x, area.floor, z, yaw, [1.2, 1.2, 0.8], { stone, trim: stone === 'brick' ? 'sandstone' : stone === 'marble' ? 'inlay' : 'stoneDark', shadow: false });
       }
     }
   }
@@ -592,8 +593,10 @@ export function updateLahore(u: MapUpdateContext): void {
   // Re-assign the light pool to the nearest active anchors.
   poolT -= u.dt;
   const p = u.player;
-  if (p && poolT <= 0) {
+  const moved = p && Math.hypot(p.x - poolAt.x, p.y - poolAt.y, p.z - poolAt.z) > 3;
+  if (p && (poolT <= 0 || moved)) {
     poolT = 0.25;
+    poolAt.x = p.x; poolAt.y = p.y; poolAt.z = p.z;
     const active = anchors.filter((a) => (power ? LAMP[a.kind].post : LAMP[a.kind].pre) > 0);
     const scored = active.map((a) => ({ a, d: Math.hypot(a.x - p.x, (a.y - p.y - 1.5) * 2.2, a.z - p.z) })).filter((s) => s.d < 40).sort((x, y) => x.d - y.d).slice(0, POOL);
     pool.forEach((sl, i) => { sl.a = scored[i]?.a ?? null; if (sl.a) sl.light.position.set(sl.a.x, sl.a.y, sl.a.z); });

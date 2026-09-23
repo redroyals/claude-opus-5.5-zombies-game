@@ -26,7 +26,7 @@ await ds('lock', true);
 await page.click('#btn-zombies');
 await wait(4000);
 await ds('godMode', true);
-await ds('timeScale', 0.0001);
+// Keep the sim running (lights and animated dressing update in the sim); clear the horde before each shot.
 // [name, x, y, z, yaw, pitch]  (yaw 0 looks +Z/south, PI looks -Z/north)
 const VIEWS = [
   ['z00-hazuri-bagh', -2, 3, 18, Math.PI, 0.05],
@@ -58,6 +58,7 @@ async function tour(tag) {
     if (only && !only.some((o) => n.startsWith(o))) continue;
     await ds('teleport', x, z, yaw + Math.PI, y);
     await ds('look', yaw + Math.PI, pitch);
+    await ds('clearZombies');
     await shot(`${n}-${tag}`);
   }
 }
