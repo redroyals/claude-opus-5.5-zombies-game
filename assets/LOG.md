@@ -67,3 +67,34 @@ Meshy start balance 9570 (2026-09-22). Budget: spend <= 4000, script floor 5800 
 - Review sheets: /tmp/lahore-shots/assets/{reuse,s1,s2a,s2b,kit}.png (Blender workbench).
 - Notes: torch_bracket came out as a wall lantern (kept); charpai is a carved takht (kept); pedestal reads Greco-Roman,
   and naqqara reads as dhol barrels. Both are candidates for a re-roll if the budget allows. The pipal tree renders dark in workbench (metallic).
+
+- 2026-09-23T14:29:23.004Z batch `--ids la_naqqara,la_pedestal,la_mashaal,la_facade_bay --conc 4 --model latest`: 4 assets, balance 7483 -> 7363 (spent 120); tasks: la_naqqara=01a0cea8-5bea-73c9-983c-a023e11a9f1c/01a0ceaa-a65a-77e4-9e58-578e3c3f4e60:ok, la_pedestal=01a0cea8-5ada-7683-9d83-9fcfb358d5cb/01a0ceaa-7259-7501-989c-d92a3fa9de8e:ok, la_mashaal=01a0cea8-5ad8-742f-9270-51268917d493/01a0ceaa-0f87-731e-ba3a-7b69905c506a:ok, la_facade_bay=01a0cea8-5ad3-70b8-bd67-15d3f1fc1b20/01a0ceaa-50db-71d5-8712-03cab2864638:ok
+
+- 2026-09-23T14:44:21.196Z batch `--ids la_fruit_cart,la_pottery_stall,la_cloth_stall,la_brass_vessels,la_divan,la_pigeon,la_charpai,la_perk_test --conc 8 --model latest`: 8 assets, balance 7363 -> 7123 (spent 240); tasks: la_fruit_cart=01a0ceb5-bd18-70eb-aa47-76282b0fcfe9/01a0ceb8-0853-7554-8a45-7865f88c7e6e:ok, la_pottery_stall=01a0ceb5-be25-73d8-a178-7c6483e79d7f/01a0ceb7-9215-7441-ba88-02d369dd5111:ok, la_cloth_stall=01a0ceb5-be27-7749-aca2-012d3e344b52/01a0ceb8-9f7a-725e-8025-0b131f2d42da:ok, la_brass_vessels=01a0ceb5-bd19-74dd-b2a5-e5c3eabf92c3/01a0ceb7-5055-7695-9a55-9e18147610c2:ok, la_divan=01a0ceb5-bd1c-747e-9504-7a0f9405c6c5/01a0ceb7-c68a-700d-bc44-240a3a73549e:ok, la_pigeon=01a0ceb5-bd0f-700e-8544-f0d669338a29/01a0ceb7-50f2-7335-bf3e-2c38ca71aa8a:ok, la_charpai=01a0ceb5-bd13-75bd-ae9a-d9580800b003/01a0ceb7-c68c-723c-b01a-ce0c2550b6ce:ok, la_perk_test=01a0ceb5-be2b-7176-9799-ce6e870d68df/01a0ceb7-717b-7184-bf5c-fc9ac07e6843:ok
+
+- 2026-09-23T15:05:37.468Z batch `--ids la_perk_bulwark,la_perk_quickhands,la_perk_hammerfall,la_lantern,la_lamp_stand,la_planter_tree,la_sacks,la_cloth_stall2,la_pigeon_loft,la_degh,la_chowki --conc 8 --model latest`: 11 assets, balance 7123 -> 6793 (spent 330); tasks: la_perk_bulwark=01a0cec7-1901-764b-8da9-ff16b75ae2dd/01a0cec8-eee8-7331-b110-408663749c76:ok, la_perk_quickhands=01a0cec7-1a14-7499-a899-3723003c7da4/01a0cec9-d4d2-7027-917f-f445b7f2cece:ok, la_perk_hammerfall=01a0cec7-18fe-7102-aa7a-795d0468b5d7/01a0cec9-9396-7627-a688-e5bf8a3f8b3e:ok, la_lantern=01a0cec7-190a-70af-b8d7-271ff8f11cb2/01a0cec9-0fa4-713e-8a35-6ed7c50406a3:ok, la_lamp_stand=01a0cec7-1a17-72fe-b1e1-aeef9c2c2da7/01a0cec9-72bf-71af-905a-b96ba9ed583c:ok, la_planter_tree=01a0cec7-1a1b-70dc-bd25-81cfa99d3c8b/01a0cecb-6141-7707-b5dc-e55733bf4dae:ok, la_sacks=01a0cec7-1908-76bc-8794-7c170814c5a3/01a0ceca-586e-77a4-a797-6362ba4cb6cb:ok, la_cloth_stall2=01a0cec7-1907-745b-aaed-6846fba95b52/01a0cec9-7251-7520-ae4e-eea3e31abb33:ok, la_pigeon_loft=01a0cec9-ac62-71ce-bf01-147f923487cf/01a0cecb-8117-74e7-92d1-e105c3c52849:ok, la_degh=01a0cec9-f961-7346-aa04-85ef89058143/01a0cecc-185c-7655-8add-50d16029e8fa:ok, la_chowki=01a0ceca-70bc-7558-b3dc-b137ade3edd4/01a0cecc-1860-76b8-b333-392944ca326f:ok
+
+- 2026-09-23T15:11:54.333Z batch `--ids la_perk_bulwark2 --conc 1 --model latest`: 1 assets, balance 6793 -> 6763 (spent 30); tasks: la_perk_bulwark2=01a0cecf-9577-71be-886c-a517b680fa4e/01a0ced1-a35d-7643-a819-dc67e4ac98a1:ok
+
+- 2026-09-23T15:36:48.951Z batch `--ids la_perk_nova,la_perk_strider,la_perk_hawkeye,la_bench,la_fire_pit,la_part_bowl,la_part_bellows,la_part_naft_jar --conc 8 --model latest`: 8 assets, balance 6763 -> 6523 (spent 240); tasks: la_perk_nova=01a0cee6-8475-7149-ab45-efe65b612d08/01a0cee7-a5e5-7293-a878-e9543a166841:ok, la_perk_strider=01a0cee6-8463-73e5-ba4c-16f8a4a15fac/01a0cee8-2988-72eb-a43d-00a5bfe7564e:ok, la_perk_hawkeye=01a0cee6-8468-7126-858f-3362e15ba9b9/01a0cee7-c6bf-71ad-b184-d201b0021284:failed, la_bench=01a0cee6-8474-77b2-b160-78cff3e97f1b/01a0cee7-c6cb-71f2-aab5-85196a17fc02:ok, la_fire_pit=01a0cee6-8468-76eb-a84f-c39f26548d18/01a0cee7-c6b7-7656-aea5-a583093b7191:ok, la_part_bowl=01a0cee6-8474-76cc-924e-d0f9d632f082/01a0cee7-a5df-7447-b15f-9192090c648e:ok, la_part_bellows=01a0cee6-8464-770d-a0c7-d6a0bb692162/01a0cee8-4b7c-7525-a673-3f833b7dfef0:ok, la_part_naft_jar=01a0cee6-857d-761a-b508-953202cbb4bd/01a0cee8-2986-721b-8ad3-76f665809460:ok
+
+- 2026-09-23T15:37:23.516Z batch `--ids la_perk_hawkeye --conc 1 --model latest`: 1 assets, balance 6523 -> 6523 (spent 0); tasks: la_perk_hawkeye=01a0cee6-8468-7126-858f-3362e15ba9b9/01a0cee7-c6bf-71ad-b184-d201b0021284:ok
+
+- 2026-09-23T15:41:03.874Z batch `--ids la_perk_strider2 --conc 1 --model latest`: 1 assets, balance 6523 -> 6493 (spent 30); tasks: la_perk_strider2=01a0ceeb-1f26-74aa-a3f6-38ffb17905cf/01a0ceec-420e-77be-898f-6ee0e13819bb:ok
+
+## Lahore Darbar art pass 2 (branch lahore-art)
+- Cap 1,200 credits, global floor 5,000 (runner `MESHY_FLOOR=5000`, `--model latest`). Ledger = sum of `spent` for ids `la_*`
+  in gen-state.json: **990 credits, 33 generations x 30** (balance 7,483 -> 6,493 over the pass, shared account).
+- Stage 1 (render-check, 4): la_naqqara REJECTED (still barrel drums), la_pedestal REJECTED (script-like glyphs on the panels),
+  la_facade_bay REJECTED (muddy), la_mashaal superseded by a Blender holder. Kettle drums, jewel pedestal and torch holder were
+  built in Blender instead (`tools/blender/lahore_kit.py`: naqqara2, pedestal2, mashaal).
+- Stage 2 (8): fruit cart, pottery stall, brass vessels, divan, pigeon, charpai (a framed cot), la_perk_test (Lifeline skin) ok;
+  cloth stall REJECTED (shredded).
+- Stage 3 (11): perks bulwark/quickhands/hammerfall, lantern, lamp stand (NOT USED: reads as a temple lamp), planter tree,
+  sacks, cloth stall 2, pigeon loft, degh, chowki. Bulwark flask too dark -> stage 4 re-roll la_perk_bulwark2 (ok).
+- Stage 5 (8): skins for the pacing layer (la_perk_nova/strider/hawkeye, la_bench, la_fire_pit, la_part_bowl/bellows/naft_jar),
+  exported as paths in src/zombies/maps/lahore/models.ts. Hawkeye's download hit a DNS error and was resumed by task id (0 credits).
+  Stage 6: la_perk_strider2 REJECTED (no yellow at all); la_perk_strider kept.
+- Static props are packed by `scripts/lahore-atlas.mjs` into `public/models/lahore/props_atlas.glb` (one material, 4096 atlas,
+  meshopt-simplified to per-prop budgets); sources in `public/models/lahore/src/`. Perk flask glow: `scripts/lahore-perk-glow.mjs`.
+- Review sheets: /tmp/lahore-art/{meshy-s1,meshy-s2,meshy-s3,meshy-s5,perks,kit-v2,kit-b,kit-c}.png.

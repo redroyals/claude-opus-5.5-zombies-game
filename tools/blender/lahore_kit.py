@@ -36,6 +36,8 @@ def mats():
         mirror=material('mirror', '#dfe8f0', 0.05, 1.0),
         cloth=material('cloth', '#8a2f2f', 0.85, 0.0),
         paper=material('paper', '#d94f2b', 0.55, 0.0),
+        shade=material('shade', '#3a2a22', 0.95, 0.0),
+        inlay=material('inlay', '#e8e0d0', 0.3, 0.0),
     )
 
 
@@ -814,6 +816,459 @@ def baradari_roof(M):
 
 
 # ---------------------------------------------------------------------------------------------
+# v2 (art pass 2): higher-fidelity pieces. Engaged/relief pieces have their back on z = 0 and project +Z, so the
+# game can stick them on any wall face. All sit on y = 0.
+# ---------------------------------------------------------------------------------------------
+
+def half_lathe(p, profile, mat, sides=8, center=(0.0, 0.0, 0.0), z_scale=1.0):
+    """Front half (+Z) of a surface of revolution, for engaged pilasters/bases against a wall at z = center.z.
+    `z_scale` squashes the projection (an engaged shaft stands proud by only a fraction of its width)."""
+    cx, cy, cz = center
+    idx = p._mi(mat)
+    rings = []
+    for (r, y) in profile:
+        ring = []
+        for s in range(sides + 1):
+            a = math.pi * s / sides  # 0..pi : +x .. -x through +z
+            ring.append(p.bm.verts.new(g2b((cx + r * math.cos(a), cy + y, cz + max(r, 1e-4) * math.sin(a) * z_scale))))
+        rings.append(ring)
+    for i in range(len(rings) - 1):
+        for s in range(sides):
+            p.bm.faces.new([rings[i][s], rings[i][s + 1], rings[i + 1][s + 1], rings[i + 1][s]]).material_index = idx
+    # top/bottom caps (half discs)
+    for ring, (r, y), flip in ((rings[0], profile[0], True), (rings[-1], profile[-1], False)):
+        if r < 1e-4:
+            continue
+        c = p.bm.verts.new(g2b((cx, cy + y, cz)))
+        for s in range(sides):
+            f = [c, ring[s + 1], ring[s]] if flip else [c, ring[s], ring[s + 1]]
+            p.bm.faces.new(f).material_index = idx
+    return p
+
+
+def pilaster_base(M):
+    """Engaged pilaster base, 0.62 tall: plinth block, cyma moulding and a kumbha (vase) swell. Width 0.56."""
+    p = P('kit_pilaster_base')
+    p.box(-0.3, 0, 0, 0.3, 0.18, 0.2, M['stone'], collide=False)
+    p.box(-0.27, 0.18, 0, 0.27, 0.24, 0.17, M['trim'], collide=False)
+    half_lathe(p, [(0.24, 0.24), (0.26, 0.29), (0.2, 0.34), (0.23, 0.44), (0.25, 0.5), (0.2, 0.56), (0.17, 0.62)], M['stone'], sides=6, z_scale=0.62)
+    return [p.build()]
+
+
+def pilaster_shaft(M):
+    """Engaged fluted shaft, 1 m unit height (the game scales it in Y). 7 flutes across the front."""
+    p = P('kit_pilaster_shaft')
+    w, d = 0.17, 0.11
+    p.box(-w, 0, 0, w, 1.0, d * 0.55, M['stone'], collide=False)
+    n = 4
+    for i in range(n):
+        a = math.pi * (i + 0.5) / n
+        x, z = w * 0.92 * math.cos(a), d * math.sin(a)
+        fw = 0.03
+        p.obox((x, 0.5, max(z, 0.02) * 0.9), (math.sin(a), 0, -math.cos(a)), (0, 1, 0), (math.cos(a), 0, math.sin(a)), (fw * 1.4, 1.0, 0.035), M['stone'])
+    return [p.build()]
+
+
+def pilaster_cap(M):
+    """Bell capital with lotus-leaf facets, a carved necking band, abacus and a small corbel. 0.72 tall."""
+    p = P('kit_pilaster_cap')
+    half_lathe(p, [(0.17, 0.0), (0.2, 0.04), (0.17, 0.08)], M['trim'], sides=6, z_scale=0.65)
+    half_lathe(p, [(0.16, 0.08), (0.22, 0.2), (0.3, 0.38)], M['stone'], sides=8, z_scale=0.62)
+    # leaf tips around the bell
+    for i in range(3):
+        a = math.pi * (i + 0.5) / 3
+        p.obox((0.25 * math.cos(a), 0.3, 0.16 * math.sin(a) + 0.02), (math.sin(a), 0, -math.cos(a)), (0, 1, 0), (math.cos(a), 0, math.sin(a)), (0.1, 0.16, 0.04), M['trim'])
+    p.box(-0.33, 0.38, 0, 0.33, 0.47, 0.24, M['trim'], collide=False)
+    p.box(-0.3, 0.47, 0, 0.3, 0.52, 0.21, M['stone'], collide=False)
+    # corbel with a scroll
+    p.prism([(0.0, 0.52), (0.26, 0.52), (0.26, 0.6), (0.18, 0.66), (0.08, 0.72), (0.0, 0.72)], -0.12, 0.12, M['stone'], across='x')
+    return [p.build()]
+
+
+def niche(M):
+    """Blind cusped-arch niche panel in relief (3.0 x 3.6 m, 0.16 deep): alfiz frame, cusped arch ring with an
+    inlay border, spandrel roundels, a carved dado panel and a recessed (darker) arch field."""
+    p = P('kit_niche')
+    W, H = 3.0, 3.6
+    hw = W / 2
+    SP, AP = 1.95, 3.05
+    hopen = 1.02
+    # recessed field (sits just proud of the wall, dark 'shade' slot so it reads as depth)
+    curve = cusp_arch_pts(hopen, SP, AP, n=22, lobes=7, cusp=0.07)
+    field = [(-hopen, 0.62)] + curve + [(hopen, 0.62)]
+    p.prism([(x, y) for x, y in field], 0.004, 0.012, M['shade'], across='z')
+    # jambs
+    for s in (-1, 1):
+        p.box(s * hopen, 0.55, 0, s * (hopen + 0.2), SP, 0.12, M['stone'], collide=False)
+        p.box(s * (hopen + 0.02), 0.55, 0.1, s * (hopen + 0.08), SP, 0.15, M['trim'], collide=False)
+    # arch ring (outer + inner inlay line)
+    inner = offset_curve(curve, 0.0)
+    outer = [(x * (hopen + 0.2) / hopen, SP + (y - SP) * 1.05 + 0.02) for x, y in cusp_arch_pts(hopen, SP, AP, n=22, lobes=0, cusp=0.0)]
+    outer[0] = (-(hopen + 0.2), SP); outer[-1] = (hopen + 0.2, SP)
+    ring_prism(p, M['stone'], outer, inner, 0.0, 0.12)
+    band_o = [(x * (hopen + 0.12) / hopen, SP + (y - SP) * 1.02 + 0.01) for x, y in cusp_arch_pts(hopen, SP, AP, n=22, lobes=0, cusp=0.0)]
+    band_i = [(x * (hopen + 0.06) / hopen, SP + (y - SP) * 1.0) for x, y in cusp_arch_pts(hopen, SP, AP, n=22, lobes=0, cusp=0.0)]
+    band_o[0] = (-(hopen + 0.12), SP); band_o[-1] = (hopen + 0.12, SP); band_i[0] = (-(hopen + 0.06), SP); band_i[-1] = (hopen + 0.06, SP)
+    ring_prism(p, M['trim'], band_o, band_i, 0.1, 0.15)
+    # alfiz (rectangular frame) + spandrel roundels
+    for x0, x1, y0, y1 in ((-hw, -hw + 0.12, 0.5, H), (hw - 0.12, hw, 0.5, H), (-hw, hw, H - 0.14, H)):
+        p.box(x0, y0, 0, x1, y1, 0.1, M['stone'], collide=False)
+    for x0, x1, y0, y1 in ((-hw + 0.03, -hw + 0.08, 0.5, H - 0.03), (hw - 0.08, hw - 0.03, 0.5, H - 0.03), (-hw + 0.03, hw - 0.03, H - 0.09, H - 0.05)):
+        p.box(x0, y0, 0.1, x1, y1, 0.13, M['trim'], collide=False)
+    for s in (-1, 1):
+        cxr = s * (hopen + 0.2 + (hw - 0.12 - hopen - 0.2) / 2 + 0.02)
+        annulus(p, M['trim'], 0.2, 0.13, 0.0, 0.1, center=(cxr, AP - 0.05), sides=10)
+        p.prism(circle_pts(0.13, 10, cxr, AP - 0.05), 0.0, 0.06, M['inlay'], across='z')
+    # dado panel under the niche
+    p.box(-hw, 0, 0, hw, 0.12, 0.16, M['stone'], collide=False)
+    p.box(-hw + 0.06, 0.12, 0, hw - 0.06, 0.5, 0.08, M['stone'], collide=False)
+    p.box(-hw + 0.16, 0.18, 0.08, hw - 0.16, 0.44, 0.1, M['inlay'], collide=False)
+    p.box(-hw, 0.5, 0, hw, 0.56, 0.14, M['trim'], collide=False)
+    return [p.build()]
+
+
+def bracket(M):
+    """Chhajja corbel: a carved S-scroll with a pendant bud, 0.18 wide, 0.7 tall, 0.72 deep (hangs below y = 0)."""
+    p = P('kit_bracket')
+    prof = [(0.0, 0.0), (0.72, 0.0), (0.72, -0.08), (0.56, -0.16), (0.44, -0.3), (0.26, -0.4), (0.12, -0.6), (0.0, -0.7)]
+    p.prism(prof, -0.09, 0.09, M['stone'], across='x')
+    p.lathe([(0.0, -0.2), (0.055, -0.13), (0.0, -0.05)], M['stone'], sides=5, center=(0, -0.12, 0.62))
+    p.box(-0.1, -0.02, 0.0, 0.1, 0.0, 0.74, M['trim'], collide=False)
+    return [p.build()]
+
+
+def merlon(M):
+    """Kangura merlon for one 1.2 m module: base course + a cusped 5-lobe leaf-shaped crest with a pierced slit."""
+    p = P('kit_merlon')
+    W, D = 1.2, 0.42
+    hw = W / 2
+    p.box(-hw, 0, -D / 2, hw, 0.34, D / 2, M['stone'], collide=False)
+    p.box(-hw - 0.02, 0.3, -D / 2 - 0.02, hw + 0.02, 0.36, D / 2 + 0.02, M['trim'], collide=False)
+    bw = 0.36
+    pts = [(-bw, 0.36), (bw, 0.36), (bw, 0.8)]
+    for i in range(1, 8):
+        t = i / 8
+        a = math.pi * t
+        r = bw * (1.0 - 0.45 * math.sin(a) ** 3)
+        x = bw * math.cos(a)
+        y = 0.8 + math.sin(a) * 0.46 + 0.05 * math.sin(5 * math.pi * t)
+        pts.append((x, y))
+    pts.append((-bw, 0.8))
+    p.prism(pts, -D / 2 * 0.8, D / 2 * 0.8, M['stone'], across='z')
+    p.lathe([(0.05, 0.0), (0.0, 0.14)], M['trim'], sides=4, center=(0, 1.3, 0))
+    return [p.build()]
+
+
+def column2(M):
+    """Sikh-era court column, 4.2 m (drop-in for kit_column): moulded square plinth, kumbha vase base, 16-sided shaft
+    with entasis and a carved necking band, a bell capital ringed by lotus leaves, and four radiating brackets."""
+    p = P('kit_column2')
+    p.box(-0.36, 0, -0.36, 0.36, 0.22, 0.36, M['stone'])
+    p.box(-0.33, 0.22, -0.33, 0.33, 0.28, 0.33, M['trim'], collide=False)
+    p.lathe([(0.31, 0.28), (0.33, 0.34), (0.25, 0.42), (0.3, 0.56), (0.32, 0.64), (0.27, 0.72), (0.2, 0.8), (0.21, 0.86)], M['stone'], sides=16, cap_bottom=False, cap_top=False)
+    p.lathe([(0.21, 0.86), (0.23, 0.9), (0.21, 0.95)], M['trim'], sides=16, cap_bottom=False, cap_top=False)
+    p.lathe([(0.2, 0.95), (0.205, 2.0), (0.19, 3.1), (0.18, 3.28)], M['stone'], sides=16, cap_bottom=False, cap_top=False)
+    p.lathe([(0.18, 3.28), (0.21, 3.32), (0.21, 3.38), (0.18, 3.42)], M['trim'], sides=16, cap_bottom=False, cap_top=False)
+    p.lathe([(0.18, 3.42), (0.22, 3.55), (0.3, 3.7), (0.36, 3.8), (0.0, 3.8)], M['stone'], sides=16, cap_bottom=False, cap_top=False)
+    for i in range(12):
+        a = 2 * math.pi * (i + 0.5) / 12
+        fwd = (math.cos(a), 0.0, math.sin(a))
+        right = (-math.sin(a), 0.0, math.cos(a))
+        p.obox((0.27 * math.cos(a), 3.63, 0.27 * math.sin(a)), right, (0, 1, 0), fwd, (0.13, 0.2, 0.04), M['trim'])
+    p.box(-0.42, 3.8, -0.42, 0.42, 3.92, 0.42, M['trim'], collide=False)
+    p.box(-0.38, 3.92, -0.38, 0.38, 4.2, 0.38, M['stone'], collide=False)
+    for fx, fz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        prof = [(0.0, 3.92), (0.58, 3.92), (0.58, 4.2), (0.0, 4.2)]
+        prof = [(0.0, 4.2), (0.62, 4.2), (0.62, 4.12), (0.5, 4.02), (0.34, 3.95), (0.2, 3.8), (0.0, 3.7)]
+        if fz == 0:
+            pts = [(u * fx, y) for u, y in prof]
+            p.prism(pts if fx > 0 else list(reversed(pts)), -0.09, 0.09, M['stone'], across='z')
+        else:
+            pts = [(u * fz, y) for u, y in prof]
+            p.prism(pts if fz > 0 else list(reversed(pts)), -0.09, 0.09, M['stone'], across='x')
+    p.colliders.append([-0.36, 0, -0.36, 0.36, 4.2, 0.36, 'stone', False, True])
+    return [p.build()]
+
+
+def arch_span2(M):
+    """Cusped arch span between two column2s (3 m centre to centre; the game scales x to the real span), 3.0..4.9 m:
+    a 9-lobed cusped arch with an inlay border on both faces, spandrel roundels and a moulded top band."""
+    p = P('kit_arch_span2')
+    W, D = 3.0, 0.5
+    Y0, SP, AP, YT = 3.95, 4.05, 4.62, 4.95
+    hw, ho = W / 2, W / 2 * 0.78
+    curve = cusp_arch_pts(ho, SP, AP, lobes=9, cusp=0.06)
+    spandrel_fill(p, M['stone'], hw, YT - 0.12, curve, ho, -D / 2, D / 2)
+    p.box(-hw, Y0, -D / 2, -ho, SP, D / 2, M['stone'], collide=False)
+    p.box(ho, Y0, -D / 2, hw, SP, D / 2, M['stone'], collide=False)
+    inner = offset_curve(curve, 0.1, dx_scale=0.93)
+    for z0, z1 in ((-D / 2 - 0.02, -D / 2 + 0.04), (D / 2 - 0.04, D / 2 + 0.02)):
+        ring_prism(p, M['trim'], curve, inner, z0, z1)
+    for z in (-D / 2 - 0.01, D / 2 + 0.01):
+        for s in (-1, 1):
+            zz0, zz1 = (z - 0.03, z) if z < 0 else (z, z + 0.03)
+            p.prism(circle_pts(0.11, 14, s * (hw - 0.28), YT - 0.42), zz0, zz1, M['inlay'], across='z')
+    p.box(-hw - 0.02, YT - 0.12, -D / 2 - 0.05, hw + 0.02, YT - 0.04, D / 2 + 0.05, M['trim'], collide=False)
+    p.box(-hw, YT - 0.04, -D / 2, hw, YT, D / 2, M['stone'], collide=False)
+    p.colliders.append([-hw, Y0, -D / 2, hw, YT, D / 2, 'stone', False, True])
+    return [p.build()]
+
+
+def chhatri2(M):
+    """Domed kiosk, 2.6 m footprint: moulded plinth, 4 baluster columns with bracket capitals, a chhajja on brackets,
+    a ribbed (gadrooned) dome on an inverted-lotus collar and a finial."""
+    p = P('kit_chhatri2')
+    pl = 2.6
+    hp = pl / 2
+    p.box(-hp, 0, -hp, hp, 0.24, hp, M['stone'])
+    p.box(-hp + 0.05, 0.24, -hp + 0.05, hp - 0.05, 0.3, hp - 0.05, M['trim'], collide=False)
+    r = hp - 0.28
+    ch = 2.0
+    for dx in (-1, 1):
+        for dz in (-1, 1):
+            x, z = dx * r, dz * r
+            p.lathe([(0.13, 0.0), (0.14, 0.06), (0.1, 0.12), (0.13, 0.26), (0.08, 0.4), (0.075, 1.5), (0.1, 1.62), (0.09, 1.7),
+                     (0.16, 1.86), (0.18, 1.94)], M['stone'], sides=10, center=(x, 0.3, z))
+            p.box(x - 0.16, 0.3 + 1.94, z - 0.16, x + 0.16, 0.3 + ch, z + 0.16, M['trim'], collide=False)
+    y = 0.3 + ch
+    p.box(-hp - 0.05, y, -hp - 0.05, hp + 0.05, y + 0.14, hp + 0.05, M['stone'], collide=False)
+    # sloped chhajja all round
+    ring = [(-hp - 0.55, y + 0.02), (-hp - 0.55, y + 0.06), (-hp, y + 0.26), (hp, y + 0.26), (hp + 0.55, y + 0.06), (hp + 0.55, y + 0.02), (hp, y + 0.14), (-hp, y + 0.14)]
+    p.prism(ring, -hp - 0.55, hp + 0.55, M['trim'], across='x')
+    p.prism(ring, -hp - 0.55, hp + 0.55, M['trim'], across='z')
+    # drum + ribbed dome
+    by = y + 0.26
+    p.lathe([(1.02, 0.0), (1.02, 0.22), (0.98, 0.26)], M['stone'], sides=16, center=(0, by, 0))
+    petals = 16
+    p.lathe([(0.98, 0.26), (1.1, 0.32), (0.95, 0.4)], M['trim'], sides=petals, center=(0, by, 0))
+    prof = [(0.95, 0.4), (1.08, 0.62), (1.07, 0.9), (0.9, 1.2), (0.55, 1.45), (0.2, 1.58), (0.0, 1.62)]
+    p.lathe(prof, M['stone'], sides=24, center=(0, by, 0))
+    for i in range(12):
+        a = 2 * math.pi * i / 12
+        for (r0, y0), (r1, y1) in zip(prof[:-2], prof[1:-1]):
+            mx, my = (r0 + r1) / 2 + 0.02, (y0 + y1) / 2
+            L = math.hypot(r1 - r0, y1 - y0)
+            fwd = (math.cos(a), 0.0, math.sin(a))
+            up = ((r1 - r0) / L * math.cos(a), (y1 - y0) / L, (r1 - r0) / L * math.sin(a))
+            right = (-math.sin(a), 0.0, math.cos(a))
+            nrm = (up[1] * right[2] - up[2] * right[1], up[2] * right[0] - up[0] * right[2], up[0] * right[1] - up[1] * right[0])
+            p.obox((mx * math.cos(a), by + my, mx * math.sin(a)), right, up, nrm, (0.05, L, 0.04), M['trim'])
+    p.lathe([(0.2, 1.58), (0.26, 1.64), (0.14, 1.7), (0.1, 1.76), (0.16, 1.84), (0.06, 1.95), (0.0, 2.15)], M['metal'], sides=8, center=(0, by, 0))
+    p.colliders.append([-hp, 0, -hp, hp, 0.3, hp, 'stone', False, True])
+    return [p.build()]
+
+
+def window_arched(M):
+    """Haveli window, 1.5 x 2.4 m, back at z = 0: plaster surround moulding, a cusped wooden arch head with fretwork,
+    two panelled shutters, a sill on corbels and a small sloped wooden hood on brackets."""
+    p = P('kit_window_arched')
+    hw, H = 0.62, 2.1
+    # plaster surround
+    for x0, x1 in ((-hw - 0.14, -hw), (hw, hw + 0.14)):
+        p.box(x0, 0.0, 0, x1, H, 0.07, M['plaster'], collide=False)
+    p.box(-hw - 0.2, -0.1, 0, hw + 0.2, 0.0, 0.16, M['plaster'], collide=False)
+    for s in (-1, 1):
+        p.prism([(0, -0.1), (0.14, -0.1), (0.14, -0.14), (0.05, -0.3), (0, -0.3)], s * hw - 0.05, s * hw + 0.05, M['plaster'], across='x')
+    curve = cusp_arch_pts(hw, 1.45, H, n=18, lobes=5, cusp=0.05)
+    spandrel_fill(p, M['plaster'], hw + 0.14, H + 0.18, curve, hw, 0.0, 0.07)
+    p.box(-hw - 0.22, H + 0.18, 0, hw + 0.22, H + 0.26, 0.14, M['plaster'], collide=False)
+    # dark opening + shutters
+    p.box(-hw, 0.0, 0.0, hw, 1.45, 0.012, M['shade'], collide=False)
+    p.prism([(x, y) for x, y in [(-hw, 1.45)] + curve + [(hw, 1.45)]], 0.0, 0.012, M['shade'], across='z')
+    fret = offset_curve(curve, -0.06, dx_scale=0.9)
+    ring_prism(p, M['wood'], curve, fret, 0.01, 0.05)
+    for s in (-1, 1):
+        x0, x1 = (-hw + 0.03, -0.02) if s < 0 else (0.02, hw - 0.03)
+        p.box(x0, 0.03, 0.01, x1, 1.43, 0.05, M['woodPaint'], collide=False)
+        for y0, y1 in ((0.12, 0.62), (0.76, 1.34)):
+            p.box(x0 + 0.06, y0, 0.05, x1 - 0.06, y1, 0.07, M['woodPaint'], collide=False)
+            p.box(x0 + 0.1, y0 + 0.05, 0.07, x1 - 0.1, y1 - 0.05, 0.08, M['wood'], collide=False)
+        p.lathe([(0.02, 0.0), (0.03, 0.02), (0.0, 0.04)], M['metal'], sides=6, center=(s * 0.08, 0.72, 0.08))
+    # sloped hood
+    ring = chajja_ring(0.5, H + 0.6, H + 0.32, 0.05, n=6)
+    p.prism(ring, -hw - 0.3, hw + 0.3, M['wood'], across='x')
+    for s in (-1, 1):
+        p.prism([(0.0, H + 0.28), (0.4, H + 0.3), (0.12, H - 0.02), (0.0, H - 0.1)], s * (hw + 0.2) - 0.03, s * (hw + 0.2) + 0.03, M['wood'], across='x')
+    return [p.build()]
+
+
+def jharokha2(M):
+    """Oriel balcony (2.4 wide, projects 1.0): three stepped brackets, a panelled base with jaali lower screens,
+    four slender columns carrying cusped arches, and a curved bangla hood with finials. Back at z = 0, y = 0 is the
+    underside of the lowest bracket."""
+    p = P('kit_jharokha2')
+    W, PROJ = 2.4, 1.0
+    hw = W / 2
+    for x in (-hw + 0.25, 0.0, hw - 0.25):
+        prof = [(0.0, 0.9), (PROJ, 0.9), (PROJ - 0.08, 0.78), (0.7, 0.66), (0.45, 0.46), (0.25, 0.22), (0.1, 0.05), (0.0, 0.0)]
+        p.prism(prof, x - 0.09, x + 0.09, M['stone'], across='x')
+    p.box(-hw, 0.9, 0, hw, 1.02, PROJ, M['trim'], collide=False)
+    # base panels with jaali (lattice slots)
+    by0, by1 = 1.02, 1.62
+    p.box(-hw, by0, PROJ - 0.08, hw, by0 + 0.08, PROJ, M['stone'], collide=False)
+    p.box(-hw, by1 - 0.08, PROJ - 0.1, hw, by1, PROJ + 0.02, M['trim'], collide=False)
+    for i in range(12):
+        x = -hw + 0.1 + (W - 0.2) * (i + 0.5) / 12
+        p.box(x - 0.018, by0 + 0.08, PROJ - 0.05, x + 0.018, by1 - 0.08, PROJ - 0.02, M['stone'], collide=False)
+    for j in range(3):
+        y = by0 + 0.08 + (by1 - by0 - 0.16) * (j + 0.5) / 3
+        p.box(-hw + 0.06, y - 0.015, PROJ - 0.05, hw - 0.06, y + 0.015, PROJ - 0.02, M['stone'], collide=False)
+    for s in (-1, 1):
+        p.box(s * hw - 0.05, by0, 0.05, s * hw + 0.05, by1, PROJ, M['stone'], collide=False)
+    p.box(-hw, by0 - 0.02, 0, hw, by0, PROJ, M['stone'], collide=False)
+    p.box(-hw + 0.05, by0, 0.0, hw - 0.05, 2.9, 0.02, M['shade'], collide=False)
+    # columns + arches
+    cy0, cy1 = by1, 2.72
+    xs = [-hw + 0.08, -hw / 3, hw / 3, hw - 0.08]
+    for x in xs:
+        p.lathe([(0.06, 0.0), (0.045, 0.12), (0.04, cy1 - cy0 - 0.16), (0.07, cy1 - cy0)], M['stone'], sides=8, center=(x, cy0, PROJ - 0.1))
+    bay = (xs[1] - xs[0]) / 2
+    for i in range(3):
+        cx = (xs[i] + xs[i + 1]) / 2
+        curve = [(x + cx, y) for x, y in cusp_arch_pts(bay * 0.9, cy1 - 0.42, cy1 - 0.02, lobes=5, cusp=0.035)]
+        arch_niche_fill(p, M['stone'], cx - bay, cx + bay, cy1 + 0.1, curve, PROJ - 0.14, PROJ - 0.05)
+    p.box(-hw - 0.02, cy1 + 0.1, 0, hw + 0.02, cy1 + 0.2, PROJ + 0.02, M['trim'], collide=False)
+    # bangla hood (curved both ways)
+    ring = roof_ring(PROJ / 2 + 0.25, 0.55, 0.0, 0.08, n=10)
+    ring = [(z + PROJ / 2, y + cy1 + 0.2) for z, y in ring]
+    p.prism(ring, -hw - 0.22, hw + 0.22, M['stone'], across='x')
+    for s in (-1, 1):
+        p.lathe([(0.05, 0.0), (0.06, 0.05), (0.02, 0.12), (0.0, 0.2)], M['metal'], sides=6, center=(s * (hw + 0.1), cy1 + 0.75, PROJ / 2))
+    return [p.build()]
+
+
+def fresco_frame(M):
+    """Painted-panel frame: a thin moulded plaster frame (1 x 1 m unit, scaled by the game) around a fresco field."""
+    p = P('kit_fresco_frame')
+    t = 0.07
+    for x0, y0, x1, y1 in ((-0.5, 0, -0.5 + t, 1), (0.5 - t, 0, 0.5, 1), (-0.5, 0, 0.5, t), (-0.5, 1 - t, 0.5, 1)):
+        p.box(x0, y0, 0, x1, y1, 0.05, M['trim'], collide=False)
+    return [p.build()]
+
+
+def coffer(M):
+    """Sheesh Mahal ceiling coffer, 2 x 2 m, hangs below y = 0: a gilded octagonal frame with a shallow faceted
+    mirror dome (convex glass look) and a ring of mirror petals."""
+    p = P('kit_coffer')
+    hw = 1.0
+    p.box(-hw, -0.06, -hw, hw, 0.0, hw, M['trim'], collide=False)
+    for s in (-1, 1):
+        p.box(-hw, -0.16, s * hw - 0.08, hw, -0.06, s * hw + 0.08 if s < 0 else s * hw, M['trim'], collide=False)
+        p.box(s * hw - 0.08 if s > 0 else s * hw, -0.16, -hw, s * hw + 0.08 if s < 0 else s * hw, -0.06, hw, M['trim'], collide=False)
+    p.lathe([(0.78, -0.06), (0.78, -0.1), (0.62, -0.18), (0.4, -0.26), (0.18, -0.3), (0.0, -0.31)], M['metal'], sides=16, cap_bottom=False, cap_top=False)
+    for i in range(16):
+        a = 2 * math.pi * (i + 0.5) / 16
+        fwd = (math.cos(a), 0.0, math.sin(a))
+        right = (-math.sin(a), 0.0, math.cos(a))
+        p.obox((0.88 * math.cos(a), -0.08, 0.88 * math.sin(a)), right, fwd, (0, -1, 0), (0.1, 0.16, 0.02), M['mirror'])
+    return [p.build()]
+
+
+def naqqara2(M):
+    """The power: a pair of naqqara kettle drums (hammered copper bowls, laced cream leather heads) on low carved
+    wooden ring stands wrapped in red-and-gold cloth, two curved beaters resting across. Real colours (loaded
+    untouched as a machine skin): copper, leather, wood, cloth, gold. ~1.7 x 0.95 x 0.95 m."""
+    p = P('naqqara2')
+    copper = material('copper', '#a8603a', 0.32, 1.0)
+    leather = material('leather', '#cdbb94', 0.62, 0.0)
+    wood = material('woodDark', '#4a2c1a', 0.7, 0.0)
+    cloth = material('clothRed', '#7a1a1e', 0.9, 0.0)
+    gold = material('gold', '#c49a48', 0.3, 1.0)
+    for cx, R, D in ((-0.42, 0.47, 0.58), (0.5, 0.37, 0.48)):
+        # low carved ring stand with brass-capped tassels; the bowl's round belly rests in it
+        p.lathe([(R * 0.62, 0.0), (R * 0.7, 0.02), (R * 0.7, 0.1), (R * 0.62, 0.13)], wood, sides=20, center=(cx, 0, 0))
+        p.lathe([(R * 0.58, 0.05), (R * 0.64, 0.07), (R * 0.64, 0.12)], cloth, sides=20, cap_bottom=False, center=(cx, 0, 0))
+        for i in range(10):
+            a = 2 * math.pi * i / 10
+            p.lathe([(0.0, -0.07), (0.022, -0.04), (0.018, 0.0)], cloth, sides=6, center=(cx + R * 0.7 * math.cos(a), 0.09, R * 0.7 * math.sin(a)))
+        # the kettle bowl (hemisphere-ish) and its rim
+        y0 = 0.02
+        prof = [(0.0, y0), (R * 0.4, y0 + 0.02), (R * 0.68, y0 + D * 0.14), (R * 0.87, y0 + D * 0.36), (R * 0.97, y0 + D * 0.62), (R * 1.0, y0 + D * 0.84), (R * 0.99, y0 + D * 0.92)]
+        p.lathe(prof, copper, sides=28, cap_bottom=False, cap_top=False, center=(cx, 0, 0))
+        top = y0 + D * 0.92
+        p.lathe([(R * 1.0, top), (R * 1.04, top + 0.015), (R * 1.03, top + 0.04), (R * 0.99, top + 0.05)], gold, sides=28, cap_bottom=False, cap_top=False, center=(cx, 0, 0))
+        p.lathe([(R * 0.99, top + 0.05), (R * 0.7, top + 0.065), (0.0, top + 0.07)], leather, sides=28, cap_bottom=False, center=(cx, 0, 0))
+        # lacing: V thongs from the head hoop to a ring under the bowl's belly
+        n = 14
+        ring_y = y0 + D * 0.34
+        p.lathe([(R * 0.89, ring_y - 0.012), (R * 0.9, ring_y + 0.012)], leather, sides=24, cap_bottom=False, cap_top=False, center=(cx, 0, 0))
+        for i in range(n):
+            for da in (-0.5, 0.5):
+                a0 = 2 * math.pi * i / n
+                a1 = 2 * math.pi * (i + da) / n
+                x0, z0, yy0 = cx + R * 1.03 * math.cos(a0), R * 1.03 * math.sin(a0), top + 0.01
+                x1, z1, yy1 = cx + R * 0.91 * math.cos(a1), R * 0.91 * math.sin(a1), ring_y
+                L = math.dist((x0, yy0, z0), (x1, yy1, z1))
+                up = ((x0 - x1) / L, (yy0 - yy1) / L, (z0 - z1) / L)
+                rad = (math.cos((a0 + a1) / 2), 0.0, math.sin((a0 + a1) / 2))
+                right = (up[1] * rad[2] - up[2] * rad[1], up[2] * rad[0] - up[0] * rad[2], up[0] * rad[1] - up[1] * rad[0])
+                p.obox(((x0 + x1) / 2 + rad[0] * 0.012, (yy0 + yy1) / 2, (z0 + z1) / 2 + rad[2] * 0.012), right, up, rad, (0.018, L, 0.006), leather)
+    # low wooden takht under both drums, dressed with a red-and-gold cloth (lifts the pair to ~0.97 m so the
+    # machine skin keeps its native size)
+    p.box(-0.98, -0.22, -0.52, 0.98, -0.02, 0.52, wood, collide=False)
+    p.box(-1.0, -0.03, -0.54, 1.0, 0.0, 0.54, cloth, collide=False)
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            p.box(sx * 0.98 - 0.06, -0.24, sz * 0.52 - 0.06, sx * 0.98 + 0.06, -0.02, sz * 0.52 + 0.06, gold, collide=False)
+    p.box(-1.0, -0.12, 0.53, 1.0, -0.02, 0.56, gold, collide=False)
+    # beaters: curved sticks resting across the heads
+    for i, (x0, x1, z) in enumerate(((-0.7, 0.35, 0.12), (-0.3, 0.75, -0.14))):
+        seg = 6
+        pts = []
+        for k in range(seg + 1):
+            t = k / seg
+            pts.append((x0 + (x1 - x0) * t, 0.62 + 0.08 * math.sin(math.pi * t) + i * 0.03, z + 0.08 * math.sin(math.pi * t)))
+        for k in range(seg):
+            a, b = pts[k], pts[k + 1]
+            L = math.dist(a, b)
+            up = tuple((b[j] - a[j]) / L for j in range(3))
+            fwd = (0.0, 0.0, 1.0)
+            right = (up[1] * fwd[2] - up[2] * fwd[1], up[2] * fwd[0] - up[0] * fwd[2], up[0] * fwd[1] - up[1] * fwd[0])
+            p.obox(tuple((a[j] + b[j]) / 2 for j in range(3)), right, up, fwd, (0.03, L, 0.03), wood)
+        p.lathe([(0.0, -0.04), (0.035, 0.0), (0.0, 0.04)], leather, sides=8, center=pts[-1])
+    return [p.build()]
+
+
+def pedestal2(M):
+    """Jewel pedestal for the treasury: an octagonal marble shaft with pietra-dura inlay panels, a lotus-petal
+    base, a gilded rim and a crimson cushion (the Koh-i-Noor sits on top). 1.25 m tall."""
+    p = P('kit_pedestal2')
+    p.lathe([(0.52, 0.0), (0.52, 0.1), (0.46, 0.14), (0.46, 0.2), (0.4, 0.24)], M['stone'], sides=8)
+    for i in range(16):
+        a = 2 * math.pi * (i + 0.5) / 16
+        fwd = (math.cos(a), 0.0, math.sin(a)); right = (-math.sin(a), 0.0, math.cos(a))
+        p.obox((0.36 * math.cos(a), 0.3, 0.36 * math.sin(a)), right, (0, 1, 0), fwd, (0.14, 0.16, 0.06), M['trim'])
+    p.lathe([(0.34, 0.24), (0.33, 0.36), (0.3, 0.4)], M['stone'], sides=8, cap_bottom=False)
+    p.lathe([(0.27, 0.4), (0.27, 0.98)], M['stone'], sides=8, cap_bottom=False, cap_top=False)
+    ro = 0.27 * math.cos(math.pi / 8)
+    for i in range(8):
+        a = 2 * math.pi * (i + 0.5) / 8 - math.pi / 8 + math.pi / 8
+        a = 2 * math.pi * i / 8 + math.pi / 8
+        fwd = (math.cos(a), 0.0, math.sin(a)); right = (-math.sin(a), 0.0, math.cos(a))
+        p.obox((ro * math.cos(a), 0.69, ro * math.sin(a)), right, (0, 1, 0), fwd, (0.16, 0.44, 0.012), M['inlay'])
+    p.lathe([(0.3, 0.98), (0.36, 1.03), (0.38, 1.08), (0.34, 1.12)], M['metal'], sides=16, cap_bottom=False)
+    p.lathe([(0.3, 1.12), (0.32, 1.16), (0.26, 1.24), (0.0, 1.25)], M['cloth'], sides=16, cap_bottom=False)
+    p.colliders.append([-0.5, 0, -0.5, 0.5, 1.25, 0.5, 'stone', False, True])
+    return [p.build()]
+
+
+def torch_holder(M):
+    """Wall mashaal holder: an iron back plate, a scrolled arm and an open brass cup (the flame is a runtime sprite).
+    Back at z = 0; the cup centre is at (0, 0.42, 0.34)."""
+    p = P('kit_mashaal')
+    p.box(-0.08, 0.0, 0.0, 0.08, 0.5, 0.025, M['iron'], collide=False)
+    p.lathe([(0.03, 0.0), (0.04, 0.02), (0.0, 0.04)], M['metal'], sides=6, center=(0, 0.1, 0.02))
+    arm = [(0.0, 0.16), (0.12, 0.18), (0.22, 0.24), (0.3, 0.3), (0.34, 0.34)]
+    for (z0, y0), (z1, y1) in zip(arm[:-1], arm[1:]):
+        L = math.hypot(z1 - z0, y1 - y0)
+        up = (0.0, (y1 - y0) / L, (z1 - z0) / L)
+        p.obox((0.0, (y0 + y1) / 2, (z0 + z1) / 2), (1, 0, 0), up, (0.0, -up[2], up[1]), (0.03, L, 0.03), M['iron'])
+    p.lathe([(0.02, 0.0), (0.09, 0.05), (0.11, 0.12), (0.1, 0.14)], M['metal'], sides=10, cap_top=False, center=(0, 0.3, 0.34))
+    p.lathe([(0.09, 0.12), (0.07, 0.16), (0.03, 0.2), (0.0, 0.2)], M['cloth'], sides=8, cap_bottom=False, center=(0, 0.3, 0.34))
+    return [p.build()]
+
+
+# ---------------------------------------------------------------------------------------------
 # driver
 # ---------------------------------------------------------------------------------------------
 
@@ -843,6 +1298,11 @@ PIECES = [
     ('kit_pillar_wood', pillar_wood), ('kit_fountain', fountain), ('kit_cistern', cistern),
     ('kit_ladder', ladder), ('kit_kite', kite), ('kit_mirror_panel', mirror_panel),
     ('kit_mirror_medallion', mirror_medallion), ('kit_baradari_roof', baradari_roof),
+    # v2
+    ('kit_pilaster_base', pilaster_base), ('kit_pilaster_shaft', pilaster_shaft), ('kit_pilaster_cap', pilaster_cap),
+    ('kit_niche', niche), ('kit_bracket', bracket), ('kit_merlon', merlon), ('kit_column2', column2), ('kit_arch_span2', arch_span2),
+    ('kit_chhatri2', chhatri2), ('kit_window_arched', window_arched), ('kit_jharokha2', jharokha2), ('kit_fresco_frame', fresco_frame),
+    ('kit_coffer', coffer), ('naqqara2', naqqara2), ('kit_pedestal2', pedestal2), ('kit_mashaal', torch_holder),
 ]
 
 os.makedirs(OUT, exist_ok=True)

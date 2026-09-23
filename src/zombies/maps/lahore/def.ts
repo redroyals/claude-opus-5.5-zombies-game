@@ -33,13 +33,15 @@ const rooms: RoomDef[] = R.rooms.map((rm) => ({
 const walls: WallDef[] = [];
 const boxes: BoxDef[] = [];
 for (const w of R.walls) {
-  if (w.kind === 'invisible' || w.kind === 'jaali') {
-    const t = w.kind === 'jaali' ? 0.12 : 0.1;
-    boxes.push({ box: w.axis === 'x' ? [w.a0, w.y0, w.at - t, w.a1, w.y1, w.at + t] : [w.at - t, w.y0, w.a0, w.at + t, w.y1, w.a1], mat: null, collide: 'nonsolid', surface: 'wood', shadow: false });
+  // Rails and low edges are collider-only here: ./facades dresses them with carved balustrades.
+  if (w.kind === 'invisible' || w.kind === 'jaali' || w.kind === 'rail' || w.kind === 'low') {
+    const t = w.kind === 'jaali' ? 0.12 : w.kind === 'invisible' ? 0.1 : 0.125;
+    const collide = w.kind === 'rail' || w.kind === 'low' ? 'solid' : 'nonsolid';
+    boxes.push({ box: w.axis === 'x' ? [w.a0, w.y0, w.at - t, w.a1, w.y1, w.at + t] : [w.at - t, w.y0, w.a0, w.at + t, w.y1, w.a1], mat: null, collide, surface: w.kind === 'rail' || w.kind === 'low' ? 'concrete' : 'wood', shadow: false });
     continue;
   }
-  const thick = w.kind === 'wall' ? 0.3 : w.kind === 'parapet' ? 0.45 : 0.25;
-  const mat = w.kind === 'rail' || w.kind === 'low' ? surfMat(w.surf === 'wood' || w.surf.startsWith('plaster') ? 'wood' : 'marble') : surfMat(w.surf);
+  const thick = w.kind === 'wall' ? 0.3 : 0.45;
+  const mat = surfMat(w.surf);
   walls.push({ axis: w.axis, at: w.at, a0: w.a0, a1: w.a1, y0: w.y0, y1: w.y1, mat, thickness: thick });
 }
 for (const m of R.masses) {
@@ -151,15 +153,15 @@ export const LAHORE: ZombiesMapDef = {
   rounds: { special: { first: [6, 7], every: [5, 6] }, bossEvery: 8 },
   powerups: { maxPerRound: 4, dropChanceMult: 1.15 },
   lighting: {
-    background: 0x1a1830,
-    sky: { top: 0x121634, horizon: 0x9a5038, stars: true },
-    fogColor: 0x2c2334,
-    fogDensity: 0.014,
-    hemi: 0.95,
-    sun: 1.1,
-    sunColor: 0xff9a5a,
-    sunDir: [-0.85, 0.28, 0.25],
-    postPower: { hemi: 1.0, sun: 1.0, fogDensity: 0.012 },
+    background: 0x1c1830,
+    sky: { top: 0x151a3a, horizon: 0x8a4a3a, stars: true },
+    fogColor: 0x3a2a30,
+    fogDensity: 0.012,
+    hemi: 0.55,
+    sun: 1.6,
+    sunColor: 0xff9a60,
+    sunDir: [-0.85, 0.3, 0.25],
+    postPower: { hemi: 0.65, sun: 1.5, fogDensity: 0.011 },
     lamps: [],
   },
   audio: { ambience: 'lahore' },
@@ -171,8 +173,12 @@ export const LAHORE: ZombiesMapDef = {
     gameOverSub: 'LAHORE DARBAR · THE LAMPS GO OUT',
   },
   machines: {
-    box: 'lahore/box_casket.glb', pap: 'lahore/forge_pap.glb', power: 'lahore/naqqara.glb',
-    perks: { bulwark: 'lahore/perk_bulwark_lh.glb', quickhands: 'lahore/perk_quickhands_lh.glb', hammerfall: 'lahore/perk_hammerfall_lh.glb', lifeline: 'lahore/perk_lifeline_lh.glb' },
+    box: 'lahore/box_casket.glb', pap: 'lahore/forge_pap.glb', power: 'lahore/kit_naqqara2.glb',
+    // Sharbat-fountain cabinets (carved sandstone + brass, a glowing flask in a cusped niche); slim footprints.
+    perks: {
+      bulwark: { model: 'lahore/la_perk_bulwark2.glb', foot: [0.75, 0.6] }, quickhands: { model: 'lahore/la_perk_quickhands.glb', foot: [0.75, 0.6] },
+      hammerfall: { model: 'lahore/la_perk_hammerfall.glb', foot: [0.75, 0.6] }, lifeline: { model: 'lahore/la_perk_test.glb', foot: [0.75, 0.6] },
+    },
   },
-  assets: ['lahore/haveli_door.glb', 'lahore/box_casket.glb'],
+  assets: ['lahore/haveli_door.glb', 'lahore/box_casket.glb', 'lahore/props_atlas.glb'],
 };

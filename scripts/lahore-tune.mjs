@@ -8,7 +8,7 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
 await MeshoptEncoder.ready; await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-const DIR = path.resolve(new URL('../public/models/lahore', import.meta.url).pathname);
+const DIR = path.resolve(new URL('../public/models/lahore/src', import.meta.url).pathname); // atlas sources (then run lahore-atlas.mjs)
 // metallic factor per asset (anything not listed keeps Meshy's value)
 const METAL = { haveli_door: 0.15, charpai: 0.1, palki: 0.2, well: 0.05, spice_stall: 0.05, chai_stall: 0.3, matka_pots: 0.1, weapon_rack: 0.35, strongboxes: 0.3,
   chest_gold: 0.5, throne_dais: 0.4, naqqara: 0.25, forge_pap: 0.2, armour_stand: 0.6, pedestal: 0.05, great_gun: 0.6, cannonballs: 0.5, torch_bracket: 0.5 };
