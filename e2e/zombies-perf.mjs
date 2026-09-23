@@ -6,7 +6,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 
 const exe = process.env.CHROME ?? fs.readdirSync(`${os.homedir()}/.cache/ms-playwright`).filter((d) => d.startsWith('chromium-')).map((d) => `${os.homedir()}/.cache/ms-playwright/${d}/chrome-linux-arm64/chrome`).find((p) => fs.existsSync(p));
-const gpu = process.env.GPU === '1' ? ['--use-angle=vulkan', '--enable-features=Vulkan', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const gpu = process.env.GPU === '1' ? ['--use-angle=gl-egl', '--ignore-gpu-blocklist', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync', ...gpu] });
 const W = +(process.env.W ?? 1280), H = +(process.env.H ?? 720);
 const page = await browser.newPage({ viewport: { width: W, height: H } });
