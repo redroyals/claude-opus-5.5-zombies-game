@@ -24,6 +24,24 @@ export class Menus {
     $('btn-settings-back').addEventListener('click', () => this.showScreen(this.settingsReturn));
     this.bindSettings();
     this.renderBest();
+    this.renderMaps();
+  }
+
+  /** Map cards for Zombies (from the map registry). Picking one selects it; the ZOMBIES button deploys. */
+  renderMaps(): void {
+    const box = $('map-select');
+    box.innerHTML = '';
+    const cur = this.game.zm.def.id;
+    for (const d of this.game.zombiesMaps) {
+      const b = document.createElement('button');
+      b.className = `map-card${d.id === cur ? ' selected' : ''}`;
+      b.dataset.map = d.id;
+      const hue = [...d.id].reduce((a, c) => a + c.charCodeAt(0) * 37, 0) % 360;
+      const bg = d.thumbnail ? `url(${d.thumbnail})` : `linear-gradient(135deg, hsl(${hue} 35% 22%), hsl(${(hue + 40) % 360} 30% 8%))`;
+      b.innerHTML = `<div class="map-thumb" style="background-image:${bg}">${escapeHtml(d.name.toUpperCase())}</div><div class="map-blurb">${escapeHtml(d.blurb)}</div>`;
+      b.addEventListener('click', () => { this.game.setZombiesMap(d.id); this.renderMaps(); });
+      box.appendChild(b);
+    }
   }
 
   showScreen(s: Screen, note = ''): void {
@@ -116,4 +134,8 @@ export class Menus {
 function fmt(t: number): string {
   const s = Math.floor(t);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function escapeHtml(t: string): string {
+  return t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }

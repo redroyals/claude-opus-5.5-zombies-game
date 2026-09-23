@@ -63,6 +63,8 @@ export class Renderer {
   private quality: Quality = 'high';
   private renderScale = 1;
   private sky: THREE.Mesh;
+  /** Direction the key light comes from (null = the default blue-hour angle). */
+  sunDir: [number, number, number] | null = null;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
@@ -225,6 +227,8 @@ export class Renderer {
     this.bloom.resolution.set(w, h);
   }
 
+  setSkyVisible(v: boolean): void { this.sky.visible = v; }
+
   get pixelHeight(): number {
     return this.renderer.domElement.height;
   }
@@ -234,7 +238,9 @@ export class Renderer {
     const size = 96;
     const texel = size / this.sun.shadow.mapSize.x;
     const sx = Math.round(x / texel) * texel, sz = Math.round(z / texel) * texel;
-    this.sun.position.set(sx + 40, 60, sz + 25);
+    const d = this.sunDir;
+    if (d) { const l = Math.hypot(d[0], d[1], d[2]) || 1; this.sun.position.set(sx + (d[0] / l) * 75, (d[1] / l) * 75, sz + (d[2] / l) * 75); }
+    else this.sun.position.set(sx + 40, 60, sz + 25);
     this.sun.target.position.set(sx, 0, sz);
     this.sun.target.updateMatrixWorld();
   }

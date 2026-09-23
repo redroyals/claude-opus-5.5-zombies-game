@@ -6,7 +6,7 @@ import { WEAPONS, type WeaponId } from '../config';
 import { findNode, fitModel, models, placeModel, type LoadedModel } from '../render/ModelRegistry';
 import { BOX_MOVE_SECONDS, BOX_OFFER_SECONDS, BOX_SPIN_SECONDS, PERKS, WALL_BUYS, type BoxState, type PerkId, type WallBuyKey } from './rules';
 import { POWERUP_INFO, pickupVisible, type PowerUpKind } from './powerups';
-import type { Spot } from './mapdata';
+import type { Spot } from './mapdef';
 
 /** Try `zombies/<name>` then `<name>` under public/models/. */
 function watchModel(name: string, cb: (m: LoadedModel) => void): void {
@@ -417,9 +417,9 @@ export class PerkViews {
   readonly group = new THREE.Group();
   private views: PerkView[] = [];
 
-  constructor(spots: Record<PerkId, Spot>, ground: (x: number, z: number, y?: number) => number) {
+  constructor(spots: Partial<Record<PerkId, Spot>>, ground: (x: number, z: number, y?: number) => number) {
     for (const id of Object.keys(spots) as PerkId[]) {
-      const sp = spots[id];
+      const sp = spots[id]!;
       const def = PERKS[id];
       const hex = '#' + def.color.toString(16).padStart(6, '0');
       const root = new THREE.Group();

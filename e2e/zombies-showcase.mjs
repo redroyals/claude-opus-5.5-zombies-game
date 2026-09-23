@@ -10,7 +10,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
-await page.goto('http://127.0.0.1:5173/?mode=zombies&dev');
+await page.goto(`${process.env.BASE ?? 'http://127.0.0.1:5173'}/?mode=zombies${process.env.MAP ? '&map=' + process.env.MAP : ''}&dev`);
 await page.waitForFunction(() => window.__DS, null, { timeout: 120000 });
 const ds = (fn, ...a) => page.evaluate(([f, args]) => window.__DS[f](...args), [fn, a]);
 const wait = (ms) => page.waitForTimeout(ms);

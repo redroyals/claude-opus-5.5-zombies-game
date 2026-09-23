@@ -11,7 +11,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push(String(e)));
-await page.goto('http://127.0.0.1:5173/?mode=zombies&dev', { waitUntil: 'load' });
+await page.goto(`${process.env.BASE ?? 'http://127.0.0.1:5173'}/?mode=zombies${process.env.MAP ? '&map=' + process.env.MAP : ''}&dev`, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__DS, null, { timeout: 120000 });
 const ds = (fn, ...a) => page.evaluate(([f, args]) => window.__DS[f](...args), [fn, a]);
 const ev = (code) => page.evaluate(code);

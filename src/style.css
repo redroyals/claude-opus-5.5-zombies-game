@@ -77,6 +77,13 @@ b { color: var(--amber); font-weight: 700; }
 .btn:hover { border-color: var(--amber); color: #fff; background: rgba(40,40,32,0.9); }
 .btn.primary { background: var(--amber); color: #111; border-color: var(--amber); font-weight: 700; }
 .btn.primary:hover { background: #f4d37a; }
+.map-select-head { margin-top: 20px; font-size: 11px; letter-spacing: 0.25em; color: var(--dim); }
+.map-select { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.map-card { width: 172px; text-align: left; padding: 0; border: 1px solid #3a3a30; background: rgba(16,16,12,0.85); color: #cfc8b0; cursor: pointer; font: inherit; }
+.map-card:hover { border-color: var(--amber); }
+.map-card.selected { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber) inset; }
+.map-card .map-thumb { height: 72px; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 6px 8px; font-weight: 700; letter-spacing: 0.08em; color: #fff; text-shadow: 0 1px 3px #000; font-size: 13px; }
+.map-card .map-blurb { padding: 6px 8px 8px; font-size: 10.5px; line-height: 1.35; color: var(--dim); }
 .best-run { margin-top: 22px; font-size: 12px; letter-spacing: 0.15em; color: var(--dim); min-height: 16px; }
 .title-right { display: flex; flex-direction: column; gap: 14px; width: 340px; }
 .controls-card { background: var(--panel); border: 1px solid var(--line); padding: 16px 18px; backdrop-filter: blur(4px); }

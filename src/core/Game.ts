@@ -27,6 +27,7 @@ import { Level } from '../world/Level';
 import type { CollisionWorld } from '../world/Collision';
 import { ZHud } from '../ui/ZHud';
 import { ZombiesMode, type ZInteraction } from '../zombies/ZombiesMode';
+import { MAPS, getMap, mapFromUrl } from '../zombies/maps';
 import { Input } from './Input';
 import { loadBest, loadSettings, recordBest, saveSettings, type Settings } from './Settings';
 
@@ -98,7 +99,8 @@ export class Game {
   private meleeCD = 0;
   private meleePendT = -1;
   private meleeKill = false;
-  private fogSaved: { density: number; color: number; hemi: number; sun: number } | null = null;
+  private fogSaved: { density: number; color: number; hemi: number; sun: number; sunColor: number } | null = null;
+  private atmoPower = false;
 
   constructor(container: HTMLElement, onProgress: (p: number, label: string) => void) {
     this.settings = loadSettings();
@@ -131,7 +133,7 @@ export class Game {
       syncWeapons: () => this.weapons.syncModel(),
       toast: (t, k = '', sm = '', d = 2.5) => this.hud.toast(t, k, sm, d),
       sound: (k) => this.audio.ui(k),
-    }, this.M);
+    }, this.M, mapFromUrl(location.search) ?? undefined);
     this.renderer.scene.add(this.zm.group);
     this.contamWall = this.buildContaminationWall();
     this.renderer.scene.add(this.contamWall);
@@ -169,17 +171,37 @@ export class Game {
     return this.mode === 'zombies' ? this.zm.map.world : this.level.world;
   }
 
-  /** Zombies runs in a dark, foggy interior; extraction keeps its blue-hour look. */
-  private applyAtmosphere(zombies: boolean): void {
+  /** Zombies uses the map's lighting (fog, sky, fill); extraction keeps its blue-hour look. */
+  private applyAtmosphere(zombies: boolean, power = false): void {
     const fog = this.renderer.scene.fog as THREE.FogExp2;
-    if (!this.fogSaved) this.fogSaved = { density: fog.density, color: fog.color.getHex(), hemi: this.renderer.hemi.intensity, sun: this.renderer.sun.intensity };
+    const R = this.renderer;
+    if (!this.fogSaved) this.fogSaved = { density: fog.density, color: fog.color.getHex(), hemi: R.hemi.intensity, sun: R.sun.intensity, sunColor: R.sun.color.getHex() };
     const f = this.fogSaved;
-    fog.density = zombies ? 0.042 : f.density;
-    fog.color.setHex(zombies ? 0x0a0c12 : f.color);
-    if (this.renderer.scene.background instanceof THREE.Color) this.renderer.scene.background.setHex(zombies ? 0x05060a : f.color);
-    this.renderer.hemi.intensity = zombies ? 0.35 : f.hemi;
-    this.renderer.sun.intensity = zombies ? 0.35 : f.sun;
+    const L = this.zm.def.lighting;
+    const pp = power ? L.postPower : undefined;
+    fog.density = zombies ? pp?.fogDensity ?? L.fogDensity : f.density;
+    fog.color.setHex(zombies ? L.fogColor : f.color);
+    if (R.scene.background instanceof THREE.Color) R.scene.background.setHex(zombies ? L.background : f.color);
+    R.hemi.intensity = zombies ? pp?.hemi ?? L.hemi : f.hemi;
+    R.sun.intensity = zombies ? pp?.sun ?? L.sun : f.sun;
+    R.sun.color.setHex(zombies && L.sunColor !== undefined ? L.sunColor : f.sunColor);
+    R.sunDir = zombies && L.sunDir ? L.sunDir : null;
+    R.setSkyVisible(!(zombies && L.sky));
+    this.atmoPower = power;
   }
+
+  /** Select the Zombies map (takes effect immediately on the title screen, else on the next deploy). */
+  setZombiesMap(id: string): void {
+    const entry = getMap(id);
+    if (this.zm.def.id === entry.def.id) return;
+    this.zm.setMap(entry);
+    const url = new URL(location.href);
+    url.searchParams.set('map', entry.def.id);
+    history.replaceState(null, '', url);
+    if (this.state === 'title') this.resetMission();
+  }
+
+  get zombiesMaps() { return MAPS.map((m) => m.def); }
 
   // ------------------------------------------------------------------------------------------
   // Lifecycle
@@ -213,7 +235,9 @@ export class Game {
     if (zombies) {
       this.enemies.setArena(this.zm.map);
       const sp = this.zm.spawn;
-      this.player.reset(sp.x, sp.z, sp.yaw);
+      this.player.reset(sp.x, sp.z, sp.yaw, sp.y);
+      this.player.ladders = this.zm.map.ladders;
+      this.player.bounds = this.zm.def.bounds;
       this.zm.reset();
       this.zm.startLoadout(this.loadout);
       this.loadout.cash = 0;
@@ -223,6 +247,8 @@ export class Game {
     } else {
       this.enemies.setArena(this.level);
       this.player.reset(poi.playerSpawn.x, poi.playerSpawn.z, poi.playerSpawn.yaw);
+      this.player.ladders = [];
+      this.player.bounds = null;
       this.zm.clearMods();
       this.spawner.populate();
     }
@@ -492,7 +518,10 @@ export class Game {
     this.enemies.update(dt, this.playerTarget());
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camQuat);
     const fl = Math.hypot(fwd.x, fwd.z) || 1;
-    if (this.mode === 'zombies') this.zm.update(dt, { x: p.pos.x, y: p.pos.y, z: p.pos.z }, input.isHeld('interact'));
+    if (this.mode === 'zombies') {
+      this.zm.update(dt, { x: p.pos.x, y: p.pos.y, z: p.pos.z }, input.isHeld('interact'));
+      if (this.zm.power !== this.atmoPower) this.applyAtmosphere(true, this.zm.power);
+    }
     else this.spawner.update(dt, {
       px: p.pos.x, pz: p.pos.z, eyeY: p.eyeY, fx: fwd.x / fl, fz: fwd.z / fl,
       pressure: this.mission.pressure,
@@ -1212,7 +1241,8 @@ export class Game {
       zMoth: () => { const b = this.zm.box; b.phase = 'moving'; b.t = 0; b.offer = null; },
       zTier: (t: number) => { const w = this.weapons.active; if (w) { w.tier = t; this.weapons.syncModel(); } },
       zDrop: (k: 'max_ammo' | 'insta_kill' | 'double_points' | 'nuke' | 'carpenter') => { const p = this.player.pos; (this.zm as unknown as { dropPowerUp(k: string, x: number, y: number, z: number): void }).dropPowerUp(k, p.x, p.y, p.z - 2.5); },
-      zSpawn: (type: 'shambler' | 'runner' | 'brute' | 'crawler' | 'fast' | 'boss', x: number, z: number) => this.enemies.spawn(type, 'low', x, z, 'chase'),
+      zSpawn: (type: 'shambler' | 'runner' | 'brute' | 'crawler' | 'fast' | 'boss', x: number, z: number, y?: number) => this.enemies.spawn(type, 'low', x, z, 'chase', y),
+      zMap: (id?: string) => { if (id) this.setZombiesMap(id); return this.zm.def.id; },
       godMode: (on: boolean) => { this.godMode = on; },
       elite: () => this.enemies.elite && { x: this.enemies.elite.pos.x, z: this.enemies.elite.pos.z, hp: this.enemies.elite.hp, helmet: this.enemies.elite.helmetHp, alive: this.enemies.elite.alive, state: this.enemies.elite.state },
     };

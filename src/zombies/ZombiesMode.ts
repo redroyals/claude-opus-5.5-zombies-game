@@ -1,6 +1,6 @@
-// Round-based Zombies mode runtime on the purpose-built map "Nightfall Relay". Owns the round director,
+// Round-based Zombies mode runtime on a data-driven map (./maps, docs/MAP_API.md). Owns the round director,
 // points, zones/doors/barricades, machines, power-ups, wonder-weapon effects and the easter egg.
-// All rules live in pure modules (./rules, ./zones, ./powerups, ./summary); this file is the glue.
+// All rules live in pure modules (./rules, ./zones, ./powerups, ./egg, ./summary); this file is the glue.
 import * as THREE from 'three';
 import { PLAYER, UPGRADE_TIERS, WEAPONS, type WeaponId } from '../config';
 import type { AudioEngine } from '../audio/Audio';
@@ -17,13 +17,15 @@ import {
   wonderBonus, type BoxState, type PerkId, type RoundState, type SpendResult, type WallBuyKey, type ZPlayer,
 } from './rules';
 import {
-  PLANKS, REPAIR_SECONDS, activateRelic, activeWindows, buyDoor, canOpenDoor, createEgg, createZoneState, onRoundStartZones, rebuildAll, repairPlank,
-  tearPlank, type EggState, type ZoneState,
+  PLANKS, REPAIR_SECONDS, activeWindows, buyDoor, canOpenDoor, createZoneState, onRoundStartZones, rebuildAll, repairPlank,
+  tearPlank, unlockedZones, type MapTopology, type ZoneState,
 } from './zones';
 import {
   POWERUP, POWERUP_INFO, activate, createPowerUps, isActive, onRoundStart, pointsMult, rollDrop, stepPowerUps, type PowerUpKind, type PowerUpState,
 } from './powerups';
-import { BOX_SPOTS, PAP_SPOT, PERK_SPOTS, PLAYER_SPAWN, POWER_SWITCH, RELICS, START_WEAPON, TOPOLOGY, WALL_BUY_SPOTS, zoneAt } from './mapdata';
+import { PERK_ORDER, frontOf, perkEntries, topologyOf, zoneAt, type Spot, type ZombiesMapDef } from './mapdef';
+import { createEggRun, currentStep, eggCollect, eggInteract, eggKill, pendingObjects, stepProgress, type EggEvent, type EggRun } from './egg';
+import { getMap, type ZombiesMapEntry } from './maps';
 import { ZombiesMap } from './ZombiesMap';
 import { CacheView, PerkViews, PowerSwitchView, ReforgerView, buildChalk, buildPickup, updatePickup, type PickupView } from './Machines';
 import type { ZRunStats } from './summary';
@@ -38,6 +40,16 @@ export type ZInteraction =
   | { kind: 'door'; id: string }
   | { kind: 'window'; w: number }
   | { kind: 'relic'; i: number };
+
+/** Everything built for one map (cached so switching maps back and forth is instant). */
+interface BuiltMap {
+  map: ZombiesMap;
+  root: THREE.Group;
+  cache: CacheView;
+  reforger: ReforgerView | null;
+  perks: PerkViews;
+  powerSwitch: PowerSwitchView | null;
+}
 
 export interface ZHost {
   enemies: EnemyManager;
@@ -56,22 +68,26 @@ interface Vortex { x: number; y: number; z: number; t: number; radius: number; d
 
 export class ZombiesMode {
   readonly group = new THREE.Group();
-  readonly map: ZombiesMap;
+  map!: ZombiesMap;
+  def!: ZombiesMapDef;
+  topo!: MapTopology;
   zp: ZPlayer = createZPlayer();
   rounds: RoundState = createRoundState();
   box: BoxState = createBox(0);
-  zones: ZoneState = createZoneState(TOPOLOGY);
+  zones!: ZoneState;
   pu: PowerUpState = createPowerUps();
-  egg: EggState = createEgg(RELICS.length);
+  egg!: EggRun;
   power = false;
   lifelineBuys = 0;
   stats: ZRunStats = { round: 0, kills: 0, headshots: 0, points: 0, doors: 0, time: 0, downs: 0 };
   /** Points earned this run (not spent). */
   private earned = 0;
-  private cache: CacheView;
-  private reforger: ReforgerView;
-  private perks: PerkViews;
-  private powerSwitch: PowerSwitchView;
+  private cache!: CacheView;
+  private reforger!: ReforgerView | null;
+  private perks!: PerkViews;
+  private powerSwitch!: PowerSwitchView | null;
+  private built = new Map<string, BuiltMap>();
+  private perkSpots!: Partial<Record<PerkId, Spot>>;
   private pickups: PickupView[] = [];
   private vortices: Vortex[] = [];
   private repairT = 0;
@@ -81,47 +97,57 @@ export class ZombiesMode {
   private rnd = Math.random;
   private boxSpinSounded = false;
 
-  constructor(private host: ZHost, M: Materials) {
-    this.map = new ZombiesMap(M);
-    this.group.add(this.map.root);
+  constructor(private host: ZHost, private M: Materials, mapId?: string) {
     this.group.visible = false;
-    const ground = (x: number, z: number, y = 0) => this.map.world.groundHeight(x, z, 0.3, y + 3.2);
-    this.cache = new CacheView(BOX_SPOTS, (x, z) => ground(x, z));
-    this.group.add(this.cache.group);
-    this.reforger = new ReforgerView(PAP_SPOT, 0);
-    this.group.add(this.reforger.root);
-    this.perks = new PerkViews(PERK_SPOTS, (x, z) => ground(x, z));
-    this.group.add(this.perks.group);
-    this.powerSwitch = new PowerSwitchView(POWER_SWITCH);
-    this.group.add(this.powerSwitch.root);
-    for (const s of WALL_BUY_SPOTS) this.group.add(buildChalk(s.key, s.x, (s.y ?? 0) + 1.7, s.z, s.face));
-    // Machine footprints are solid
-    const w = this.map.world;
-    for (const s of BOX_SPOTS) w.add(s.x - 0.7, 0, s.z - 0.7, s.x + 0.7, 0.62, s.z + 0.7, { surface: 'wood' });
-    // Footprints (width along the machine's X, depth along its Z) match the authored models.
-    const FOOT: Record<PerkId, [number, number]> = { bulwark: [1.0, 0.85], quickhands: [0.8, 0.75], hammerfall: [1.9, 1.9], lifeline: [1.75, 1.2] };
-    for (const id of Object.keys(PERK_SPOTS) as PerkId[]) {
-      const s = PERK_SPOTS[id]; const y = s.y ?? 0;
-      const [fw, fd] = FOOT[id];
-      const side = Math.abs(Math.sin(s.face)) > 0.5;
-      const hx = (side ? fd : fw) / 2, hz = (side ? fw : fd) / 2;
-      w.add(s.x - hx, y, s.z - hz, s.x + hx, y + 2.2, s.z + hz, { surface: 'metal' });
-    }
-    w.add(PAP_SPOT.x - 1.15, 0, PAP_SPOT.z - 0.65, PAP_SPOT.x + 1.15, 3.2, PAP_SPOT.z + 0.65, { surface: 'metal' });
-    w.add(POWER_SWITCH.x - 0.6, POWER_SWITCH.y!, POWER_SWITCH.z - 0.2, POWER_SWITCH.x + 0.6, POWER_SWITCH.y! + 2.1, POWER_SWITCH.z + 0.2, { surface: 'metal' });
-    this.map.nav.build(w);
+    this.setMap(getMap(mapId));
   }
 
-  get spawn() { return PLAYER_SPAWN; }
+  /** Switch to a registered map (builds it on first use, then reuses it). Call reset() afterwards. */
+  setMap(entry: ZombiesMapEntry): void {
+    if (this.def?.id === entry.def.id) return;
+    let b = this.built.get(entry.def.id);
+    if (!b) {
+      const map = new ZombiesMap(this.M, entry);
+      const def = entry.def;
+      const root = new THREE.Group();
+      root.add(map.root);
+      const ground = (x: number, z: number, y = 0) => map.world.groundHeight(x, z, 0.3, y + 3.2);
+      const cache = new CacheView(def.box.spots, (x, z) => ground(x, z));
+      root.add(cache.group);
+      const reforger = def.pap ? new ReforgerView(def.pap, def.pap.y ?? 0) : null;
+      if (reforger) root.add(reforger.root);
+      const perks = new PerkViews(Object.fromEntries(perkEntries(def)), (x, z) => ground(x, z));
+      root.add(perks.group);
+      const powerSwitch = def.power ? new PowerSwitchView(def.power) : null;
+      if (powerSwitch) root.add(powerSwitch.root);
+      for (const s of def.wallBuys) root.add(buildChalk(s.key, s.x, (s.y ?? 0) + 1.7, s.z, s.face));
+      b = { map, root, cache, reforger, perks, powerSwitch };
+      this.built.set(def.id, b);
+    }
+    this.group.clear();
+    this.group.add(b.root);
+    this.map = b.map;
+    this.def = entry.def;
+    this.topo = topologyOf(entry.def);
+    this.cache = b.cache;
+    this.reforger = b.reforger;
+    this.perks = b.perks;
+    this.powerSwitch = b.powerSwitch;
+    this.perkSpots = Object.fromEntries(perkEntries(entry.def));
+    this.zones = createZoneState(this.topo);
+    this.egg = createEggRun(entry.def.egg);
+  }
+
+  get spawn() { const s = this.def.playerSpawn; return { x: s.x, y: s.y ?? 0, z: s.z, yaw: s.yaw }; }
 
   reset(): void {
     this.zp = createZPlayer();
     this.rounds = createRoundState();
-    this.box = createBox(0);
-    this.zones = createZoneState(TOPOLOGY);
+    this.box = createBox(this.def.box.start ?? 0);
+    this.zones = createZoneState(this.topo);
     this.pu = createPowerUps();
-    this.egg = createEgg(RELICS.length);
-    this.power = false;
+    this.egg = createEggRun(this.def.egg);
+    this.power = !this.def.power;
     this.lifelineBuys = 0;
     this.stats = { round: 0, kills: 0, headshots: 0, points: 0, doors: 0, time: 0, downs: 0 };
     this.earned = 0;
@@ -132,8 +158,8 @@ export class ZombiesMode {
     this.vortices = [];
     this.map.resetDoors();
     this.map.windows.forEach((_w, i) => this.map.setPlanks(i, PLANKS, false));
-    this.map.relics.forEach((r) => { r.visible = true; });
-    this.powerSwitch.set(false, true);
+    this.map.eggObjects.forEach((step, si) => step.forEach((r) => { r.visible = si === 0; }));
+    this.powerSwitch?.set(false, true);
     const e = this.host.enemies;
     e.instaKill = false;
     e.allowCrawlers = true;
@@ -156,8 +182,9 @@ export class ZombiesMode {
   }
 
   startLoadout(l: Loadout): void {
-    l.slots = [createWeapon(START_WEAPON), null];
-    l.slots[0]!.reserve = WEAPONS[START_WEAPON].startReserve;
+    const w = this.def.startWeapon ?? 'pi_warden';
+    l.slots = [createWeapon(w), null];
+    l.slots[0]!.reserve = WEAPONS[w].startReserve;
     l.active = 0;
     l.grenades = 2;
   }
@@ -206,8 +233,9 @@ export class ZombiesMode {
     for (let i = 0; i < ev.spawn; i++) this.spawnOne(player);
 
     // The Cache
-    const be = stepBox(this.box, dt, BOX_SPOTS.length, this.rnd);
-    if (this.box.phase === 'spinning' && !this.boxSpinSounded) { this.boxSpinSounded = true; this.host.audio.boxJingle(BOX_SPOTS[this.box.location]); }
+    const spots = this.def.box.spots;
+    const be = stepBox(this.box, dt, spots.length, this.rnd);
+    if (this.box.phase === 'spinning' && !this.boxSpinSounded) { this.boxSpinSounded = true; this.host.audio.boxJingle(spots[this.box.location]); }
     if (this.box.phase !== 'spinning') this.boxSpinSounded = false;
     if (be === 'moth') { this.host.toast('THE MOTH TAKES THE CACHE', 'bad', 'It will land somewhere else · pull refunded', 3); this.host.sound('deny'); }
     if (be === 'arrived') this.host.toast('THE CACHE HAS MOVED', '', 'Follow the light', 2.5);
@@ -219,9 +247,9 @@ export class ZombiesMode {
       this.papPending.t -= dt;
       if (this.papPending.t <= 0) this.finishPap();
     }
-    this.reforger.update(dt, this.time, this.power, (x, y, z) => this.host.fx.sparkBurst(x, y, z, 18, [1.4, 0.6, 2]));
+    this.reforger?.update(dt, this.time, this.power, (x, y, z) => this.host.fx.sparkBurst(x, y, z, 18, [1.4, 0.6, 2]));
     this.perks.update(this.time, this.power);
-    this.powerSwitch.update(dt);
+    this.powerSwitch?.update(dt);
     this.map.update(this.time, dt, this.power);
 
     // Perk jingles when standing near a lit machine
@@ -229,7 +257,7 @@ export class ZombiesMode {
     if (this.jingleT <= 0) {
       this.jingleT = 12 + this.rnd() * 10;
       const near = this.perks.litNear(player.x, player.z, 7);
-      if (near) this.host.audio.perkJingle(PERK_SPOTS[near], (Object.keys(PERK_SPOTS) as PerkId[]).indexOf(near));
+      if (near) this.host.audio.perkJingle(this.perkSpots[near]!, PERK_ORDER.indexOf(near));
     }
 
     // Barricade repair (hold E)
@@ -262,6 +290,11 @@ export class ZombiesMode {
       }
     }
     this.updateVortices(dt);
+    // Easter egg: collect-step items are picked up by walking over them.
+    for (const e of pendingObjects(this.def.egg, this.egg)) {
+      if (e.kind !== 'collect') continue;
+      if (Math.hypot(e.o.x - player.x, e.o.z - player.z) < (e.o.radius ?? 1.0) && Math.abs(player.y - (e.o.y - 0.35)) < 1.6) this.useEgg(e.i, 'collect');
+    }
   }
 
   private windowNear(p: P3): number {
@@ -274,28 +307,42 @@ export class ZombiesMode {
   }
 
   private spawnOne(player: P3): void {
-    const wins = activeWindows(TOPOLOGY, this.zones);
-    if (wins.length === 0) return;
+    const wins = activeWindows(this.topo, this.zones);
+    const open = unlockedZones(this.topo, this.zones);
+    const points = (this.def.spawnPoints ?? []).map((sp, i) => ({ sp, i })).filter((e) => open.has(e.sp.zone));
+    if (wins.length === 0 && points.length === 0) return;
     const spec = this.rounds.spec;
     const type = pickZombieType(spec, this.rnd);
-    // Prefer windows near the player (weighted by 1/distance), like the classic spawners.
-    const ws = wins.map((w) => { const r = this.map.windows[w.id]; const d = Math.hypot(r.spawn.x - player.x, r.spawn.z - player.z); return { id: w.id, wgt: 1 / Math.max(6, d) ** 1.5 }; });
-    const tot = ws.reduce((a, b) => a + b.wgt, 0);
+    // Prefer spawns near the player (weighted by 1/distance), like the classic spawners. Spawns on another
+    // floor count as further away so a horde does not appear straight above or below you.
+    const cands = [
+      ...wins.map((w) => { const r = this.map.windows[w.id]; return { win: w.id, pt: -1, x: r.spawn.x, y: r.geom.floor, z: r.spawn.z, wt: 1 }; }),
+      ...points.map((e) => ({ win: -1, pt: e.i, x: e.sp.x, y: e.sp.y, z: e.sp.z, wt: e.sp.weight ?? 1 })),
+    ].map((c) => { const d = Math.hypot(c.x - player.x, c.z - player.z) + Math.abs(c.y - player.y) * 3; return { c, wgt: c.wt / Math.max(6, d) ** 1.5 }; });
+    const tot = cands.reduce((a, b) => a + b.wgt, 0);
     let r = this.rnd() * tot;
-    let id = ws[ws.length - 1].id;
-    for (const w of ws) { r -= w.wgt; if (r < 0) { id = w.id; break; } }
-    const win = this.map.windows[id];
+    let pick = cands[cands.length - 1].c;
+    for (const w of cands) { r -= w.wgt; if (r < 0) { pick = w.c; break; } }
     let z: Zombie;
-    if (type === 'fast') {
-      // Scuttlers arrive in a crack of lightning just inside the window.
-      const x = win.inside.x + (this.rnd() - 0.5) * 1.5, zz = win.inside.z + (this.rnd() - 0.5) * 1.5;
-      z = this.host.enemies.spawn('fast', 'low', x, zz, 'chase');
-      this.host.fx.sparkBurst(x, win.geom.floor + 1, zz, 30, [0.6, 0.8, 2.5]);
-      this.host.fx.explosion(x, win.geom.floor, zz, true);
+    if (pick.pt >= 0) {
+      const sp = this.def.spawnPoints![pick.pt];
+      const x = sp.x + (this.rnd() - 0.5) * 1.0, zz = sp.z + (this.rnd() - 0.5) * 1.0;
+      z = this.host.enemies.spawn(type === 'fast' ? 'fast' : type, 'low', x, zz, 'chase', sp.y + (sp.kind === 'drop' ? 0.2 : 0));
+      if (sp.kind === 'ground') { z.riseT = 1.2; this.host.fx.bloodPool(x, zz, 0.6); }
+      if (sp.kind === 'drop') z.pos.y = sp.y;
     } else {
-      z = this.host.enemies.spawn(type, 'low', win.spawn.x + (this.rnd() - 0.5) * 1.2, win.spawn.z + (this.rnd() - 0.5) * 0.6, 'chase');
-      z.entry = id;
-      z.entryPhase = 'approach';
+      const win = this.map.windows[pick.win];
+      if (type === 'fast') {
+        // Scuttlers arrive in a crack of lightning just inside the window.
+        const x = win.inside.x + (this.rnd() - 0.5) * 1.5, zz = win.inside.z + (this.rnd() - 0.5) * 1.5;
+        z = this.host.enemies.spawn('fast', 'low', x, zz, 'chase', win.geom.floor);
+        this.host.fx.sparkBurst(x, win.geom.floor + 1, zz, 30, [0.6, 0.8, 2.5]);
+        this.host.fx.explosion(x, win.geom.floor, zz, true);
+      } else {
+        z = this.host.enemies.spawn(type, 'low', win.spawn.x + (this.rnd() - 0.5) * 1.2, win.spawn.z + (this.rnd() - 0.5) * 0.6, 'chase', win.geom.floor);
+        z.entry = pick.win;
+        z.entryPhase = 'approach';
+      }
     }
     z.maxHp *= spec.hpMult;
     z.hp = z.maxHp;
@@ -303,15 +350,24 @@ export class ZombiesMode {
   }
 
   private spawnBoss(player: P3): void {
-    const wins = activeWindows(TOPOLOGY, this.zones);
+    const wins = activeWindows(this.topo, this.zones);
+    if (wins.length === 0) {
+      const sp = (this.def.spawnPoints ?? [])[0];
+      if (!sp) return;
+      const z = this.host.enemies.spawn('boss', 'low', sp.x, sp.z, 'chase', sp.y);
+      z.maxHp = bossHpForRound(this.rounds.round);
+      z.hp = z.maxHp;
+      z.helmetHp = 400 + this.rounds.round * 20;
+      return;
+    }
     const w = this.map.windows[wins[Math.floor(this.rnd() * wins.length)].id];
-    const z = this.host.enemies.spawn('boss', 'low', w.spawn.x, w.spawn.z, 'chase');
+    const z = this.host.enemies.spawn('boss', 'low', w.spawn.x, w.spawn.z, 'chase', w.geom.floor);
     z.maxHp = bossHpForRound(this.rounds.round);
     z.hp = z.maxHp;
     z.helmetHp = 400 + this.rounds.round * 20;
     z.entry = w.geom.id;
     z.entryPhase = 'approach';
-    this.host.toast('THE WARDEN HAS BREACHED THE RELAY', 'bad', 'Break its helmet · it smashes barricades', 4);
+    this.host.toast(`THE WARDEN HAS BREACHED ${this.def.name.toUpperCase()}`, 'bad', 'Break its helmet · it smashes barricades', 4);
     this.host.audio.zombieVoice({ x: player.x + 10, z: player.z }, 'elite');
   }
 
@@ -331,6 +387,8 @@ export class ZombiesMode {
 
   onKill(z: Zombie, head: boolean, melee = false): void {
     this.stats.kills++;
+    const ek = eggKill(this.def.egg, this.egg, zoneAt(this.def, z.pos.x, z.pos.z, z.pos.y), this.power);
+    if (ek !== 'none') this.onEggEvent(ek);
     if (head) this.stats.headshots++;
     const before = this.zp.points;
     awardKill(this.zp, head, melee);
@@ -347,7 +405,8 @@ export class ZombiesMode {
     }
     if (this.rounds.spec.special) return; // Scuttler rounds drop only the final Max Ammo
     const exclude: PowerUpKind[] = this.zones.planks.every((n) => n === PLANKS) ? ['carpenter'] : [];
-    const k = rollDrop(this.pu, base, this.rnd, exclude);
+    const pr = this.def.powerups;
+    const k = rollDrop(this.pu, base, this.rnd, [...exclude, ...(pr?.exclude ?? [])], { maxPerRound: pr?.maxPerRound, chanceMult: pr?.dropChanceMult });
     if (k) this.dropPowerUp(k, z.pos.x, z.pos.y, z.pos.z);
   }
 
@@ -501,12 +560,13 @@ export class ZombiesMode {
   // --------------------------------------------------------------------------------------
   find(p: P3): ZInteraction | null {
     const near = (x: number, z: number, r: number, y = 0) => Math.hypot(x - p.x, z - p.z) < r && Math.abs(p.y - y) < 1.4;
-    const bs = BOX_SPOTS[this.box.location];
-    if (this.box.phase !== 'moving' && near(bs.x, bs.z, 2)) return { kind: 'box' };
-    if (near(PAP_SPOT.x, PAP_SPOT.z, 2.4)) return { kind: 'pap' };
-    if (near(POWER_SWITCH.x, POWER_SWITCH.z, 1.8, POWER_SWITCH.y)) return { kind: 'power' };
-    for (const id of Object.keys(PERK_SPOTS) as PerkId[]) { const s = PERK_SPOTS[id]; if (near(s.x, s.z, 1.7, s.y ?? 0)) return { kind: 'perk', id }; }
-    for (const s of WALL_BUY_SPOTS) if (near(s.x, s.z, 1.6, s.y ?? 0)) return { kind: 'wall', key: s.key };
+    const d = this.def;
+    const bs = d.box.spots[this.box.location];
+    if (this.box.phase !== 'moving' && near(bs.x, bs.z, 2, bs.y ?? 0)) return { kind: 'box' };
+    if (d.pap && near(d.pap.x, d.pap.z, 2.4, d.pap.y ?? 0)) return { kind: 'pap' };
+    if (d.power && near(d.power.x, d.power.z, 1.8, d.power.y ?? 0)) return { kind: 'power' };
+    for (const [id, s] of perkEntries(d)) if (near(s.x, s.z, 1.7, s.y ?? 0)) return { kind: 'perk', id };
+    for (const s of d.wallBuys) if (near(s.x, s.z, 1.6, s.y ?? 0)) return { kind: 'wall', key: s.key };
     for (const d of this.map.doors) {
       if (d.open) continue;
       const g = d.geom;
@@ -514,7 +574,7 @@ export class ZombiesMode {
       const [dx, dz] = g.axis === 'x' ? [mid, g.at] : [g.at, mid];
       if (near(dx, dz, 2.3, g.y0)) return { kind: 'door', id: g.id };
     }
-    for (let i = 0; i < RELICS.length; i++) { const r = RELICS[i]; if (!this.egg.found[i] && near(r.x, r.z, 1.3, r.y - 0.35)) return { kind: 'relic', i }; }
+    for (const e of pendingObjects(d.egg, this.egg)) if (e.kind === 'interact' && near(e.o.x, e.o.z, e.o.radius ?? 1.3, e.o.y - 0.35)) return { kind: 'relic', i: e.i };
     const w = this.windowNear(p);
     if (w >= 0 && this.zones.planks[w] < PLANKS) return { kind: 'window', w };
     return null;
@@ -548,12 +608,13 @@ export class ZombiesMode {
         return `<kbd>E</kbd> ${p.action === 'weapon' ? 'Buy' : 'Ammo for'} ${WEAPONS[def.weapon].name} <span class="cost">${p.price}</span>`;
       }
       case 'door': {
-        const d = TOPOLOGY.doors.find((x) => x.id === it.id)!;
-        if (!canOpenDoor(TOPOLOGY, this.zones, it.id)) return `${d.label} <span class="denied">OTHER SIDE</span>`;
+        const d = this.topo.doors.find((x) => x.id === it.id)!;
+        if (!canOpenDoor(this.topo, this.zones, it.id)) return `${d.label} <span class="denied">OTHER SIDE</span>`;
+        if (d.requiresPower && !this.power) return `${d.label} <span class="denied">REQUIRES POWER</span>`;
         return `<kbd>E</kbd> ${d.label} <span class="cost">${d.cost}</span>`;
       }
       case 'window': return `Hold <kbd>E</kbd> to rebuild barrier <span class="cost">+10</span>`;
-      case 'relic': return '<kbd>E</kbd> Tune the strange radio';
+      case 'relic': { const st = currentStep(this.def.egg, this.egg); return `<kbd>E</kbd> ${st && st.kind === 'interact' ? st.prompt ?? 'Examine' : 'Examine'}`; }
     }
   }
 
@@ -565,26 +626,19 @@ export class ZombiesMode {
       case 'power':
         if (this.power) return;
         this.power = true;
-        this.powerSwitch.set(true);
+        this.powerSwitch?.set(true);
         this.host.toast('POWER RESTORED', 'big', 'Perks and the Reforger are live', 3);
         this.host.audio.powerOn();
         return;
-      case 'relic': {
-        const r = activateRelic(this.egg, it.i);
-        if (r === 'none') return;
-        this.map.relics[it.i].visible = false;
-        this.host.audio.chime();
-        const found = this.egg.found.filter(Boolean).length;
-        if (r === 'progress') this.host.toast('A VOICE IN THE STATIC', '', `${found} / ${RELICS.length} signal fragments`, 3);
-        else this.eggReward();
+      case 'relic':
+        this.useEgg(it.i, 'interact');
         return;
-      }
       case 'door': {
-        const r = buyDoor(TOPOLOGY, this.zones, this.zp, it.id);
+        const r = buyDoor(this.topo, this.zones, this.zp, it.id, this.power);
         if (deny(r)) return;
         this.map.openDoor(it.id);
         this.stats.doors++;
-        this.host.audio.doorOpen(!!TOPOLOGY.doors.find((d) => d.id === it.id)?.debris);
+        this.host.audio.doorOpen(!!this.topo.doors.find((d) => d.id === it.id)?.debris);
         return;
       }
       case 'box': {
@@ -593,7 +647,7 @@ export class ZombiesMode {
           if (w) this.giveWeapon(w);
           return;
         }
-        const r = pullBox(this.box, this.zp, l.slots.filter(Boolean).map((s) => s!.id), this.rnd, 0, BOX_SPOTS.length);
+        const r = pullBox(this.box, this.zp, l.slots.filter(Boolean).map((s) => s!.id), this.rnd, 0, this.def.box.spots.length);
         if (deny(r)) return;
         this.cache.reel = boxReel(this.rnd, 24);
         this.host.sound('buy');
@@ -601,7 +655,7 @@ export class ZombiesMode {
       }
       case 'pap': {
         const w = l.slots[l.active];
-        if (!w || this.papPending) return;
+        if (!w || this.papPending || !this.reforger) return;
         const r = tryPap(this.zp, w.tier, UPGRADE_TIERS.length - 1, this.power);
         if (deny(r)) return;
         // The gun goes in; you are unarmed (knife) until it comes out.
@@ -617,7 +671,7 @@ export class ZombiesMode {
         this.applyMods();
         if (it.id === 'bulwark') this.host.vitals().health = PLAYER.maxHealth;
         this.host.toast(PERKS[it.id].name, 'good', PERKS[it.id].desc, 2.5);
-        this.host.audio.perkJingle(PERK_SPOTS[it.id], (Object.keys(PERK_SPOTS) as PerkId[]).indexOf(it.id));
+        this.host.audio.perkJingle(this.perkSpots[it.id]!, PERK_ORDER.indexOf(it.id));
         return;
       }
       case 'wall': {
@@ -648,18 +702,57 @@ export class ZombiesMode {
     this.host.sound('upgrade');
   }
 
+  /** Use (interact) or pick up (collect) object `i` of the current easter-egg step. */
+  private useEgg(i: number, kind: 'interact' | 'collect'): void {
+    const step = this.egg.step;
+    const ev = kind === 'interact' ? eggInteract(this.def.egg, this.egg, i, this.power) : eggCollect(this.def.egg, this.egg, i, this.power);
+    if (ev === 'none') return;
+    if (ev === 'power') { this.host.toast('NOTHING HAPPENS', 'bad', 'It needs power', 1.6); return; }
+    if (ev === 'wrong-order') {
+      this.host.toast('THE SEQUENCE BREAKS', 'bad', 'Start again', 2);
+      this.map.eggObjects[step]?.forEach((o) => { o.visible = true; });
+      this.host.sound('deny');
+      return;
+    }
+    const obj = this.map.eggObjects[step]?.[i];
+    if (obj) obj.visible = false;
+    this.host.audio.chime();
+    this.onEggEvent(ev);
+  }
+
+  private onEggEvent(ev: EggEvent): void {
+    const egg = this.def.egg;
+    if (!egg) return;
+    if (ev === 'progress') {
+      const st = egg.steps[this.egg.step];
+      const [n, t] = stepProgress(egg, this.egg);
+      this.host.toast(st?.toast ?? egg.name.toUpperCase(), '', `${n} / ${t}`, 3);
+      return;
+    }
+    if (ev === 'step') {
+      // Reveal the next step's objects.
+      this.map.eggObjects.forEach((objs, si) => objs.forEach((o) => { o.visible = si === this.egg.step; }));
+      const st = egg.steps[this.egg.step];
+      this.host.toast(egg.name.toUpperCase(), 'good', st?.toast ?? 'Something stirs', 3);
+      this.host.sound('radio');
+      return;
+    }
+    if (ev === 'complete') this.eggReward();
+  }
+
   private eggReward(): void {
-    this.host.toast('THE RELAY ANSWERS', 'big', 'Signal restored · your weapon is reforged for free', 5);
+    const rw = this.def.egg!.reward;
+    this.host.toast(rw.title, 'big', rw.sub ?? '', 5);
     this.host.sound('complete');
     const l = this.host.loadout();
     const w = l.slots[l.active];
-    if (w && w.tier < UPGRADE_TIERS.length - 1) { applyUpgrade(w); this.host.syncWeapons(); }
-    for (const s of l.slots) if (s) refillAmmo(s);
-    this.addPoints(2500);
-    this.dropPowerUp('double_points', ...this.eggDropPos());
+    if (rw.reforge && w && w.tier < UPGRADE_TIERS.length - 1) { applyUpgrade(w); this.host.syncWeapons(); }
+    if (rw.refillAmmo) for (const s of l.slots) if (s) refillAmmo(s);
+    if (rw.points) this.addPoints(rw.points);
+    if (rw.powerup) this.dropPowerUp(rw.powerup, ...this.eggDropPos());
   }
 
-  private eggDropPos(): [number, number, number] { return [PLAYER_SPAWN.x, 0, PLAYER_SPAWN.z]; }
+  private eggDropPos(): [number, number, number] { const s = this.spawn; return [s.x, s.y, s.z]; }
 
   private giveWeapon(id: WeaponId): void {
     const l = this.host.loadout();
@@ -678,9 +771,12 @@ export class ZombiesMode {
   weaponName(id: WeaponId, tier: number): string { return papName(id, WEAPONS[id].name, tier); }
 
   zoneName(p: P3): string {
-    const z = zoneAt(p.x, p.z, p.y);
-    return TOPOLOGY.zones.find((x) => x.id === z)?.name ?? '';
+    const z = zoneAt(this.def, p.x, p.z, p.y);
+    return this.topo.zones.find((x) => x.id === z)?.name ?? '';
   }
+
+  /** Stand point in front of a spot (used by tools and tests). */
+  front(s: Spot, d = 1): { x: number; y: number; z: number } { return frontOf(s, d); }
 }
 
 function isFull(w: { id: WeaponId; tier: number; reserve: number }): boolean {
