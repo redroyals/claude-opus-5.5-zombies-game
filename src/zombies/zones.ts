@@ -3,7 +3,7 @@
 import { trySpend, type SpendResult, type ZPlayer } from './rules';
 
 export interface ZoneDef { id: number; name: string }
-export interface DoorDef { id: string; cost: number; a: number; b: number; label: string; debris?: boolean }
+export interface DoorDef { id: string; cost: number; a: number; b: number; label: string; debris?: boolean; requiresPower?: boolean }
 export interface WindowDef { id: number; zone: number }
 export interface MapTopology { zones: ZoneDef[]; doors: DoorDef[]; windows: WindowDef[]; startZone: number }
 
@@ -54,10 +54,11 @@ export function canOpenDoor(t: MapTopology, s: ZoneState, id: string): boolean {
   return z.has(d.a) || z.has(d.b);
 }
 
-export function buyDoor(t: MapTopology, s: ZoneState, p: ZPlayer, id: string): SpendResult {
+export function buyDoor(t: MapTopology, s: ZoneState, p: ZPlayer, id: string, power = true): SpendResult {
   const d = t.doors.find((x) => x.id === id);
   if (!d) return { ok: false, reason: 'busy', price: 0 };
   if (s.opened.has(id)) return { ok: false, reason: 'owned', price: d.cost };
+  if (d.requiresPower && !power) return { ok: false, reason: 'power', price: d.cost };
   if (!canOpenDoor(t, s, id)) return { ok: false, reason: 'busy', price: d.cost };
   const r = trySpend(p, d.cost);
   if (r.ok) s.opened.add(id);

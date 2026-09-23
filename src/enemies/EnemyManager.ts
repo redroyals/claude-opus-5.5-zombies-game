@@ -8,7 +8,7 @@ import { Zombie } from './Zombie';
 import { BONE, ZombieModels } from './ZombieModel';
 import type { TextureLib } from '../render/textures';
 import type { CollisionWorld } from '../world/Collision';
-import type { NavGrid } from '../world/NavGrid';
+import type { FlowOut, NavGrid, NavLink } from '../world/NavGrid';
 import { models, findNode, type LoadedModel } from '../render/ModelRegistry';
 import { crawlerFromLegHit } from '../zombies/rules';
 import { TEAR_SECONDS } from '../zombies/zones';
@@ -50,7 +50,7 @@ export class EnemyManager {
   private hash = new Map<number, Zombie[]>();
   private seedCounter = 1;
   private time = 0;
-  private dir = { x: 0, z: 0 };
+  private dir: FlowOut = { x: 0, z: 0 };
   elite: Zombie | null = null;
   boss: Zombie | null = null;
   eliteAggro = false;
@@ -164,9 +164,10 @@ export class EnemyManager {
     list.push(z);
   }
 
-  spawn(type: ZombieType, region: RegionId, x: number, z: number, state: 'idle' | 'chase' = 'chase'): Zombie {
+  /** Spawn a zombie. `atY` picks the floor on multi-level maps (the highest floor at or below atY + 0.5). */
+  spawn(type: ZombieType, region: RegionId, x: number, z: number, state: 'idle' | 'chase' = 'chase', atY?: number): Zombie {
     const zb = this.acquire(type);
-    const y = this.level.world.groundHeight(x, z, 0.3, 3);
+    const y = this.level.world.groundHeight(x, z, 0.3, atY === undefined ? 3 : atY + 0.5);
     zb.spawn(type, region, x, z, y, this.seedCounter++ * 0.6180339 + Math.random());
     if (state === 'chase') zb.setState('chase');
     this.attachGlb(zb);
@@ -193,9 +194,9 @@ export class EnemyManager {
     const world = this.level.world;
     // Shared flow field toward the player, refreshed on a timer or when the player changes cell.
     this.flowT -= dt;
-    const cell = nav.cellOf(p.x, p.z);
+    const cell = nav.nodeAt(p.x, p.z, p.y);
     if (this.flowT <= 0 || (cell !== this.lastFlowCell && this.flowT < ENEMIES.flowFieldInterval * 0.5)) {
-      nav.computeFlow(p.x, p.z);
+      nav.computeFlow(p.x, p.z, p.y);
       this.lastFlowCell = cell;
       this.flowT = ENEMIES.flowFieldInterval;
     }
@@ -220,8 +221,11 @@ export class EnemyManager {
         }
         continue;
       }
+      if (z.riseT > 0) { z.riseT = Math.max(0, z.riseT - dt); z.vel.x = z.vel.z = 0; continue; } // clawing out of the ground
+      if (z.link >= 0) { this.stepLink(z, dt); continue; } // on a ladder / mid-drop
       this.think(z, dt, p);
       if (z.state === 'chase' || z.state === 'attack') alertCount++;
+      if (z.link >= 0) continue;
       if (z.entry >= 0 && z.entryPhase !== 'approach') continue; // positioned by the barricade logic
       this.moveZombie(z, dt, world);
     }
@@ -265,7 +269,7 @@ export class EnemyManager {
           const a = Math.random() * Math.PI * 2;
           z.wanderX = z.pos.x + Math.cos(a) * 4;
           z.wanderZ = z.pos.z + Math.sin(a) * 4;
-          if (!nav.isWalkable(z.wanderX, z.wanderZ) || Math.random() < 0.4) { z.wanderX = z.pos.x; z.wanderZ = z.pos.z; }
+          if (!nav.isWalkable(z.wanderX, z.wanderZ, z.pos.y) || Math.random() < 0.4) { z.wanderX = z.pos.x; z.wanderZ = z.pos.z; }
         }
         const wx = z.wanderX - z.pos.x, wz = z.wanderZ - z.pos.z;
         const wl = Math.hypot(wx, wz);
@@ -293,10 +297,15 @@ export class EnemyManager {
           break;
         }
         // Direct pursuit when there's a clear walkable line, otherwise follow the flow field.
-        if (dist < 28 && z.hasLOS && (dist < 3 || nav.walkLine(z.pos.x, z.pos.z, p.x, p.z))) {
+        const sameLevel = Math.abs(p.y - z.pos.y) < 1.2;
+        if (dist < 28 && z.hasLOS && sameLevel && (dist < 3 || nav.walkLine(z.pos.x, z.pos.z, p.x, p.z, z.pos.y))) {
           dirX = dx / (dist || 1); dirZ = dz / (dist || 1);
-        } else if (nav.flowDir(z.pos.x, z.pos.z, this.dir)) {
+        } else if (nav.flowDir(z.pos.x, z.pos.z, this.dir, z.pos.y)) {
           dirX = this.dir.x; dirZ = this.dir.z;
+          if ((this.dir.link ?? -1) >= 0 && z.grounded) {
+            const ends = nav.linkEnds(this.dir.link!);
+            if (ends && Math.hypot(ends.from.x - z.pos.x, ends.from.z - z.pos.z) < 0.7 && Math.abs(ends.from.y - z.pos.y) < 0.8) { this.beginLink(z, ends); break; }
+          }
         } else {
           dirX = dx / (dist || 1); dirZ = dz / (dist || 1);
         }
@@ -409,6 +418,54 @@ export class EnemyManager {
       z.vy = 0;
       z.setState('chase');
       z.lastX = z.pos.x; z.lastZ = z.pos.z;
+    }
+  }
+
+  /** Start traversing an authored nav link (ladder, drop, jump, vault). */
+  private beginLink(z: Zombie, ends: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number }; kind: NavLink['kind'] }): void {
+    const dy = ends.to.y - ends.from.y;
+    const h = Math.hypot(ends.to.x - ends.from.x, ends.to.z - ends.from.z);
+    const speed = z.type === 'fast' || z.type === 'runner' ? 1.5 : 1;
+    const dur = ends.kind === 'ladder' ? (Math.abs(dy) / 1.5 + 0.5) / speed
+      : ends.kind === 'drop' ? 0.35 + Math.sqrt(Math.max(0, -dy)) * 0.22 + h * 0.08
+      : (0.45 + h * 0.12) / speed;
+    z.link = 1;
+    z.linkKind = ends.kind;
+    z.linkT = 0;
+    z.linkDur = Math.max(0.25, dur);
+    z.linkFrom = { ...z.pos };
+    z.linkTo = { ...ends.to };
+    z.vel.x = z.vel.z = 0;
+    z.yaw = Math.atan2(ends.to.x - z.pos.x, ends.to.z - z.pos.z);
+  }
+
+  private stepLink(z: Zombie, dt: number): void {
+    z.linkT += dt;
+    const t = Math.min(1, z.linkT / z.linkDur);
+    const a = z.linkFrom, b = z.linkTo;
+    if (z.linkKind === 'ladder') {
+      // Climb vertically first, then step off onto the landing.
+      const up = b.y >= a.y;
+      const tv = up ? Math.min(1, t / 0.8) : Math.max(0, (t - 0.2) / 0.8);
+      const th = up ? Math.max(0, (t - 0.8) / 0.2) : Math.min(1, t / 0.2);
+      z.pos.y = a.y + (b.y - a.y) * tv;
+      z.pos.x = a.x + (b.x - a.x) * th;
+      z.pos.z = a.z + (b.z - a.z) * th;
+    } else {
+      // Ballistic-looking arc: drops fall, jumps and vaults hop.
+      z.pos.x = a.x + (b.x - a.x) * t;
+      z.pos.z = a.z + (b.z - a.z) * t;
+      const hop = z.linkKind === 'drop' ? 0.35 : z.linkKind === 'vault' ? 0.6 : 0.9;
+      const base = z.linkKind === 'drop' ? a.y + (b.y - a.y) * t * t : a.y + (b.y - a.y) * t;
+      z.pos.y = base + Math.sin(t * Math.PI) * hop;
+    }
+    if (t >= 1) {
+      z.link = -1;
+      z.pos.y = this.level.world.groundHeight(z.pos.x, z.pos.z, 0.3, b.y + 0.5);
+      z.vy = 0;
+      z.grounded = true;
+      z.lastX = z.pos.x; z.lastZ = z.pos.z;
+      z.stuckT = 0;
     }
   }
 
