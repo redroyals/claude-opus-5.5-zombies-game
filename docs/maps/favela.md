@@ -28,7 +28,7 @@ and are checked by `tests/maps/favela.test.ts`. North is **−Z and uphill**. `y
 | **Pacing.** Start tight, get bigger higher up, keep power far away, and put the Reforger somewhere that needs a trip after power. | Round 1 is fought in an 8 m street and a bar. The spaces widen with every tier. Power sits at the crest (T5). The Reforger is in the **bottom** cable-car station beside the pitch, so turning on the power sends you back down: ride the car (250) or run the escadaria. |
 | **The zombies share your map.** | Zombies break through **windows** (with planks you can repair), **climb** retaining walls from the slope below, and **drop** off roof edges above. Walls and roofs spawn zombies, not just windows. |
 | **A quest that uses the map's big toy.** | The easter egg restores a third cable line from the station to a **hidden peak** (§9). |
-| *Pushing past them* | Traversal verbs the classics never combined in one map: a **one-way zipline** across the ravine, a **tin-roof slide** from the laje to the street, **rooftop jumps** that only players can take, and a **cable car** that is transport, the power payoff and the quest all at once. |
+| *Pushing past them* | Traversal verbs the classics never combined in one map: a **one-way zipline** across the ravine, a **tin-roof slide** from the laje to the street, **raised roof slabs** players mantle while zombies vault, and a **cable car** that is transport, the power payoff and the quest all at once. |
 
 ---
 
@@ -87,7 +87,7 @@ Top-down schematic (north and uphill at the top; the SVG has the exact geometry)
           |E |  ravine (trees, pylon)     SAMBA HALL |S   T3: stage (BOX5), Quickhands, mural
           |S |   ~~~ cable car ~~~        (T3)     d8|T   station stair up the east side
    z -22  |C +==stands walkway==d6=bridge=+---d7---+ |A
-          |A |  STANDS  (BOX4, Bulwark)   | BIG LAJE (T3)   water tower, BOX3, rooftop jumps
+          |A |  STANDS  (BOX4, Bulwark)   | BIG LAJE (T3)   water tower, BOX3, roof slabs
     z -8  +d9+----------------------------+  climb up the east parapet, drops off the hall roof
           | QUADRA (T2) pitch + floodlights| zipline lands here     tin-roof slide starts SE
           | REFORGER in the bottom station |         +-----d5 hatch-----+
@@ -129,7 +129,7 @@ ride sits close enough to a door to steal its E prompt. The test also checks thi
 | 0 | **BOTTOM STREET** (+ Lanchonete) | T0 | An 8 m street and a snack bar. Tight start. | start |
 | 1 | **STAIR ALLEY** (beco) | T0→T2 | A 2.4 m stair alley with a landing at T1. The purest chokepoint. | d1 750 |
 | 2 | **STACKED HOUSES** | T0→T2 | Three rows of rooms up the slope, joined by inside stairs. You fight room to room. | d2 750 / d3 1000 |
-| 3 | **BIG LAJE** | T3 | 36 × 30 m of rooftop slabs, water tower, tanks, dishes and washing. Rooftop jumps. | d5 1250 / d6 1000 |
+| 3 | **BIG LAJE** | T3 | 36 × 30 m of rooftop slabs, water tower, tanks, dishes and washing. Raised roof slabs to mantle. | d5 1250 / d6 1000 |
 | 4 | **THE QUADRA** | T2→T3 | Five-a-side pitch, stands, bottom cable-car station (Reforger) | d4 1250 |
 | 5 | **SAMBA HALL** | T3→T4 | A big rehearsal hall with a stage and a mural wall | d7 1500 |
 | 6 | **CABLE-CAR STATION** | T3→T5 | The station stair (a chokepoint) and the top station | d8 1500 |
@@ -192,7 +192,7 @@ a reachable side):
 - **After power:** the pitch floodlights slam on, one mast at a time, and the laje festoon lights run in a chase.
   Neon comes on in the samba hall (magenta and cyan abstract shapes) and on the bar front. The cars and the station
   light up, and the Reforger's graffiti glows under UV.
-- Light budget: ≤ 12 real shadowless point lights, placed near the player per zone. The rest is emissive
+- Light budget: exactly 12 real shadowless point lights (the MAP_API guideline, asserted by a test). The rest is emissive
   sprites and light-pool decals, the same as the existing maps.
 
 ---
@@ -273,12 +273,61 @@ station structure instead of box and canopy, and a Meshy mural relief for the sa
   (movement-only colliders above every parapet and across climb gaps).
 - **Update**: animates the cabins from the ride state, festoons chasing after power, neon flicker, sodium buzz
   and the floodlight heads.
-- **Additive API extensions** (documented in `docs/MAP_API.md`): `machines` (per-map machine GLBs and perk
-  footprints), `rides` (+ `src/zombies/rides.ts`), `BoxDef.mat: null` (invisible colliders), `EggReward.weapon`,
-  `RideDef.requiresEggStep`, and `ride`/`egg` passed to the map update hook.
+- **API extensions.** zcore upstreamed the shared ones as its canonical API: `machines` (per-map machine GLBs
+  and perk footprints), `BoxDef.mat: null` (invisible colliders) and `EggReward.weapon`. Favela adds three more
+  on top, all additive and documented in `docs/MAP_API.md`:
+  - `rides` (`src/zombies/rides.ts`, plus a player pin in `Game.ts`);
+  - `PropDef.lod` (THREE.LOD with generated `<id>.lod1.glb` twins);
+  - `ride` / `eggStep` in the map update context.
 - **Tests**: `tests/maps-favela.test.ts` covers the validator, the 2-edge-connected door graph, tiers, the power
   cost, Reforger placement, box floors, spawn kinds, doors that must not be shadowed by other prompts, ride
   clearance against compiled colliders and the egg gating. `tests/zombies-rides.test.ts` covers the pure ride logic.
 - **Play-through**: `e2e/favela-play.mjs` (headless, real E presses): rounds, all 11 doors in order, pre/post-power
   zone shots, power, perks, Cache, cable car, Reforger, zipline, slide and the full egg. `e2e/favela-look.mjs` is a
   quick camera tour.
+
+## 12. Verification and known issues
+
+**Headless play-through** (`BASE=http://127.0.0.1:5183 node e2e/favela-play.mjs /tmp/favela-shots`, on the
+no-reload dev server `vite --config e2e/vite.noreload.config.mjs`). Every check passes:
+
+- spawn in the bottom street;
+- zombies climb from the yard (y 0) into the street and drop off the roof ledge (y 10). The director also picks
+  both kinds on its own;
+- a full round cleared in the street;
+- all **11 doors bought with E** in unlock order from the correct side;
+- the power switch;
+- all **4 perks**;
+- the **Cache** (a weapon handed over);
+- the **cable car** carries the player down to the bottom station;
+- the **Reforger** upgrades the held gun (tier 0 → 1);
+- the **zipline** and the **tin-roof slide** both land at their ends;
+- the **easter egg**: 3 grips, refit, 24 kills holding the station, the peak line to the summit, and the Arc
+  Projector handed over.
+
+Screenshots of every zone before and after power: `/tmp/favela-shots/{pre,post}-*.png`. Also captured: the climbing and
+dropping zombies, the rides, the Reforger, the hold and the peak view.
+
+**Frame stats** (headless swiftshader, so software rendering: the ms figures are not representative). Draw calls
+and triangles are the numbers to watch:
+
+| Where | Draw calls | Triangles |
+|---|---|---|
+| Street fight (round 1–2) | ~270 | ~355k |
+| Zone tour, before / after power | ~250 | ~320–380k |
+| Summit view over the whole map with zombies about | ~380 | ~470k |
+
+**Known issues**
+- Worst-case views (the summit, the laje looking down the hill) run over the DESIGN budget of ~150 calls and
+  ~300k triangles. The hillside is mostly merged and instanced; the remaining cost is the per-object runtime (window
+  planks, door kits, props that cast shadows). zcore's perf pass lowered the shared parts. Run
+  `e2e/zombies-perf.mjs` on a real GPU before tuning further.
+- The spawn director prices a spawn point by its own height (height difference counts 3× as distance), so climb
+  yards and roof ledges read as "far" even though they deliver onto the player's floor. The def compensates with
+  weights of 2.5–4. A `deliversTo` height on `SpawnPointDef` would be the clean fix.
+- In one early run, a window zombie was seen outside the west street window's walled pocket and fell to the
+  ground. Pockets are built by the shared compiler. It was not reproduced.
+- The peak pedestal is reachable only by ride, so the validator emits one expected `egg-unreachable` warning.
+- Co-op is untested (the modes are single-player until M3). Rides pin only the local player.
+- Door signs use the game's standard English "SEALED / DEBRIS" plates. Everything map-specific (murals, machines,
+  neon, kites, laundry) carries no text.
