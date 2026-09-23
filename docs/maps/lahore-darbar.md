@@ -368,3 +368,40 @@ E2E:
 - `e2e/lahore-play.mjs` buys every door by walking up to it, then checks perks with and without power, the naqqara power,
   box spin and take, the forge upgrade, egg steps 1–2, and fights a few rounds.
 - `e2e/lahore-tour.mjs` screenshots every zone before and after power.
+
+## 12. Verification and known issues
+
+Verified headless with SwiftShader Chromium:
+- `e2e/lahore-play.mjs` passes these checks:
+  - round 1 spawns in the Hazuri Bagh;
+  - all 18 doors are bought by walking up to them and pressing E, in a player's order across both halves;
+  - Lifeline can be bought without power, and the Pack-a-Punch is refused before power;
+  - the naqqara turns the power on;
+  - Quickhands, Bulwark and Hammerfall can then be bought;
+  - the casket box spins and its weapon can be taken;
+  - the forge reforges the held weapon;
+  - egg steps 1 (mirrors) and 2 (keys) complete;
+  - a fight on the Diwan-e-Aam quad produces kills.
+- `e2e/lahore-rounds.mjs` runs rounds 1→9 with all doors open while the player moves between the court, the lanes, the roofs,
+  the tehkhana, the Top Khana, the Shah Burj, the Naqqar Khana, the Diwan-e-Aam and the Sheesh Mahal. The special round (5)
+  and the boss round (8) both happen, and there are no page errors.
+- `e2e/lahore-tour.mjs` screenshots every zone before and after power.
+
+Known issues / follow-ups:
+- **Draw calls.** Worst case is about 330–600 in wide views, against DESIGN's ~150 target. The biggest shares are:
+  - the engine's barricade planks, which are 6 separate meshes × 38 windows;
+  - the per-cell InstancedMeshes for kit dressing (distance-culled at 105 m);
+  - the shadow pass, where only big silhouettes cast.
+  Instancing the planks in the engine would be the next win.
+- **Hammerfall footprint.** The engine's Hammerfall collider (1.9 m, sized for the Nightfall machine) is bigger than the slim Lahore
+  cabinet it now wears. Per-model perk footprints would fix it.
+- **Meshy prop quality.** A few props read loosely:
+  - the "naqqara" came out as dhol-style barrels rather than kettle drums;
+  - the pedestal is Greco-Roman;
+  - the torch bracket is a wall lantern;
+  - the charpai is a carved takht.
+  Re-rolling them costs about 30 credits each, and 1,050 credits of the 1,800 cap remain.
+- **Easter egg kill steps.** The kill steps (Naqqar Khana 24, Toshakhana 30) are covered by the unit tests and by the step
+  machine. The headless run completes only steps 1–2, because the kill steps need a long real fight.
+- **Tuning left to playtests.** The kites, the post-power diya rows and the drum-march audio are procedural and have not
+  been tuned in a real (non-SwiftShader) playtest. Nor has light balance on real GPUs, where tone mapping differs from SwiftShader.
