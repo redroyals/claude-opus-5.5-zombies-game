@@ -241,16 +241,21 @@ rooftops). The power is about 5 doors deep along either route.
 
 - **The Cache (mystery box)** is re-skinned as a gilded treasure casket (`lahore/box_casket.glb`). It has 5 spots: the baradari (start), the Diwan-e-Aam
   hall, the Toshakhana vault, the chowk and the Kothay roof.
-- **Perks** keep their gameplay colours and readable glowing signboards. Each is dressed as an 1830s sharbat
-  dispenser cabinet (brass urn, coloured glass bottles):
-  - **Lifeline** (Bagh): blue
-  - **Quickhands** (Diwan-e-Aam): green
-  - **Bulwark** (Wazir haveli): red
-  - **Hammerfall** (Sheesh Mahal): amber
+- **Perks** keep their gameplay colours and readable signboards. Each is an 1830s **sharbat fountain cabinet**: carved red
+  sandstone and brass, a glass flask in a cusped arched niche, a brass spigot and basin, a small gilded dome
+  (`lahore/la_perk_*.glb`, Meshy). `scripts/lahore-perk-glow.mjs` derives an emissive texture from each model's base
+  colour (only texels near the perk's hue, i.e. the flask), so the engine's power-driven emissive lights the flask and
+  nothing else. Footprints are set to the slim cabinets (`foot: [0.75, 0.6]`), which fixes the old oversized Hammerfall collider.
+  - **Lifeline** (Bagh): blue · **Quickhands** (Diwan-e-Aam): green · **Bulwark** (Wazir haveli): red · **Hammerfall** (Sheesh Mahal): amber
+  - Skins for the pacing layer's extra perks, workbench, cauldron parts and fire pit are exported as paths only in
+    `src/zombies/maps/lahore/models.ts` (Nova violet, Strider yellow, Hawkeye steel blue, the armourer's bench, a bronze
+    bowl, leather bellows, a jar of naft, a stone fire-pit trough with a valve wheel).
 - **Pack-a-Punch = the Armourer's Forge** (Silah Khana): a brick furnace, bellows and an anvil. It runs on the
   generic Reforger logic.
-- **Power = the great naqqara drums** in the Naqqar Khana drum pavilion. Striking them sounds a deep double boom across the map.
-- **Wall-buys** are chalk-on-plaster outlines. There are 12 across the two halves.
+- **Power = the naqqara**: a pair of hammered-copper kettle drums with laced leather heads on ring stands, on a low
+  cloth-dressed takht (`lahore/kit_naqqara2.glb`, Blender; the earlier Meshy drums read as dhol barrels). Striking
+  them sounds a deep double boom across the map.
+- **Wall-buys** are chalk-on-plaster outlines. There are 12 across the two halves. Dressing keeps clear of them.
 
 ## 7. Easter egg — "The Mountain of Light" (both halves)
 
@@ -270,15 +275,21 @@ has one.
 
 ## 8. Lighting and atmosphere
 
-- **Pre-power:** a deep dusk sky (indigo above an ember horizon) and thinner fog than Nightfall, so the landmarks read.
-  Light comes from torches (mashaal) and a few oil lamps, flickering and warm. There are cold rim lights in the basements.
+- **Pre-power:** a deep dusk sky (indigo above an ember horizon), warm low sun from the west, thinner fog than
+  Nightfall. The engine's blue-hour hemisphere light is turned down (`lighting.hemi` 0.55) and the map adds its own
+  warm hemisphere + ambient fill (ember sky, lime-washed ground). Light comes from wall torches (mashaal: iron bracket,
+  brass cup, flame sprite) and oil lanterns, flickering and warm.
 - **Post-power:**
   - the chandeliers light up;
-  - rows of diya lamps along the parapets and galleries glow (instanced emissive sprites, cheap);
-  - the Sheesh Mahal mirror material switches to a high-emissive glitter;
+  - rows of diya lamps along the parapets and galleries glow (instanced flame + glow sprites, cheap);
+  - the Sheesh Mahal mirror chips glow warm (emissive only on the chips, capped at 0.7);
   - the drum pavilion lanterns light;
   - the hemisphere light lifts a little.
-- Real point lights are budgeted to a small pool, and the emissive glow and sprites do most of the work.
+- **No white-out:** all albedos are kept below ~0.72 linear (marble ~0.62), lamps are physical intensities with decay
+  2 (torch 7 cd, lantern 4.5-6, chandelier 9), glow sprites are small, and the mirror mosaic is a gold-ground,
+  half-metal material instead of a white emissive one. Lit stone stays under the bloom threshold (0.88), so the
+  Sheesh Mahal and the pavilions no longer bloom to white after the power.
+- Real point lights are a pool of eight that follows the player; the glow and flame sprites do most of the work.
 
 ## 9. Audio
 
@@ -291,27 +302,34 @@ Procedural WebAudio in the game's style:
 
 ## 10. Assets
 
-- **Blender** (`tools/blender/lahore_kit.py`): the modular architecture, all grid-snapped and UV'd in world
-  metres. Pieces:
-  - cusped (multifoil) arch bays and arcades
-  - baradari and Diwan-e-Aam columns
-  - chhatris and onion domes, a bangla roof, jharokha balconies, jaali screens
-  - kangura merlon parapets, stair nosings, a carved door frame, haveli shutters and balconies, the octagonal burj
-  - a stepped cistern, a fountain tank, a ladder and a kite
-- **Meshy** (cap 1,800 credits, log in `assets/LOG.md`): the hero props:
-  - the throne dais (original design) and a crystal chandelier
-  - an oil lamp stand and a torch bracket
-  - the gun carriage and cannonball pyramid
-  - two armour stands and two treasure chests
-  - the Koh-i-Noor pedestal
-  - the casket box, four themed perk cabinets and the armourer's forge
-  - the naqqara drums
-  - the pipal tree, charpai, matka pots, a well, a carved haveli door and a palki
-- **Reused from sikhi.io** (copied, metallic fixed): brass-vase, hanging-lantern, area-rug, sikh-cannon (field gun), kohinoor-gem
-  (used as a jewelled armlet in the treasury), flag-ranjit-singh (rampart poles only).
-  - Not used: flag-khalsa (religious), burj-tower (it is a pole, not a tower), lotus-blossom (1.4 MB, reads black) and candle-holder.
-- **Budget:** at most 40 MB total for the map. It is loaded progressively: the shell geometry is procedural (it costs nothing
-  to download), then the props stream in by zone distance.
+- **Blender** (`tools/blender/lahore_kit.py`), no image textures, named material slots re-textured at runtime, box-projected
+  world UVs (1 UV = 2 m):
+  - v1: arch bays, burj, bangla/baradari roofs, jharokha, fountain, cistern, ladder, kite, mirror medallion, rails, wooden
+    pillar and balcony, carved door frame;
+  - **v2 (art pass 2)**: engaged pilaster (vase base, fluted shaft, bell capital with lotus leaves), blind cusped-arch
+    niche panel (alfiz frame, inlay border, spandrel roundels, dado), chhajja bracket, kangura merlon, court column
+    (kumbha base, 16-sided shaft, bell capital, radiating brackets), cusped arch span with inlay and roundels, ribbed-dome
+    chhatri, arched haveli window (wooden fretwork, panelled shutters, hood), oriel jharokha (brackets, jaali base,
+    bangla hood), gilded Sheesh Mahal ceiling coffer, jewel pedestal (octagonal, pietra-dura panels, cushion), mashaal
+    torch holder, and the naqqara kettle drums (real colours: it is a machine skin).
+- **Meshy** (art pass 1: 25 props, 750 credits; art pass 2: 33 generations, 990 credits, ids `la_*`, ledger in
+  `assets/gen-state.json`, log in `assets/LOG.md`): the sharbat perk cabinets, a divan with bolsters, a low chowki table
+  with a brass tray, brass vessels, a Mughal pierced lantern, a clipped orange tree in a planter, a fruit cart, a
+  pottery stall, a cloth stall, grain sacks, a copper degh, a charpai-style cot, a rooftop pigeon loft, a pigeon, and the
+  pacing-layer skins (§6). Rejected and not shipped: a second naqqara (still barrels), a pedestal with script-like
+  glyphs, a facade bay (muddy), a shredded cloth stall, a multi-cup lamp stand (reads as a temple lamp), a mashaal
+  (replaced by the Blender one), two perk re-rolls with unlit flasks.
+- **Props atlas** (`scripts/lahore-atlas.mjs` -> `lahore/props_atlas.glb`, 5.7 MB): every static prop (30, Meshy + reused
+  sikhi.io models) in one GLB sharing **one material** (4096 px colour / metal-rough / normal atlas, per-prop PBR factors
+  baked in, meshopt-simplified to per-prop triangle budgets). Sources live in `public/models/lahore/src/` and are never
+  loaded by the game.
+- **Procedural (TS, zero download):** the texture-array surface set (22 tileable PBR layers), fresco panels, textiles
+  (awnings, laundry, carpets), foliage cards, jaali alpha, and all mouldings (plinths, string courses, cornices,
+  chhajjas, copings).
+- **Reused from sikhi.io:** brass-vase, hanging-lantern, sikh-cannon (field gun), kohinoor-gem, flag-ranjit-singh (rampart poles
+  and high walls only). Not used: flag-khalsa (religious), burj-tower, lotus-blossom, candle-holder.
+- **Download:** ~11.4 MB for everything the map references (kit ~0.8 MB, props atlas 5.7 MB, machines ~4.5 MB incl. the
+  pacing skins), streamed after the map is built.
 
 ## 11. Implementation (as built)
 
@@ -325,20 +343,32 @@ Procedural WebAudio in the game's style:
 | Plan | `src/zombies/maps/lahore/plan.ts` | SVG generator. |
 | Audio | `src/audio/Audio.ts` (`setMapAmbience('lahore')`) | A tanpura-like drone (Sa, Pa, Sa′ with slow beating and a jawari filter sweep), dusk bird chirps, and distant naqqara pairs every 20–40 s. Once the power is on: a triple drum strike, a brighter drone, and a slow processional naqqara march. |
 
-What `decorate.ts` does:
-- **Instanced kit placement.** Placements are grouped per model, material remap and 40 m cell, one InstancedMesh per primitive, then
-  distance-culled at 105 m.
-- **Facade dressing from the raster's face runs.** Fort courts get blind cusped arcades. Haveli lanes get shuttered windows,
-  carved balconies and lanterns.
-- **Set pieces** placed by hand:
-  - the baradari, the 40-pillared hall and the jharokha
-  - the Naulakha bangla roof, the Diwan-e-Khas and the Sheesh Mahal mirror panels
-  - the ramparts, merlons, burj and state standards
-  - the drum pavilion chhatri, the chowk, the kite terraces and kites, the tehkhana cistern
-- **Pooled light rig.** Hundreds of lamp anchors (torches, lanterns, chandeliers, diyas, forge, mirror glints) get additive glow
-  points. Eight real point lights are re-assigned to the nearest active anchors every 0.25 s.
-- **Procedural pipal.** The Meshy tree was dark and spiky, so it was replaced.
-- **Dusk skyline and setting-sun glow.**
+What the dressing does (art pass 2):
+- **`facades.ts`** finds every exposed vertical face of the raster's mass (per 1 m grid edge, minus the mass beside
+  it, merged into runs), classifies it by surface and by what stands in front (court, lane, covered hall, stair, or the
+  skyline) and dresses it:
+  - fort (sandstone, brick, marble, dark stone): moulded plinth, pilasters, blind cusped niches, string courses,
+    cornice, a chhajja on carved brackets and kangura merlons on open roof edges;
+  - haveli (lime plaster): brick plinth, arched shuttered windows, jharokhas and wooden balconies on the upper storey,
+    fresco bands, a wooden hood per storey, a plaster parapet with crenels;
+  - Sheesh Mahal: mirror-mosaic niches between white marble pilasters under a coffered gilded ceiling.
+  Zone walls get the same treatment on both sides; parapets get copings and merlons; rails and low edges become
+  collider-only boxes in `def.ts` and are dressed with carved marble or wooden balustrades; jaali runs become
+  alpha-tested pierced screens. Doors, windows (and their spawn pockets), wall-buy chalk, machines and the pacing
+  layer's machines and pickups are kept clear (`busy`, `EXTRA_KEEPOUT`).
+- **`decorate.ts`**: the set pieces (baradari, 40-pillared hall, royal jharokha, Shah Burj pavilions, Sheesh Mahal,
+  ramparts, armoury, haveli courts), carpets, trees (cypress, chinar and the Wazir's great tree from alpha leaf cards),
+  lane life (awnings, laundry lines, lantern strings, stalls, pigeons and wheeling flocks, pigeon lofts, kites), the
+  pooled light rig, the warm fill lights and the dusk skyline with distant lit windows.
+- **`materials.ts`**: all tiling surfaces are layers of three texture arrays (albedo, rough/metal/emit, normal) behind
+  **one** shader (`lh:arch`, a patched MeshStandardMaterial with a per-vertex `layer`); `surf[k]` are fixed-layer
+  clones for the engine's own walls and floors. UV atlases: fresco, textile, foliage, jaali.
+- **`kit.ts` + `merge.ts`**: every static placement and procedural piece is baked into world space and merged per
+  material / detail tier / cell (near tier 24 m cells hidden beyond ~60 m, far tier 48 m cells). The engine's own
+  batched walls, masses, floors and stairs are folded into the same cells once the models have loaded. Colour meshes
+  never cast shadows: casters are merged (positions only) into one depth-only proxy per 48 m cell, hidden from the
+  colour pass (revealed just before the shadow pass by a LOD-typed trigger, hidden again in the map update).
+- Draw calls in the tour views: **85-188 (was 135-407)**; frame time on the GB10 unchanged (see §12).
 
 Engine additions (generic, on this branch):
 - `MatSpec.custom` plus `ZombiesMapEntry.materials()`: a bespoke material library per map.
@@ -387,20 +417,21 @@ Verified headless with SwiftShader Chromium:
   and the boss round (8) both happen, and there are no page errors.
 - `e2e/lahore-tour.mjs` screenshots every zone before and after power.
 
+Art pass 2 (branch `lahore-art`), verified on the real GPU (headless Chromium, ANGLE GL-EGL on the NVIDIA GB10):
+- `scripts/lahore-art-tour.mjs` screenshots 26 views pre/post power and records draw calls; `scripts/lahore-drawcalls.mjs`
+  breaks one view down by object/pass/triangles. Tour draw calls: max **188** (was 407), wide rampart-tower view
+  **158-167** (was 406-407).
+- `e2e/zombies-perf.mjs` (MAP=lahore-darbar GPU=1, 24 zombies, 5 rooms): mean **7.8 ms (~129 fps)**, 97-122 draws,
+  1.2-1.4 M triangles; the pre-pass build measured 7.8 ms, 180-228 draws, 0.25-0.4 M triangles.
+- `e2e/lahore-play.mjs` passes unchanged (doors, perks, naqqara power, box, forge, egg steps 1-2, fight).
+
 Known issues / follow-ups:
-- **Draw calls.** Worst case is about 330–600 in wide views, against DESIGN's ~150 target. The biggest shares are:
-  - the engine's barricade planks, which are 6 separate meshes × 38 windows;
-  - the per-cell InstancedMeshes for kit dressing (distance-culled at 105 m);
-  - the shadow pass, where only big silhouettes cast.
-  Instancing the planks in the engine would be the next win.
-- **Hammerfall footprint.** The engine's Hammerfall collider (1.9 m, sized for the Nightfall machine) is bigger than the slim Lahore
-  cabinet it now wears. Per-model perk footprints would fix it.
-- **Meshy prop quality.** A few props read loosely:
-  - the "naqqara" came out as dhol-style barrels rather than kettle drums;
-  - the pedestal is Greco-Roman;
-  - the torch bracket is a wall lantern;
-  - the charpai is a carved takht.
-  Re-rolling them costs about 30 credits each, and 1,050 credits of the 1,800 cap remain.
+- **Triangles.** The dressing roughly triples the triangle count (merged chunks have no occlusion culling, so a
+  basement still draws the court above it). Frame time is unchanged on the GB10; lower-end GPUs would want per-zone
+  visibility (hide cells of other zones' levels) or real LOD meshes for the far tier.
+- **Engine draws** not owned by the map remain: chalk wall-buys (1 per buy), perk cones/signs, machine fallbacks.
+- **Strider skin.** Its flask came back pale (a re-roll was worse); it relies on the engine's yellow sign and cone.
+- **Meshy detail.** The decimated stalls and the bellows part read loosely up close; the charpai is a framed cot.
 - **Easter egg kill steps.** The kill steps (Naqqar Khana 24, Toshakhana 30) are covered by the unit tests and by the step
   machine. The headless run completes only steps 1–2, because the kill steps need a long real fight.
 - **Tuning left to playtests.** The kites, the post-power diya rows and the drum-march audio are procedural and have not
