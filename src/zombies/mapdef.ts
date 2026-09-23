@@ -138,6 +138,8 @@ export interface PropDef {
   collider?: { w: number; d: number; h: number; collide?: Collide; surface?: Surface };
   /** Procedural stand-in shown until (or if never) the model loads. Default: a box of the collider size. */
   fallback?: MatRef | false;
+  /** Low-detail model shown beyond `distance` metres (same transform, fit and scale). */
+  lod?: { model: string; distance: number };
 }
 
 export interface SignDef { lines: string[]; x: number; y: number; z: number; ry: number; w?: number; h?: number; bg?: string; fg?: string; border?: string }

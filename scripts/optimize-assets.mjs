@@ -111,6 +111,7 @@ async function one(a) {
   const bargs = ['-b', '--factory-startup', '-P', path.join(ROOT, 'tools/blender/postprocess.py'), '--', '--in', src, '--out', wGlb, '--cat', PPCAT[a.cat] ?? a.cat, '--size', String(a.size), '--tris', String(tris), '--frame', wFrame, '--name', a.id];
   if (a.cls && a.cls !== 'wonder') bargs.push('--cls', a.cls);
   if (BULLPUP.has(a.id)) bargs.push('--bullpup', '1');
+  if (a.lod) bargs.push('--lod1', wLod); // LOD1 = a quarter of the triangles, written as <id>.lod1.glb
   if (ov.grip !== undefined) bargs.push('--grip', String(ov.grip));
   if (ov.flip) bargs.push('--flip', '1');
   
@@ -119,7 +120,7 @@ async function one(a) {
   const frame = JSON.parse(fs.readFileSync(wFrame, 'utf8'));
   const texSize = await compress(wGlb, out, maxBytes, tex);
   if (a.scrub) execFileSync(process.execPath, [path.join(ROOT, 'scripts/scrub-text.mjs'), out, '--radius', String(a.scrub)], { stdio: 'pipe' });
-  if (fs.existsSync(wLod)) await compress(wLod, out.replace(/\.glb$/, '.lod1.glb'), maxBytes / 3, Math.min(512, texSize));
+  if (a.lod && fs.existsSync(wLod)) await compress(wLod, out.replace(/\.glb$/, '.lod1.glb'), maxBytes / 3, Math.min(512, texSize));
   if (a.cat === 'weapons') frames.weapons[a.id] = frame;
   if (a.cat === 'attachments') (frames.attachments ??= {})[a.id] = frame;
   return { id: a.id, tris: frame.tris, kb: Math.round(fs.statSync(out).size / 1024), tex: texSize, confidence: frame.confidence, gripRule: frame.gripRule };
