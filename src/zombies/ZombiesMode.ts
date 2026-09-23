@@ -12,10 +12,17 @@ import type { Materials } from '../render/materials';
 import type { Vitals } from '../player/Vitals';
 import { WEAPON_MODS, applyUpgrade, createWeapon, effectiveStats, refillAmmo } from '../weapons/WeaponState';
 import {
-  SPRINTER_SPEED_MULT, BOX_PRICE, PAP_SECONDS, PERKS, WALL_BUYS, awardHit, awardKill, bossHpForRound, boxReel, createBox, createRoundState, createZPlayer,
-  papName, papPrice, perkMods, pickZombieType, pullBox, roundBonus, stepBox, stepRounds, takeBoxOffer, tryBuyPerk, tryPap, trySpend, wallBuyPrice,
-  wonderBonus, type BoxState, type PerkId, type RoundState, type SpendResult, type WallBuyKey, type ZPlayer,
+  SPRINTER_SPEED_MULT, BOX_PRICE, ELEMENT_FX, PAP_CAMOS, PAP_ELEMENT, PAP_SECONDS, PERKS, POINTS, WALL_BUYS, addPerkSlots, awardHit, awardKill,
+  bossHpForRound, boxReel, createBox, createRoundState, createZPlayer, grantPerk, makeSchedule, papName, papPrice, perkMods, pickZombieType, pullBox,
+  revealBox, rollElement, roundBonus, stepBox, stepRounds, takeBoxOffer, tryBuyPerk, tryPap, trySpend, wallBuyPrice, wonderBonus,
+  type BoxState, type Element, type PerkId, type PerkMods, type RoundState, type SpendResult, type WallBuyKey, type ZPlayer,
 } from './rules';
+import { pickRevealSpot, revealDue } from './progression';
+import {
+  benchBlock, build, createBuildState, pickPart, shieldAbsorb, shieldBlock, shieldLost, stepBuild, takeShield, type BuildState,
+} from './buildables';
+import { TRAP_DEFAULTS, TRAP_ELITE_FRAC, TRAP_PLAYER_DPS, activateTrap, createTrapState, inTrap, stepTrap, trapBlock, type TrapState } from './traps';
+import { NOVA, muleRotate, novaDamage } from './perkfx';
 import {
   PLANKS, REPAIR_SECONDS, activeWindows, buyDoor, canOpenDoor, createZoneState, onRoundStartZones, rebuildAll, repairPlank,
   tearPlank, unlockedZones, type MapTopology, type ZoneState,
@@ -23,13 +30,15 @@ import {
 import {
   POWERUP, POWERUP_INFO, activate, createPowerUps, isActive, onRoundStart, pointsMult, rollDrop, stepPowerUps, type PowerUpKind, type PowerUpState,
 } from './powerups';
-import { PERK_ORDER, frontOf, perkEntries, topologyOf, zoneAt, type RideDef, type Spot, type ZombiesMapDef } from './mapdef';
+import { PERK_ORDER, allEggs, frontOf, perkEntries, topologyOf, zoneAt, zoneName, type EggDef, type RideDef, type Spot, type ZombiesMapDef } from './mapdef';
 import { rideBlock, ridePosition, type RideCtx } from './rides';
 import { DOWN, beginDown, downStatus, hitWhileDown, lastStandPick, stepDown, type DownState } from './down';
 import { createEggRun, currentStep, eggCollect, eggInteract, eggKill, pendingObjects, stepProgress, type EggEvent, type EggRun } from './egg';
 import { getMap, type ZombiesMapEntry } from './maps';
 import { ZombiesMap } from './ZombiesMap';
 import { CacheView, PerkViews, PowerSwitchView, ReforgerView, buildChalk, buildPickup, updatePickup, type PickupView } from './Machines';
+import { BuildViews, TrapViews } from './Contraptions';
+import type { WeaponState } from '../weapons/WeaponState';
 import type { ZRunStats } from './summary';
 
 type P3 = { x: number; y: number; z: number };
@@ -41,8 +50,11 @@ export type ZInteraction =
   | { kind: 'power' }
   | { kind: 'door'; id: string }
   | { kind: 'window'; w: number }
-  | { kind: 'relic'; i: number }
-  | { kind: 'ride'; id: string };
+  | { kind: 'relic'; i: number; egg?: number }
+  | { kind: 'ride'; id: string }
+  | { kind: 'part'; b: number; i: number }
+  | { kind: 'bench'; b: number }
+  | { kind: 'trap'; t: number };
 
 /** Everything built for one map (cached so switching maps back and forth is instant). */
 interface BuiltMap {
@@ -52,6 +64,8 @@ interface BuiltMap {
   reforger: ReforgerView | null;
   perks: PerkViews;
   powerSwitch: PowerSwitchView | null;
+  builds: BuildViews;
+  traps: TrapViews;
 }
 
 export interface ZHost {
@@ -63,9 +77,18 @@ export interface ZHost {
   syncWeapons: () => void;
   toast: (t: string, kind?: '' | 'big' | 'good' | 'bad', small?: string, dur?: number) => void;
   sound: (k: 'buy' | 'deny' | 'upgrade' | 'alert' | 'complete' | 'loot' | 'radio') => void;
+  /** Blast at a point that hurts zombies only (Nova's slide). */
+  blast?: (x: number, y: number, z: number, dmg: number, radius: number) => void;
+  /** Damage the player (traps); `x/z` is where it comes from. */
+  hurt?: (dmg: number, x: number, z: number) => void;
 }
 
-const REASON: Record<string, string> = { funds: 'NOT ENOUGH POINTS', owned: 'ALREADY OWNED', max: 'MAXED', limit: 'PERK LIMIT (4)', busy: 'NOT YET', power: 'REQUIRES POWER' };
+const REASON: Record<string, string> = { funds: 'NOT ENOUGH POINTS', owned: 'ALREADY OWNED', max: 'MAXED', limit: 'PERK LIMIT', busy: 'NOT YET', power: 'REQUIRES POWER' };
+
+/** Player stats the perks scale (captured once so leaving Zombies restores them). */
+const BASE_PLAYER = { sprintSpeed: PLAYER.sprintSpeed, staminaDrain: PLAYER.staminaDrain };
+/** A burning zombie (fire rounds). */
+interface Burn { z: Zombie; t: number; dps: number; tick: number }
 
 interface Vortex { x: number; y: number; z: number; t: number; radius: number; dmg: number; mesh: THREE.Group }
 
@@ -79,7 +102,27 @@ export class ZombiesMode {
   box: BoxState = createBox(0);
   zones!: ZoneState;
   pu: PowerUpState = createPowerUps();
+  /** Main quest run (alias of eggRuns[0] when the map has a main egg). */
   egg!: EggRun;
+  /** Every egg run: the main quest first (if any), then the side eggs (same order as allEggs(def)). */
+  eggRuns: EggRun[] = [];
+  eggDefs: EggDef[] = [];
+  builds: BuildState[] = [];
+  traps: TrapState[] = [];
+  /** Hit points of the shield on your back (0 = none) and which buildable it came from. */
+  shieldHp = 0;
+  shieldMax = 0;
+  private shieldFrom = -1;
+  /** Packmule: the third weapon. */
+  mule: WeaponState | null = null;
+  /** Perk effects currently applied. */
+  mods: PerkMods = perkMods([]);
+  private burns: Burn[] = [];
+  private novaCd = 0;
+  private trapKilling = false;
+  private trapTick = 0;
+  /** Seconds the reveal flare still shows (HUD hint). */
+  revealT = 0;
   power = false;
   /** Lights-out round in progress. */
   blackout = false;
@@ -136,7 +179,11 @@ export class ZombiesMode {
       const powerSwitch = def.power ? new PowerSwitchView(def.power, mm.power) : null;
       if (powerSwitch) root.add(powerSwitch.root);
       for (const s of def.wallBuys) root.add(buildChalk(s.key, s.x, (s.y ?? 0) + 1.7, s.z, s.face));
-      b = { map, root, cache, reforger, perks, powerSwitch };
+      const builds = new BuildViews(def.buildables ?? []);
+      root.add(builds.group);
+      const traps = new TrapViews(def.traps ?? []);
+      root.add(traps.group);
+      b = { map, root, cache, reforger, perks, powerSwitch, builds, traps };
       this.built.set(def.id, b);
     }
     this.group.clear();
@@ -148,9 +195,20 @@ export class ZombiesMode {
     this.reforger = b.reforger;
     this.perks = b.perks;
     this.powerSwitch = b.powerSwitch;
+    this.buildViews = b.builds;
+    this.trapViews = b.traps;
     this.perkSpots = Object.fromEntries(perkEntries(entry.def));
     this.zones = createZoneState(this.topo);
-    this.egg = createEggRun(entry.def.egg);
+    this.resetEggs();
+  }
+
+  private buildViews!: BuildViews;
+  private trapViews!: TrapViews;
+
+  private resetEggs(): void {
+    this.eggDefs = allEggs(this.def);
+    this.eggRuns = this.eggDefs.map((e) => createEggRun(e));
+    this.egg = this.def.egg ? this.eggRuns[0] : createEggRun(undefined);
   }
 
   get spawn() { const s = this.def.playerSpawn; return { x: s.x, y: s.y ?? 0, z: s.z, yaw: s.yaw }; }
@@ -158,11 +216,19 @@ export class ZombiesMode {
   reset(): void {
     this.host.audio.setMapAmbience(this.def.audio?.ambience ?? null);
     this.zp = createZPlayer();
-    this.rounds = createRoundState();
-    this.box = createBox(this.def.box.start ?? 0);
+    this.rounds = createRoundState(1, makeSchedule(this.def.rounds, this.rnd));
+    this.box = createBox(this.def.box.start ?? 0, !!this.def.box.reveal);
     this.zones = createZoneState(this.topo);
     this.pu = createPowerUps();
-    this.egg = createEggRun(this.def.egg);
+    this.resetEggs();
+    this.builds = (this.def.buildables ?? []).map((b) => createBuildState(b));
+    this.traps = (this.def.traps ?? []).map(() => createTrapState());
+    this.shieldHp = this.shieldMax = 0;
+    this.shieldFrom = -1;
+    this.mule = null;
+    this.burns = [];
+    this.novaCd = 0;
+    this.revealT = 0;
     this.power = !this.def.power;
     this.blackout = false;
     this.lifelineBuys = 0;
@@ -179,7 +245,9 @@ export class ZombiesMode {
     this.vortices = [];
     this.map.resetDoors();
     this.map.windows.forEach((_w, i) => this.map.setPlanks(i, PLANKS, false));
-    this.map.eggObjects.forEach((step, si) => step.forEach((r) => { r.visible = si === 0; }));
+    this.map.eggObjectsAll.forEach((eg) => eg.forEach((step, si) => step.forEach((r) => { r.visible = si === 0; })));
+    this.buildViews.reset();
+    this.trapViews.reset();
     this.powerSwitch?.set(false, true);
     const e = this.host.enemies;
     e.instaKill = false;
@@ -196,7 +264,10 @@ export class ZombiesMode {
   clearMods(): void {
     this.host.audio.setMapAmbience(null);
     WEAPON_MODS.damageMult = WEAPON_MODS.rpmMult = WEAPON_MODS.reloadMult = 1;
+    WEAPON_MODS.adsMult = WEAPON_MODS.spreadMult = WEAPON_MODS.headMult = 1;
     PLAYER.maxHealth = 100;
+    PLAYER.sprintSpeed = BASE_PLAYER.sprintSpeed;
+    PLAYER.staminaDrain = BASE_PLAYER.staminaDrain;
     const e = this.host.enemies;
     e.instaKill = false;
     e.allowCrawlers = false;
@@ -212,12 +283,22 @@ export class ZombiesMode {
   }
 
   private applyMods(): void {
-    const m = perkMods(this.zp.perks);
+    const m = (this.mods = perkMods(this.zp.perks));
     WEAPON_MODS.damageMult = m.damageMult;
     WEAPON_MODS.rpmMult = m.rpmMult;
     WEAPON_MODS.reloadMult = m.reloadMult;
+    WEAPON_MODS.adsMult = m.adsMult;
+    WEAPON_MODS.spreadMult = m.spreadMult;
+    WEAPON_MODS.headMult = m.headMult;
     PLAYER.maxHealth = 100 * m.maxHealthMult;
+    PLAYER.sprintSpeed = BASE_PLAYER.sprintSpeed * m.sprintMult;
+    PLAYER.staminaDrain = BASE_PLAYER.staminaDrain * m.staminaDrainMult;
+    // Losing Packmule loses the third gun.
+    if (m.extraSlots <= 0 && this.mule) { this.mule = null; this.host.toast('PACKMULE LOST', 'bad', 'Your third weapon is gone', 2); }
   }
+
+  /** Nova: your own blasts do not hurt you. */
+  get blastImmune(): boolean { return this.mods.blastImmune; }
 
   private addPoints(n: number): void {
     this.zp.points += n;
@@ -256,7 +337,9 @@ export class ZombiesMode {
     }
     for (let i = 0; i < ev.spawn; i++) this.spawnOne(player);
 
-    // The Cache
+    // The Cache: hidden until the map's reveal condition, then it surfaces in a later zone.
+    if (this.box.phase === 'hidden') this.checkReveal();
+    this.revealT = Math.max(0, this.revealT - dt);
     const spots = this.def.box.spots;
     const be = stepBox(this.box, dt, spots.length, this.rnd);
     if (this.box.phase === 'spinning' && !this.boxSpinSounded) { this.boxSpinSounded = true; this.host.audio.boxJingle(spots[this.box.location]); }
@@ -325,11 +408,165 @@ export class ZombiesMode {
       }
     }
     this.updateVortices(dt);
-    // Easter egg: collect-step items are picked up by walking over them.
-    for (const e of pendingObjects(this.def.egg, this.egg)) {
-      if (e.kind !== 'collect') continue;
-      if (Math.hypot(e.o.x - player.x, e.o.z - player.z) < (e.o.radius ?? 1.0) && Math.abs(player.y - (e.o.y - 0.35)) < 1.6) this.useEgg(e.i, 'collect');
+    this.updateBurns(dt);
+    this.updateTraps(dt, player);
+    this.novaCd = Math.max(0, this.novaCd - dt);
+    for (let b = 0; b < this.builds.length; b++) {
+      const st = this.builds[b];
+      const was = st.reissueT;
+      stepBuild(st, dt);
+      if (was > 0 && st.reissueT <= 0) this.host.toast(`${this.def.buildables![b].name.toUpperCase()} READY`, 'good', 'The bench has made a new one', 2);
     }
+    this.buildViews.update(this.time, this.builds);
+    // Easter eggs: collect-step items are picked up by walking over them.
+    this.eggDefs.forEach((egg, k) => {
+      for (const e of pendingObjects(egg, this.eggRuns[k])) {
+        if (e.kind !== 'collect') continue;
+        if (Math.hypot(e.o.x - player.x, e.o.z - player.z) < (e.o.radius ?? 1.0) && Math.abs(player.y - (e.o.y - 0.35)) < 1.6) this.useEgg(e.i, 'collect', k);
+      }
+    });
+  }
+
+  // --------------------------------------------------------------------------------------
+  // Pacing: the Cache reveal, traps, buildables, elemental rounds, perk effects
+  // --------------------------------------------------------------------------------------
+  private checkReveal(): void {
+    const r = this.def.box.reveal;
+    const unlocked = unlockedZones(this.topo, this.zones);
+    if (!revealDue(r, { doorsOpened: this.zones.opened.size, unlocked, round: this.rounds.round, power: this.power })) return;
+    const spotZones = this.def.box.spots.map((s) => zoneAt(this.def, s.x, s.z, s.y ?? 0));
+    const at = pickRevealSpot(r, spotZones, this.def.startZone, unlocked, this.def.box.start ?? 0);
+    if (!revealBox(this.box, at)) return;
+    this.revealT = 8;
+    this.cache.reveal();
+    this.host.toast('THE CACHE HAS SURFACED', 'big', r?.hint ?? `Find it in the ${zoneName(this.def, spotZones[at]) || 'dark'} · follow the light`, 4.5);
+    this.host.audio.cacheReveal(this.def.box.spots[at]);
+  }
+
+  /** Where the Cache is (HUD): null while it is hidden. */
+  get cacheZone(): string | null {
+    if (this.box.phase === 'hidden') return null;
+    const s = this.def.box.spots[this.box.location];
+    return zoneName(this.def, zoneAt(this.def, s.x, s.z, s.y ?? 0));
+  }
+
+  private updateTraps(dt: number, player: P3): void {
+    const traps = this.def.traps ?? [];
+    this.trapTick -= dt;
+    const tick = this.trapTick <= 0;
+    if (tick) this.trapTick = 0.15;
+    traps.forEach((t, i) => {
+      const st = this.traps[i];
+      const ev = stepTrap(t, st, dt);
+      if (ev === 'off') this.host.toast(`${t.name.toUpperCase()} COOLING DOWN`, '', `${t.cooldown ?? TRAP_DEFAULTS.cooldown} seconds`, 1.6);
+      if (st.phase !== 'active') return;
+      if (inTrap(t, player.x, player.y, player.z)) this.host.hurt?.(TRAP_PLAYER_DPS * dt, (t.area.x0 + t.area.x1) / 2, (t.area.z0 + t.area.z1) / 2);
+      if (!tick) return;
+      const e = this.host.enemies;
+      for (const z of e.zombies) {
+        if (!z.alive || !inTrap(t, z.pos.x, z.pos.y, z.pos.z)) continue;
+        this.trapKilling = true;
+        const dmg = z.elite ? z.maxHp * TRAP_ELITE_FRAC * 0.15 : z.hp * 10 + 1;
+        const out = e.damage(z, dmg, false, z.pos.x, z.pos.y + 1, z.pos.z, 0, 1);
+        this.trapKilling = false;
+        if (out.killed) st.kills++;
+        this.host.fx.sparkBurst(z.pos.x, z.pos.y + 1, z.pos.z, 12, t.kind === 'fire' ? [2.2, 0.9, 0.2] : [0.6, 0.9, 2.6]);
+      }
+    });
+    this.trapViews.update(this.time, this.traps, (x, y, z, k) => {
+      if (Math.random() < 0.5) this.host.fx.sparkBurst(x, y, z, 5, k === 'fire' ? [2.4, 1.0, 0.25] : [0.6, 0.9, 2.8]);
+    });
+  }
+
+  /** Fire rounds: burning zombies take damage in ticks until the flames die. */
+  private updateBurns(dt: number): void {
+    for (let i = this.burns.length - 1; i >= 0; i--) {
+      const b = this.burns[i];
+      b.t -= dt;
+      b.tick -= dt;
+      if (!b.z.alive || b.t <= 0) { this.burns.splice(i, 1); continue; }
+      if (b.tick > 0) continue;
+      b.tick = 0.3;
+      const z = b.z;
+      this.host.enemies.damage(z, b.dps * 0.3, false, z.pos.x, z.pos.y + 1, z.pos.z, 0, 1);
+      this.host.fx.sparkBurst(z.pos.x, z.pos.y + 1.1, z.pos.z, 6, [2.4, 0.9, 0.2]);
+    }
+  }
+
+  private ignite(z: Zombie): void {
+    if (this.burns.some((b) => b.z === z)) return;
+    const fx = ELEMENT_FX.fire;
+    this.burns.push({ z, t: fx.seconds, dps: z.maxHp * fx.hpFracPerSec * (z.elite ? ELEMENT_FX.eliteMult : 1), tick: 0 });
+  }
+
+  /** Reforged rounds: from tier II a hit may proc the gun's element (fire, shock, freeze). */
+  onBulletHit(z: Zombie, id: WeaponId, tier: number, killed: boolean): Element | null {
+    const el = rollElement(id, tier, this.rnd);
+    if (!el) return null;
+    this.applyElement(el, z, killed);
+    return el;
+  }
+
+  /** Apply an elemental effect at a zombie (exposed for tests/dev). */
+  applyElement(el: Element, z: Zombie, killed = false): void {
+    const e = this.host.enemies;
+    const near = (r: number, n: number) => e.zombies.filter((o) => o.alive && o !== z && Math.hypot(o.pos.x - z.pos.x, o.pos.z - z.pos.z) < r && Math.abs(o.pos.y - z.pos.y) < 2.5)
+      .sort((a, b) => Math.hypot(a.pos.x - z.pos.x, a.pos.z - z.pos.z) - Math.hypot(b.pos.x - z.pos.x, b.pos.z - z.pos.z)).slice(0, n);
+    if (el === 'fire') {
+      if (!killed) this.ignite(z);
+      for (const o of near(ELEMENT_FX.fire.spreadRadius, ELEMENT_FX.fire.spreadCount)) this.ignite(o);
+      this.host.fx.sparkBurst(z.pos.x, z.pos.y + 1, z.pos.z, 18, [2.4, 0.9, 0.2]);
+    } else if (el === 'shock') {
+      let from = { x: z.pos.x, y: z.pos.y + 1.2, z: z.pos.z };
+      const col = new THREE.Color(0.6, 0.85, 3);
+      for (const o of near(ELEMENT_FX.shock.radius, ELEMENT_FX.shock.chains)) {
+        const to = { x: o.pos.x, y: o.pos.y + 1.2, z: o.pos.z };
+        this.host.fx.tracer(from.x, from.y, from.z, to.x, to.y, to.z, col);
+        this.host.fx.sparkBurst(to.x, to.y, to.z, 10, [0.6, 0.9, 3]);
+        e.damage(o, o.maxHp * ELEMENT_FX.shock.hpFrac * (o.elite ? ELEMENT_FX.eliteMult : 1), false, to.x, to.y, to.z, 0, 1);
+        if (o.alive && !o.elite) o.setState('stagger');
+        from = to;
+      }
+    } else {
+      for (const o of [z, ...near(ELEMENT_FX.freeze.radius, ELEMENT_FX.freeze.count)]) {
+        if (!o.alive || o.elite) continue;
+        o.frozenT = Math.max(o.frozenT, ELEMENT_FX.freeze.seconds);
+        this.host.fx.sparkBurst(o.pos.x, o.pos.y + 1, o.pos.z, 12, [0.7, 1.2, 2.2]);
+      }
+    }
+  }
+
+  /** A slide started: Nova sets off a blast around you. */
+  onSlide(p: P3): boolean {
+    if (!this.mods.slideNova || this.novaCd > 0 || !this.host.blast) return false;
+    this.novaCd = NOVA.cooldown;
+    this.host.blast(p.x, p.y + 0.3, p.z, novaDamage(this.rounds.round), NOVA.radius);
+    this.host.fx.sparkBurst(p.x, p.y + 0.5, p.z, 40, [1.6, 0.5, 2.4]);
+    return true;
+  }
+
+  /** Packmule: switching to `to` rotates the third gun into that slot. */
+  onSwitch(to: 0 | 1): void {
+    if (this.mods.extraSlots <= 0 || !this.mule) return;
+    const l = this.host.loadout();
+    const r = muleRotate(l.slots, to, this.mule);
+    l.slots = r.slots;
+    this.mule = r.stash;
+  }
+
+  /** The shield on your back soaks part of a hit. Returns the damage that gets through. */
+  absorbHit(dmg: number, from: { x: number; z: number }, player: P3, yaw: number): number {
+    if (this.shieldHp <= 0) return dmg;
+    const dx = from.x - player.x, dz = from.z - player.z, l = Math.hypot(dx, dz) || 1;
+    const r = shieldAbsorb(this.shieldHp, dmg, { x: -Math.sin(yaw), z: -Math.cos(yaw) }, { x: dx / l, z: dz / l });
+    this.shieldHp = r.hp;
+    if (r.broke) {
+      this.shieldHp = this.shieldMax = 0;
+      if (this.shieldFrom >= 0) shieldLost(this.builds[this.shieldFrom]);
+      this.host.toast('SHIELD BROKEN', 'bad', 'The bench will make another', 2);
+      this.host.sound('deny');
+    }
+    return r.through;
   }
 
   private windowNear(p: P3): number {
@@ -423,11 +660,15 @@ export class ZombiesMode {
 
   onKill(z: Zombie, head: boolean, melee = false): void {
     this.stats.kills++;
-    const ek = eggKill(this.def.egg, this.egg, zoneAt(this.def, z.pos.x, z.pos.z, z.pos.y), this.power);
-    if (ek !== 'none') this.onEggEvent(ek);
+    const kz = zoneAt(this.def, z.pos.x, z.pos.z, z.pos.y);
+    this.eggDefs.forEach((egg, k) => {
+      const ek = eggKill(egg, this.eggRuns[k], kz, this.power);
+      if (ek !== 'none') this.onEggEvent(ek, k);
+    });
     if (head) this.stats.headshots++;
     const before = this.zp.points;
-    awardKill(this.zp, head, melee);
+    if (this.trapKilling) this.zp.points += POINTS.trapKill;
+    else awardKill(this.zp, head, melee);
     const base = this.zp.points - before;
     const extra = base * (pointsMult(this.pu) - 1);
     this.zp.points += extra;
@@ -495,6 +736,7 @@ export class ZombiesMode {
     this.stats.downs++;
     this.down = beginDown(this.zp, 1);
     this.applyMods();
+    this.burns = [];
     v.alive = true;
     v.health = 1;
     v.sinceDamage = 0;
@@ -637,7 +879,13 @@ export class ZombiesMode {
     const near = (x: number, z: number, r: number, y = 0) => Math.hypot(x - p.x, z - p.z) < r && Math.abs(p.y - y) < 1.4;
     const d = this.def;
     const bs = d.box.spots[this.box.location];
-    if (this.box.phase !== 'moving' && near(bs.x, bs.z, 2, bs.y ?? 0)) return { kind: 'box' };
+    if (this.box.phase !== 'moving' && this.box.phase !== 'hidden' && near(bs.x, bs.z, 2, bs.y ?? 0)) return { kind: 'box' };
+    for (const [ti, t] of (d.traps ?? []).entries()) if (near(t.switch.x, t.switch.z, 1.6, t.switch.y ?? 0)) return { kind: 'trap', t: ti };
+    for (const [bi, b] of (d.buildables ?? []).entries()) {
+      if (near(b.bench.x, b.bench.z, 1.9, b.bench.y ?? 0)) return { kind: 'bench', b: bi };
+      const st = this.builds[bi];
+      if (st && !st.built) for (const [pi, pt] of b.parts.entries()) if (!st.found[pi] && near(pt.x, pt.z, 1.4, pt.y - 0.35)) return { kind: 'part', b: bi, i: pi };
+    }
     if (d.pap && near(d.pap.x, d.pap.z, 2.4, d.pap.y ?? 0)) return { kind: 'pap' };
     if (d.power && near(d.power.x, d.power.z, 1.8, d.power.y ?? 0)) return { kind: 'power' };
     for (const [id, s] of perkEntries(d)) if (near(s.x, s.z, 1.7, s.y ?? 0)) return { kind: 'perk', id };
@@ -649,7 +897,9 @@ export class ZombiesMode {
       const [dx, dz] = g.axis === 'x' ? [mid, g.at] : [g.at, mid];
       if (near(dx, dz, 2.3, g.y0)) return { kind: 'door', id: g.id };
     }
-    for (const e of pendingObjects(d.egg, this.egg)) if (e.kind === 'interact' && near(e.o.x, e.o.z, e.o.radius ?? 1.3, e.o.y - 0.35)) return { kind: 'relic', i: e.i };
+    for (const [k, egg] of this.eggDefs.entries()) {
+      for (const e of pendingObjects(egg, this.eggRuns[k])) if (e.kind === 'interact' && near(e.o.x, e.o.z, e.o.radius ?? 1.3, e.o.y - 0.35)) return { kind: 'relic', i: e.i, egg: k };
+    }
     for (const r of d.rides ?? []) if (near(r.at.x, r.at.z, r.radius ?? 1.6, r.at.y)) return { kind: 'ride', id: r.id };
     const w = this.windowNear(p);
     if (w >= 0 && this.zones.planks[w] < PLANKS) return { kind: 'window', w };
@@ -668,13 +918,16 @@ export class ZombiesMode {
         if (this.papPending) return 'The Reforger is working…';
         const w = l.slots[l.active];
         const price = w ? papPrice(w.tier, UPGRADE_TIERS.length - 1) : null;
-        return price === null ? 'Reforger <span class="denied">WEAPON MAXED</span>' : `<kbd>E</kbd> Reforge ${w ? WEAPONS[w.id].shortName : ''} → ${w ? papName(w.id, WEAPONS[w.id].name, w.tier + 1) : ''} <span class="cost">${price}</span>`;
+        if (price === null) return 'Reforger <span class="denied">WEAPON MAXED</span>';
+        const el = w && w.tier + 1 >= 2 ? PAP_ELEMENT[w.id] : undefined;
+        return `<kbd>E</kbd> Reforge ${w ? WEAPONS[w.id].shortName : ''} → ${w ? papName(w.id, WEAPONS[w.id].name, w.tier + 1) : ''} · TIER ${'I'.repeat(w!.tier + 1)}${el ? ` · ${el.toUpperCase()} ROUNDS` : ''} <span class="cost">${price}</span>`;
       }
       case 'power': return this.power ? 'Power is on' : `<kbd>E</kbd> ${this.def.flavor?.powerPrompt ?? 'Throw the main breaker'}`;
       case 'perk': {
         const d = PERKS[it.id];
         if (this.zp.perks.includes(it.id)) return `${d.name} <span class="denied">OWNED</span>`;
         if (d.needsPower && !this.power) return `${d.name} <span class="denied">REQUIRES POWER</span>`;
+        if (this.zp.perks.length >= this.zp.perkLimit) return `${d.name} <span class="denied">PERK LIMIT (${this.zp.perkLimit})</span>`;
         return `<kbd>E</kbd> ${d.name} · ${d.desc} <span class="cost">${d.price}</span>`;
       }
       case 'wall': {
@@ -690,7 +943,31 @@ export class ZombiesMode {
         return `<kbd>E</kbd> ${d.label} <span class="cost">${d.cost}</span>`;
       }
       case 'window': return `Hold <kbd>E</kbd> to rebuild barrier <span class="cost">+10</span>`;
-      case 'relic': { const st = currentStep(this.def.egg, this.egg); return `<kbd>E</kbd> ${st && st.kind === 'interact' ? st.prompt ?? 'Examine' : 'Examine'}`; }
+      case 'relic': { const k = it.egg ?? 0; const st = currentStep(this.eggDefs[k], this.eggRuns[k]); return `<kbd>E</kbd> ${st && st.kind === 'interact' ? st.prompt ?? 'Examine' : 'Examine'}`; }
+      case 'part': { const b = this.def.buildables![it.b]; return `<kbd>E</kbd> Pick up ${b.parts[it.i].name} <span class="cost">${b.name}</span>`; }
+      case 'bench': {
+        const b = this.def.buildables![it.b];
+        const st = this.builds[it.b];
+        const blk = benchBlock(b, st, this.power);
+        if (blk === 'missing') return `${b.name} <span class="denied">${st.found.filter(Boolean).length}/${b.parts.length} PARTS</span>`;
+        if (blk === 'power') return `${b.name} <span class="denied">REQUIRES POWER</span>`;
+        if (blk === null) return `<kbd>E</kbd> Build the ${b.name}`;
+        if (b.result.kind === 'trap') return `${b.name} <span class="cost">BUILT</span>`;
+        const sb = shieldBlock(b, st);
+        if (sb === 'carrying') return `${b.name} <span class="denied">ON YOUR BACK</span>`;
+        if (sb === 'cooldown') return `${b.name} <span class="denied">READY IN ${Math.ceil(st.reissueT)}s</span>`;
+        return `<kbd>E</kbd> Take the ${b.name}`;
+      }
+      case 'trap': {
+        const t = this.def.traps![it.t];
+        const st = this.traps[it.t];
+        const blk = trapBlock(t, st, this.power, this.trapBuilt(t.requiresBuild));
+        if (blk === 'power') return `${t.name} <span class="denied">REQUIRES POWER</span>`;
+        if (blk === 'build') return `${t.name} <span class="denied">NEEDS THE ${this.def.buildables?.find((b) => b.id === t.requiresBuild)?.name.toUpperCase() ?? 'PARTS'}</span>`;
+        if (blk === 'active') return `${t.name} <span class="denied">LIVE</span>`;
+        if (blk === 'cooldown') return `${t.name} <span class="denied">COOLING ${Math.ceil(st.t)}s</span>`;
+        return `<kbd>E</kbd> ${t.name} <span class="cost">${t.cost ?? TRAP_DEFAULTS.cost}</span>`;
+      }
       case 'ride': {
         const r = this.rideDef(it.id);
         if (!r) return '';
@@ -718,8 +995,46 @@ export class ZombiesMode {
         this.host.audio.powerOn();
         return;
       case 'relic':
-        this.useEgg(it.i, 'interact');
+        this.useEgg(it.i, 'interact', it.egg ?? 0);
         return;
+      case 'part': {
+        const b = this.def.buildables![it.b];
+        const ev = pickPart(this.builds[it.b], it.i);
+        if (ev === 'none') return;
+        const n = this.builds[it.b].found.filter(Boolean).length;
+        const bz = zoneName(this.def, zoneAt(this.def, b.bench.x, b.bench.z, b.bench.y ?? 0));
+        this.host.toast(`${b.parts[it.i].name.toUpperCase()}`, 'good', ev === 'all' ? `All parts found · build the ${b.name} at the bench in the ${bz}` : `${b.name} · ${n}/${b.parts.length} parts`, 2.6);
+        this.host.sound('loot');
+        return;
+      }
+      case 'bench': {
+        const b = this.def.buildables![it.b];
+        const st = this.builds[it.b];
+        if (!st.built) {
+          const blk = benchBlock(b, st, this.power);
+          if (blk) { this.host.toast(blk === 'power' ? REASON.power : `${st.found.filter(Boolean).length}/${b.parts.length} PARTS`, 'bad', blk === 'missing' ? 'Find the rest of the parts' : '', 1.6); this.host.sound('deny'); return; }
+          build(b, st, this.power);
+          this.stats.builds = (this.stats.builds ?? 0) + 1;
+          this.host.toast(`${b.name.toUpperCase()} BUILT`, 'big', b.result.kind === 'shield' ? 'Take it from the bench · it guards your back' : `The ${this.def.traps?.find((t) => b.result.kind === 'trap' && t.id === b.result.trap)?.name ?? 'trap'} is armed`, 3);
+          this.host.sound('upgrade');
+          return;
+        }
+        const hp = takeShield(b, st);
+        if (hp <= 0) return;
+        this.shieldHp = this.shieldMax = hp;
+        this.shieldFrom = it.b;
+        this.host.toast(b.name.toUpperCase(), 'good', 'On your back · it soaks hits from behind', 2);
+        this.host.sound('buy');
+        return;
+      }
+      case 'trap': {
+        const t = this.def.traps![it.t];
+        const r = activateTrap(t, this.traps[it.t], this.zp, this.power, this.trapBuilt(t.requiresBuild));
+        if (deny(r)) return;
+        this.host.audio.trapStart({ x: t.switch.x, z: t.switch.z }, t.kind);
+        this.host.toast(t.name.toUpperCase(), 'good', `${t.seconds ?? TRAP_DEFAULTS.seconds} seconds · stay out of it`, 2);
+        return;
+      }
       case 'ride': {
         const r = this.rideDef(it.id);
         if (!r || this.ride) return;
@@ -747,7 +1062,8 @@ export class ZombiesMode {
           if (w) this.giveWeapon(w);
           return;
         }
-        const r = pullBox(this.box, this.zp, l.slots.filter(Boolean).map((s) => s!.id), this.rnd, 0, this.def.box.spots.length);
+        const owned = [...l.slots, this.mule].filter(Boolean).map((s) => s!.id);
+        const r = pullBox(this.box, this.zp, owned, this.rnd, 0, this.def.box.spots.length);
         if (deny(r)) return;
         this.cache.reel = boxReel(this.rnd, 24);
         this.host.sound('buy');
@@ -768,10 +1084,7 @@ export class ZombiesMode {
         const r = tryBuyPerk(this.zp, it.id, this.power, this.lifelineBuys);
         if (deny(r)) return;
         if (it.id === 'lifeline') this.lifelineBuys++;
-        this.applyMods();
-        if (it.id === 'bulwark') this.host.vitals().health = PLAYER.maxHealth;
-        this.host.toast(PERKS[it.id].name, 'good', PERKS[it.id].desc, 2.5);
-        this.host.audio.perkJingle(this.perkSpots[it.id]!, PERK_ORDER.indexOf(it.id));
+        this.onPerkGained(it.id);
         return;
       }
       case 'wall': {
@@ -786,6 +1099,20 @@ export class ZombiesMode {
         return;
       }
     }
+  }
+
+  private onPerkGained(id: PerkId): void {
+    this.applyMods();
+    if (id === 'bulwark') this.host.vitals().health = PLAYER.maxHealth;
+    this.host.toast(PERKS[id].name, 'good', PERKS[id].desc, 2.5);
+    const at = this.perkSpots[id] ?? this.spawn;
+    this.host.audio.perkJingle(at, PERK_ORDER.indexOf(id));
+  }
+
+  private trapBuilt(id: string | undefined): boolean {
+    if (!id) return true;
+    const i = (this.def.buildables ?? []).findIndex((b) => b.id === id);
+    return i >= 0 && !!this.builds[i]?.built;
   }
 
   private rideDef(id: string): RideDef | undefined { return this.def.rides?.find((r) => r.id === id); }
@@ -807,50 +1134,54 @@ export class ZombiesMode {
     if (!w) return;
     applyUpgrade(w);
     this.host.syncWeapons();
-    this.host.toast(papName(w.id, WEAPONS[w.id].name, w.tier), 'big', `REFORGED · ${UPGRADE_TIERS[w.tier].name}`, 3);
+    const el = w.tier >= 2 ? PAP_ELEMENT[w.id] : undefined;
+    this.host.toast(papName(w.id, WEAPONS[w.id].name, w.tier), 'big', `REFORGED · ${UPGRADE_TIERS[w.tier].name} · ${PAP_CAMOS[w.tier] ?? ''} CAMO${el ? ` · ${el.toUpperCase()} ROUNDS` : ''}`, 3);
     this.host.sound('upgrade');
   }
 
-  /** Use (interact) or pick up (collect) object `i` of the current easter-egg step. */
-  private useEgg(i: number, kind: 'interact' | 'collect'): void {
-    const step = this.egg.step;
-    const ev = kind === 'interact' ? eggInteract(this.def.egg, this.egg, i, this.power) : eggCollect(this.def.egg, this.egg, i, this.power);
+  /** Use (interact) or pick up (collect) object `i` of the current step of egg `k` (0 = first in allEggs). */
+  private useEgg(i: number, kind: 'interact' | 'collect', k = 0): void {
+    const egg = this.eggDefs[k], run = this.eggRuns[k];
+    if (!egg || !run) return;
+    const step = run.step;
+    const ev = kind === 'interact' ? eggInteract(egg, run, i, this.power) : eggCollect(egg, run, i, this.power);
     if (ev === 'none') return;
     if (ev === 'power') { this.host.toast('NOTHING HAPPENS', 'bad', 'It needs power', 1.6); return; }
+    const objs = this.map.eggObjectsAll[k];
     if (ev === 'wrong-order') {
       this.host.toast('THE SEQUENCE BREAKS', 'bad', 'Start again', 2);
-      this.map.eggObjects[step]?.forEach((o) => { o.visible = true; });
+      objs?.[step]?.forEach((o) => { o.visible = true; });
       this.host.sound('deny');
       return;
     }
-    const obj = this.map.eggObjects[step]?.[i];
+    const obj = objs?.[step]?.[i];
     if (obj) obj.visible = false;
     this.host.audio.chime();
-    this.onEggEvent(ev);
+    this.onEggEvent(ev, k);
   }
 
-  private onEggEvent(ev: EggEvent): void {
-    const egg = this.def.egg;
-    if (!egg) return;
+  private onEggEvent(ev: EggEvent, k = 0): void {
+    const egg = this.eggDefs[k], run = this.eggRuns[k];
+    if (!egg || !run) return;
     if (ev === 'progress') {
-      const st = egg.steps[this.egg.step];
-      const [n, t] = stepProgress(egg, this.egg);
+      const st = egg.steps[run.step];
+      const [n, t] = stepProgress(egg, run);
       this.host.toast(st?.toast ?? egg.name.toUpperCase(), '', `${n} / ${t}`, 3);
       return;
     }
     if (ev === 'step') {
       // Reveal the next step's objects.
-      this.map.eggObjects.forEach((objs, si) => objs.forEach((o) => { o.visible = si === this.egg.step; }));
-      const st = egg.steps[this.egg.step];
+      this.map.eggObjectsAll[k]?.forEach((objs, si) => objs.forEach((o) => { o.visible = si === run.step; }));
+      const st = egg.steps[run.step];
       this.host.toast(egg.name.toUpperCase(), 'good', st?.toast ?? 'Something stirs', 3);
       this.host.sound('radio');
       return;
     }
-    if (ev === 'complete') this.eggReward();
+    if (ev === 'complete') this.eggReward(egg);
   }
 
-  private eggReward(): void {
-    const rw = this.def.egg!.reward;
+  private eggReward(egg: EggDef): void {
+    const rw = egg.reward;
     this.host.toast(rw.title, 'big', rw.sub ?? '', 5);
     this.host.sound('complete');
     const l = this.host.loadout();
@@ -859,10 +1190,13 @@ export class ZombiesMode {
     if (rw.refillAmmo) for (const s of l.slots) if (s) refillAmmo(s);
     if (rw.points) this.addPoints(rw.points);
     if (rw.powerup) this.dropPowerUp(rw.powerup, ...this.eggDropPos());
+    if (rw.perkSlot) addPerkSlots(this.zp, rw.perkSlot);
     if (rw.allPerks) {
-      for (const [id] of perkEntries(this.def)) if (!this.zp.perks.includes(id)) this.zp.perks.push(id);
+      for (const [id] of perkEntries(this.def)) grantPerk(this.zp, id);
       this.applyMods();
     }
+    if (rw.perk && grantPerk(this.zp, rw.perk)) this.onPerkGained(rw.perk);
+    if (rw.music) this.host.audio.easterTrack(rw.music);
     if (rw.weapon) this.giveWeapon(rw.weapon);
   }
 
@@ -872,7 +1206,10 @@ export class ZombiesMode {
     const l = this.host.loadout();
     const existing = l.slots.find((s) => s?.id === id);
     if (existing) { refillAmmo(existing); this.host.syncWeapons(); return; }
+    if (this.mule?.id === id) { refillAmmo(this.mule); return; }
     const free = l.slots.findIndex((s) => !s);
+    // Packmule: the gun you hold goes into the third slot instead of being dropped.
+    if (free < 0 && this.mods.extraSlots > 0 && !this.mule) this.mule = l.slots[l.active];
     const slot = free >= 0 ? free : l.active; // two-weapon limit: replace what you hold
     l.slots[slot] = createWeapon(id);
     l.slots[slot]!.reserve = WEAPONS[id].reserveMax;

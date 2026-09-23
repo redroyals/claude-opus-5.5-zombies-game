@@ -29,6 +29,7 @@ import { ZHud } from '../ui/ZHud';
 import { ZombiesMode, type ZInteraction } from '../zombies/ZombiesMode';
 import { MAPS, getMap, mapFromUrl } from '../zombies/maps';
 import { DOWN } from '../zombies/down';
+import { aimAssistTarget } from '../zombies/perkfx';
 import { Input } from './Input';
 import { loadBest, loadSettings, recordBest, saveSettings, type Settings } from './Settings';
 
@@ -135,6 +136,8 @@ export class Game {
       syncWeapons: () => this.weapons.syncModel(),
       toast: (t, k = '', sm = '', d = 2.5) => this.hud.toast(t, k, sm, d),
       sound: (k) => this.audio.ui(k),
+      blast: (x, y, z, dmg, r) => this.explode(x, y, z, dmg, r, 0),
+      hurt: (dmg, x, z) => this.onPlayerHit(dmg, x, z, false, true),
     }, this.M, mapFromUrl(location.search) ?? undefined);
     this.renderer.scene.add(this.zm.group);
     this.contamWall = this.buildContaminationWall();
@@ -150,6 +153,8 @@ export class Game {
         if (this.mode !== 'zombies' && kind !== 'explosive') return;
         this.zm.onSpecial(kind, w.id, w.tier, hit, (x, y, z, dmg, r) => this.explode(x, y, z, dmg, r, 0.15));
       },
+      onZombieHit: (z, w, killed) => { if (this.mode === 'zombies') this.zm.onBulletHit(z, w.id, w.tier, killed); },
+      onSwitch: (to) => { if (this.mode === 'zombies') this.zm.onSwitch(to); },
     });
     this.zhud = new ZHud(() => this.restart(), () => this.quitToTitle());
     this.menus = new Menus(this);
@@ -471,6 +476,7 @@ export class Game {
     const downed = zmode && !!this.zm.down;
     if (downed) { input.consume('jump'); input.consume('crouch'); p.crouched = true; }
     const ev = p.update(dt, input, world, { canSprintExtra: !input.fireHeld && !plating && !downed, speedMult: downed ? DOWN.crawlSpeed : plating ? 0.65 : 1 });
+    if (ev.slid && zmode) this.zm.onSlide(p.pos);
     if (ev.footstep) this.audio.footstep(this.surfaceUnder(), p.sprinting, p.crouched);
     if (ev.landed > 6) this.audio.land();
     for (const z of this.enemies.zombies) {
@@ -489,6 +495,9 @@ export class Game {
     const papSlot = zmode ? this.zm.papBusySlot : null;
     const knifeOnly = papSlot !== null && papSlot === this.loadout.active;
     this.weapons.update(dt, input, p, { plating, menu: false, noFire: knifeOnly }, world, this.enemies, this.renderer.camera.position, this.camQuat);
+    // Hawkeye: aiming down sights snaps to the nearest visible head in a small cone.
+    if (zmode && this.zm.mods.aimAssist && this.weapons.adsT > 0.5 && this.prevAdsT <= 0.5) this.snapToHead();
+    this.prevAdsT = this.weapons.adsT;
 
     // Knife (V, or the trigger while your gun is in the Reforger)
     this.meleeCD = Math.max(0, this.meleeCD - dt);
@@ -587,7 +596,24 @@ export class Game {
     return 'concrete';
   }
 
+  private prevAdsT = 0;
+
+  /** Hawkeye's aim snap: turn the view onto the closest visible head inside the assist cone. */
+  private snapToHead(): void {
+    const eye = this.renderer.camera.position;
+    const heads: { x: number; y: number; z: number }[] = [];
+    for (const z of this.enemies.zombies) {
+      if (!z.alive || z.riseT > 0) continue;
+      const h = { x: z.pos.x, y: z.pos.y + z.height - 0.18 * z.scale, z: z.pos.z };
+      if (this.world.segmentBlocked(eye.x, eye.y, eye.z, h.x, h.y, h.z)) continue;
+      heads.push(h);
+    }
+    const t = aimAssistTarget({ x: eye.x, y: eye.y, z: eye.z }, this.player.yaw, this.player.pitch, heads);
+    if (t) { this.player.yaw = t.yaw; this.player.pitch = t.pitch; }
+  }
+
   private explode(x: number, y: number, z: number, maxDmg = GRENADE.maxDamage, radius = GRENADE.radius, selfMult = 1): void {
+    if (this.mode === 'zombies' && this.zm.blastImmune) selfMult = 0;
     this.fx.explosion(x, y, z, this.settings.reducedMotion);
     this.audio.explosion({ x, z });
     const r = this.enemies.radiusDamage(x, y, z, radius, maxDmg);
@@ -596,7 +622,7 @@ export class Game {
     // Self damage, blocked by cover
     const p = this.player;
     const d = Math.hypot(p.pos.x - x, p.pos.z - z, p.pos.y + 1 - y);
-    if (d < radius && p.vitals.alive) {
+    if (d < radius && p.vitals.alive && selfMult > 0) {
       const blocked = this.world.segmentBlocked(x, y + 0.3, z, p.pos.x, p.eyeY, p.pos.z) &&
         this.world.segmentBlocked(x, y + 0.3, z, p.pos.x, p.pos.y + 0.8, p.pos.z);
       if (!blocked) {
@@ -815,9 +841,21 @@ export class Game {
     if (Math.random() < ENEMIES.ammoDropChance) this.interact.spawnDrop(z.pos.x, z.pos.z);
   }
 
-  private onPlayerHit(dmg: number, fromX: number, fromZ: number, heavy: boolean): void {
+  private onPlayerHit(dmg: number, fromX: number, fromZ: number, heavy: boolean, quiet = false): void {
     if (this.state !== 'playing' || this.godMode) return;
     const v = this.player.vitals;
+    // The shield on your back takes its share first.
+    if (this.mode === 'zombies' && !this.zm.down && !quiet) {
+      dmg = this.zm.absorbHit(dmg, { x: fromX, z: fromZ }, this.player.pos, this.player.yaw);
+      if (dmg <= 0.01) { this.audio.impact('metal', { x: fromX, z: fromZ }); return; }
+    }
+    if (quiet) {
+      // Environmental damage (a live trap): a steady drain, no hit sting or shake every frame.
+      if (this.mode === 'zombies' && this.zm.down) return;
+      applyDamage(v, dmg);
+      this.hud.damageFrom(fromX, fromZ, false);
+      return;
+    }
     if (this.mode === 'zombies' && this.zm.down) {
       // Down already: hits eat the bleed-out timer instead of health.
       this.zm.hitDown();
@@ -1108,7 +1146,19 @@ export class Game {
       contracts.push({ title: this.zm.def.name.toUpperCase(), tag: r.spec.special ? 'SCUTTLERS' : r.spec.blackout ? 'BLACKOUT' : r.spec.boss ? 'WARDEN' : `ROUND ${Math.max(1, r.round)}`,
         sub: r.phase === 'break' ? `Next round in ${Math.ceil(r.timer)}s` : `${r.toSpawn + this.enemies.aliveCount} remaining`, state: 'active' });
       contracts.push({ title: 'POWER', tag: this.zm.power ? 'ON' : 'OFF', sub: this.zm.power ? this.zm.def.flavor?.powerOnHint ?? 'Reforger + perks live' : this.zm.def.flavor?.powerHint ?? 'Find the power switch', state: this.zm.power ? 'done' : 'active' });
-      this.zhud.update(dt, { round: r.round, points: this.zm.zp.points, perks: this.zm.zp.perks, pups: this.zm.activePowerUps, zone: this.zm.zoneName({ x: p.pos.x, y: p.pos.y, z: p.pos.z }) });
+      const cz = this.zm.cacheZone;
+      if (cz === null) contracts.push({ title: 'THE CACHE', tag: 'HIDDEN', sub: 'It surfaces as you push deeper', state: 'locked' });
+      else if (this.zm.revealT > 0) contracts.push({ title: 'THE CACHE', tag: 'SURFACED', sub: cz, state: 'active' });
+      (this.zm.def.buildables ?? []).forEach((b, i) => {
+        const st = this.zm.builds[i];
+        if (!st) return;
+        const n = st.found.filter(Boolean).length;
+        if (n === 0 && !st.built) return;
+        const shield = this.zm.shieldHp > 0 && b.result.kind === 'shield';
+        contracts.push({ title: b.name.toUpperCase(), tag: shield ? `${Math.ceil((this.zm.shieldHp / this.zm.shieldMax) * 100)}%` : st.built ? 'BUILT' : `${n}/${b.parts.length}`,
+          sub: st.built ? (b.result.kind === 'shield' ? (shield ? 'On your back' : st.reissueT > 0 ? `New one in ${Math.ceil(st.reissueT)}s` : 'Take it from the bench') : 'Trap armed') : 'Find the parts, build at the bench', state: st.built ? 'done' : 'active' });
+      });
+      this.zhud.update(dt, { round: r.round, points: this.zm.zp.points, perks: this.zm.zp.perks, perkLimit: this.zm.zp.perkLimit, pups: this.zm.activePowerUps, zone: this.zm.zoneName({ x: p.pos.x, y: p.pos.y, z: p.pos.z }) });
     }
     const boss = zmode ? this.enemies.boss : null;
     const bossHp = boss && boss.alive ? boss.hp / boss.maxHp : null;
@@ -1281,6 +1331,17 @@ export class Game {
       zRound: (n: number) => { const r = this.zm.rounds; r.round = n - 1; r.phase = 'break'; r.timer = 0.01; },
       zUse: (it: ZInteraction) => this.zm.use(it),
       zMoth: () => { const b = this.zm.box; b.phase = 'moving'; b.t = 0; b.offer = null; },
+      /** Pacing state: Cache, buildables, traps, perk slots, Packmule, eggs, shield. */
+      zPace: () => {
+        const z = this.zm;
+        return { box: { phase: z.box.phase, location: z.box.location, zone: z.cacheZone }, builds: z.builds.map((b) => ({ ...b, found: [...b.found] })), traps: z.traps.map((t) => ({ ...t })),
+          perkLimit: z.zp.perkLimit, perks: [...z.zp.perks], mule: z.mule?.id ?? null, shield: z.shieldHp, eggs: z.eggRuns.map((e) => ({ step: e.step, complete: e.complete })),
+          round: z.rounds.round, specials: z.rounds.sched.specials.slice(0, 6), slots: this.loadout.slots.map((s) => s && { id: s.id, tier: s.tier }), active: this.loadout.active };
+      },
+      /** What E would do right now. */
+      zFind: () => { const f = this.zm.find(this.player.pos); return f ? JSON.parse(JSON.stringify(f)) as unknown : null; },
+      zPerk: (id: string) => { (this.zm.zp.perks as string[]).push(id); (this.zm as unknown as { applyMods(): void }).applyMods(); },
+      zElement: (el: 'fire' | 'shock' | 'freeze') => { const t = this.enemies.zombies.find((q) => q.alive); if (t) this.zm.applyElement(el, t); return !!t; },
       zTier: (t: number) => { const w = this.weapons.active; if (w) { w.tier = t; this.weapons.syncModel(); } },
       zDrop: (k: 'max_ammo' | 'insta_kill' | 'double_points' | 'nuke' | 'carpenter') => { const p = this.player.pos; (this.zm as unknown as { dropPowerUp(k: string, x: number, y: number, z: number): void }).dropPowerUp(k, p.x, p.y, p.z - 2.5); },
       zSpawn: (type: 'shambler' | 'runner' | 'brute' | 'crawler' | 'fast' | 'boss', x: number, z: number, y?: number) => this.enemies.spawn(type, 'low', x, z, 'chase', y),

@@ -688,6 +688,60 @@ export class AudioEngine {
     [784, 988, 1175, 1568].forEach((f, i) => this.tone(o, t + i * 0.15, 1.8, { type: 'sine', freq: f, gain: 0.12 }));
   }
 
+  /** The Cache surfaces for the first time: a rising shimmer over a low boom (non-positional) plus the music box where it landed. */
+  cacheReveal(pos: { x: number; z: number }): void {
+    if (!this.ok(true)) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(null, 0.7, 4)!;
+    this.tone(o, t, 2.4, { type: 'sine', freq: 55, freqEnd: 40, gain: 0.5, attack: 0.05 });
+    this.noise(o, t, 2.8, { type: 'bandpass', freq: 400, freqEnd: 5000, q: 2, gain: 0.25, attack: 0.9 });
+    [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(o, t + 0.5 + i * 0.12, 1.6, { type: 'triangle', freq: f, gain: 0.12, attack: 0.02 }));
+    this.boxJingle(pos);
+  }
+
+  /** A trap switched on: a charge-up whine and crackle (electric) or a whoomph of flame (fire). */
+  trapStart(pos: { x: number; z: number }, kind: 'electric' | 'fire'): void {
+    if (!this.ok(true)) return;
+    const t = this.ctx!.currentTime;
+    const o = this.out(pos, 0.8, 2.5, 10);
+    if (!o) return;
+    if (kind === 'electric') {
+      this.tone(o, t, 1.2, { type: 'sawtooth', freq: 60, freqEnd: 240, gain: 0.25, attack: 0.3 });
+      for (let i = 0; i < 8; i++) this.noise(o, t + 0.9 + i * 0.13, 0.12, { type: 'highpass', freq: 3000, gain: 0.5 });
+    } else {
+      this.noise(o, t, 2, { type: 'lowpass', freq: 200, freqEnd: 1800, gain: 0.9, brown: true, attack: 0.15 });
+      this.tone(o, t, 1, { freq: 70, freqEnd: 40, gain: 0.6 });
+    }
+  }
+
+  /**
+   * A hidden song (side-quest reward): a ~24 s procedural piece. Each map passes its own name; the name seeds the
+   * key and the melody so the maps sound different without any sample files.
+   */
+  easterTrack(name: string): void {
+    if (!this.ok(true)) return;
+    const t0 = this.ctx!.currentTime + 0.2;
+    const o = this.out(null, 0.55, 26)!;
+    let h = 0;
+    for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    const root = 110 * Math.pow(2, (h % 7) / 12);
+    const scale = [0, 3, 5, 7, 10, 12, 15];
+    const beat = 0.3;
+    for (let bar = 0; bar < 10; bar++) {
+      const chord = [0, 5, 3, 4][bar % 4];
+      const base = root * Math.pow(2, scale[chord] / 12);
+      const tb = t0 + bar * beat * 8;
+      this.tone(o, tb, beat * 8, { type: 'sawtooth', freq: base / 2, gain: 0.06, attack: 0.05 });
+      this.tone(o, tb, beat * 8, { type: 'triangle', freq: base * 1.5, gain: 0.04, attack: 0.3 });
+      for (let k = 0; k < 8; k++) {
+        if (k % 2 === 0) this.noise(o, tb + k * beat, 0.08, { type: 'highpass', freq: 6000, gain: 0.12 });
+        if (k === 0 || k === 4) this.tone(o, tb + k * beat, 0.25, { freq: 90, freqEnd: 40, gain: 0.35 });
+        const n = scale[(h >> ((bar * 8 + k) % 24)) % scale.length];
+        if ((h >> (k + bar)) & 1) this.tone(o, tb + k * beat, beat * 0.9, { type: 'square', freq: root * 2 * Math.pow(2, n / 12), gain: 0.035 });
+      }
+    }
+  }
+
   /** Zombies ambience: distant horde groans and a slow heartbeat-like pulse. */
   updateZombieAmbience(dt: number, horde: number): void {
     if (!this.ok()) return;

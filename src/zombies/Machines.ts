@@ -113,6 +113,9 @@ export class CacheView {
   private reelT = 0;
   private reelIdx = 0;
   private spinSeen = false;
+  private wasHidden = false;
+  /** Seconds left of the reveal flare (a tall column of light where the Cache first surfaces). */
+  private flareT = 0;
 
   constructor(spots: Spot[], ground: (x: number, z: number) => number, model = 'mystery_box.glb') {
     const wood = new THREE.MeshStandardMaterial({ color: 0x5a3c22, roughness: 0.8 });
@@ -216,7 +219,21 @@ export class CacheView {
   reel: WeaponId[] = [];
   private sharedLight!: THREE.PointLight;
 
+  /** The Cache surfaces for the first time: drop it in under a tall flare. */
+  reveal(): void {
+    this.flareT = 4.5;
+  }
+
   update(dt: number, time: number, box: BoxState): void {
+    if (box.phase === 'hidden') {
+      for (const o of this.views) { o.body.visible = false; o.beam.visible = false; o.glow.visible = false; }
+      this.sharedLight.intensity = 0;
+      this.moth.visible = false;
+      this.hideShown();
+      this.wasHidden = true;
+      return;
+    }
+    if (this.wasHidden) { this.wasHidden = false; this.lastLoc = box.location; this.arriveT = 1; }
     const v = this.views[box.location];
     this.sharedLight.position.set(v.root.position.x, v.root.position.y + 1.1, v.root.position.z);
     for (const o of this.views) {
@@ -239,10 +256,18 @@ export class CacheView {
       v.light.intensity = 30 * this.arriveT;
     }
     (v.beam.material as THREE.MeshBasicMaterial).opacity = 0.07 + Math.sin(time * 2) * 0.03;
+    if (this.flareT > 0) {
+      this.flareT = Math.max(0, this.flareT - dt);
+      const k = Math.min(1, this.flareT / 1.5);
+      v.beam.visible = true;
+      v.beam.scale.set(1 + 2.5 * k, 1 + 5 * k, 1 + 2.5 * k);
+      (v.beam.material as THREE.MeshBasicMaterial).opacity = 0.07 + 0.5 * k;
+      if (this.arriveT <= 0) v.light.intensity = 3 + 30 * k;
+    } else v.beam.scale.set(1, 1, 1);
     const open = box.phase === 'spinning' || box.phase === 'offer';
     const lidTarget = open ? -1.9 : 0;
     v.lid.rotation.x += (lidTarget - v.lid.rotation.x) * Math.min(1, dt * 8);
-    if (this.arriveT <= 0) v.light.intensity = open ? 9 + Math.sin(time * 20) * 3 : 2 + Math.sin(time * 2) * 0.8;
+    if (this.arriveT <= 0 && this.flareT <= 0) v.light.intensity = open ? 9 + Math.sin(time * 20) * 3 : 2 + Math.sin(time * 2) * 0.8;
 
     // Reveal reel
     if (box.phase === 'spinning') {
@@ -358,7 +383,7 @@ export class ReforgerView {
     this.press.add(head, glowPlate);
     this.press.position.set(0, 2.5, -0.05);
     this.root.add(this.press);
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.55), new THREE.MeshBasicMaterial({ map: neonTexture(['REFORGER'], '#b070ff', '5000 · REPACK 2500') }));
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.55), new THREE.MeshBasicMaterial({ map: neonTexture(['REFORGER'], '#b070ff', 'I 5000 · II 7000 · III 9000') }));
     sign.position.set(0, 3.1, 0.41);
     this.root.add(sign);
     this.light = new THREE.PointLight(0xa060ff, 0, 6, 1.6);
@@ -437,21 +462,23 @@ export class PerkViews {
       const glass = new THREE.MeshStandardMaterial({ color: 0x101418, emissive: def.color, emissiveIntensity: 0.05, roughness: 0.1, transparent: true, opacity: 0.85 });
       const add = (g: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => { const me = new THREE.Mesh(g, m); me.position.set(x, y, z); me.castShadow = true; root.add(me); return me; };
       let signY = 2.2;
-      if (id === 'bulwark') {
+      // Perks without bespoke art borrow a stock machine's silhouette (and model), painted in their own colour.
+      const shape = def.base;
+      if (shape === 'bulwark') {
         // Squat, armoured fridge with riveted bands and a shield emblem
         add(new THREE.BoxGeometry(1.35, 1.9, 0.85), paint, 0, 0.95, 0);
         for (const y of [0.3, 1.0, 1.7]) add(new THREE.BoxGeometry(1.4, 0.08, 0.9), chrome, 0, y, 0);
         const shield = add(new THREE.CylinderGeometry(0.28, 0.28, 0.05, 6), glass, 0, 1.15, 0.45);
         shield.rotation.x = Math.PI / 2;
         signY = 2.15;
-      } else if (id === 'quickhands') {
+      } else if (shape === 'quickhands') {
         // Tall slim vending column with a lightning stripe and a cooler window
         add(new THREE.BoxGeometry(0.8, 2.4, 0.75), paint, 0, 1.2, 0);
         add(new THREE.BoxGeometry(0.55, 1.1, 0.05), glass, 0, 1.3, 0.39);
         const bolt = add(new THREE.BoxGeometry(0.08, 1.8, 0.02), chrome, 0.3, 1.2, 0.39);
         bolt.rotation.z = 0.35;
         signY = 2.65;
-      } else if (id === 'hammerfall') {
+      } else if (shape === 'hammerfall') {
         // Barrel-shaped keg dispenser with a hammer on top
         add(new THREE.CylinderGeometry(0.55, 0.6, 1.6, 16), paint, 0, 0.8, 0);
         for (const y of [0.25, 0.8, 1.35]) add(new THREE.TorusGeometry(0.58, 0.035, 6, 20), chrome, 0, y, 0).rotation.x = Math.PI / 2;
@@ -470,7 +497,7 @@ export class PerkViews {
       }
       // Bottles lined up on the machine front
       for (let i = 0; i < 3; i++) {
-        const bt = add(new THREE.CylinderGeometry(0.035, 0.045, 0.2, 8), glass, -0.15 + i * 0.15, id === 'bulwark' ? 1.98 : id === 'hammerfall' ? 1.72 : id === 'quickhands' ? 2.5 : 2.2, 0.1);
+        const bt = add(new THREE.CylinderGeometry(0.035, 0.045, 0.2, 8), glass, -0.15 + i * 0.15, shape === 'bulwark' ? 1.98 : shape === 'hammerfall' ? 1.72 : shape === 'quickhands' ? 2.5 : 2.2, 0.1);
         void bt;
       }
       const neon = new THREE.MeshBasicMaterial({ map: neonTexture([def.name.split(' ')[0]], hex, `${def.price}`), color: 0x303030 });
@@ -491,9 +518,24 @@ export class PerkViews {
       this.group.add(root);
       const view: PerkView = { id, root, neon, glass, light, spot, cone, lit: false, glbEmissive: [] };
       this.views.push(view);
-      watchModel(modelNames[id] ?? `perk_${id}.glb`, (m) => {
+      const bespoke = modelNames[id];
+      watchModel(bespoke ?? `perk_${shape}.glb`, (m) => {
         const inst = models.instance(m);
         placeModel(inst, 2.1);
+        // A borrowed stock model is tinted toward this perk's colour so the machines read apart.
+        if (!bespoke && shape !== id) {
+          const tint = new THREE.Color(def.color);
+          inst.traverse((o) => {
+            const me = o as THREE.Mesh;
+            if (!me.isMesh) return;
+            const mt = me.material as THREE.MeshStandardMaterial;
+            if (!mt?.isMeshStandardMaterial) return;
+            const c = mt.clone();
+            c.color.lerp(tint, 0.6);
+            if (c.emissive.getHex() !== 0) c.emissive.copy(tint);
+            me.material = c;
+          });
+        }
         for (const c of [...root.children]) if (c !== light && c !== sign && c !== spot && c !== spot.target && c !== cone) c.visible = false;
         // Authored emissive panels are strong; they are driven by the power state below.
         inst.traverse((o) => {

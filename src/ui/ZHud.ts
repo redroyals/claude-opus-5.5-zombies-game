@@ -14,6 +14,7 @@ const CSS = `
 #zperks { position:absolute; left:34px; bottom:252px; display:flex; gap:8px; }
 .zperk { width:34px; height:46px; border-radius:6px 6px 10px 10px; box-shadow:0 0 12px currentColor; border:2px solid rgba(255,255,255,.35);
   display:flex; align-items:flex-end; justify-content:center; font:700 9px monospace; color:#fff; padding-bottom:3px; }
+.zperk.empty { box-shadow:none; border:2px dashed rgba(255,255,255,.22); background:transparent; }
 #zpups { position:absolute; left:50%; bottom:118px; transform:translateX(-50%); display:flex; gap:14px; }
 .zpup { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:900 20px Georgia, serif;
   color:#fff; background:rgba(0,0,0,.55); border:3px solid; position:relative; }
@@ -88,7 +89,7 @@ export class ZHud {
     if (!on) this.lastRound = -1;
   }
 
-  update(dt: number, f: { round: number; points: number; perks: PerkId[]; pups: { kind: PowerUpKind; t: number }[]; zone: string }): void {
+  update(dt: number, f: { round: number; points: number; perks: PerkId[]; perkLimit?: number; pups: { kind: PowerUpKind; t: number }[]; zone: string }): void {
     if (f.round !== this.lastRound) {
       this.lastRound = f.round;
       const n = Math.max(0, f.round);
@@ -99,14 +100,16 @@ export class ZHud {
     }
     if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.round.classList.remove('flash'); }
     this.points.textContent = f.points.toLocaleString('en-US');
-    const pk = f.perks.join(',');
+    const limit = f.perkLimit ?? 4;
+    const pk = `${f.perks.join(',')}/${limit}`;
     if (pk !== this.lastPerks) {
       this.lastPerks = pk;
+      // Owned bottles, then dashed outlines for the free slots (so a raised limit is visible).
       this.perks.innerHTML = f.perks.map((p) => {
         const d = PERKS[p];
         const c = '#' + d.color.toString(16).padStart(6, '0');
         return `<div class="zperk" style="background:${c};color:${c}"><span style="color:#fff">${d.name.slice(0, 4)}</span></div>`;
-      }).join('');
+      }).join('') + (f.perks.length > 0 ? '<div class="zperk empty"></div>'.repeat(Math.max(0, limit - f.perks.length)) : '');
     }
     const pu = f.pups.map((p) => `${p.kind}:${Math.ceil(p.t)}:${p.t < 5 ? 1 : 0}`).join(',');
     if (pu !== this.lastPups) {

@@ -9,7 +9,7 @@ import { signTexture } from '../render/textures';
 import type { Box, CollisionWorld } from '../world/Collision';
 import { NavGrid } from '../world/NavGrid';
 import { buildColliders, closeDoorBox, compileMap, openDoorBox, WIN, type CLadder, type CompiledMap } from './mapcompile';
-import { doorLabel, type DoorDef, type LampDef, type LightState, type MatRef, type MatSpec, type WindowDef, type ZombiesMapDef } from './mapdef';
+import { allEggs, doorLabel, type DoorDef, type EggStepDef, type LampDef, type LightState, type MatRef, type MatSpec, type WindowDef, type ZombiesMapDef } from './mapdef';
 import type { ZombiesMapEntry } from './maps/types';
 
 export interface DoorRuntime { geom: DoorDef; box: Box; mesh: THREE.Group; openT: number; open: boolean; cost: number; label: string }
@@ -68,8 +68,10 @@ export class ZombiesMap {
   readonly nav: NavGrid;
   readonly doors: DoorRuntime[] = [];
   readonly windows: WindowRuntime[] = [];
-  /** Easter-egg objects per step (index-aligned with the step's objects). */
-  readonly eggObjects: THREE.Group[][] = [];
+  /** Easter-egg objects per egg (allEggs order: main quest first, then side eggs), per step, per object. */
+  readonly eggObjectsAll: THREE.Group[][][] = [];
+  /** The main quest's objects per step (index-aligned with the step's objects). */
+  get eggObjects(): THREE.Group[][] { return this.def.egg ? this.eggObjectsAll[0] ?? [] : []; }
   readonly ladders: CLadder[];
   private batch = new StaticBatch();
   private lights: RoomLight[] = [];
@@ -356,7 +358,13 @@ export class ZombiesMap {
 
   private buildEggObjects(): void {
     const mat = new THREE.MeshStandardMaterial({ color: 0x202018, emissive: 0x40ffb0, emissiveIntensity: 1.6, roughness: 0.4, metalness: 0.6 });
-    for (const step of this.def.egg?.steps ?? []) {
+    const sideMat = new THREE.MeshStandardMaterial({ color: 0x201810, emissive: 0xffb040, emissiveIntensity: 1.4, roughness: 0.4, metalness: 0.6 });
+    for (const [k, egg] of allEggs(this.def).entries()) this.eggObjectsAll.push(this.buildEggSteps(egg.steps, this.def.egg && k === 0 ? mat : sideMat));
+  }
+
+  private buildEggSteps(steps: EggStepDef[], mat: THREE.Material): THREE.Group[][] {
+    const out: THREE.Group[][] = [];
+    for (const step of steps) {
       const list: THREE.Group[] = [];
       if (step.kind !== 'kill') {
         for (const o of step.objects) {
@@ -384,8 +392,9 @@ export class ZombiesMap {
           list.push(g);
         }
       }
-      this.eggObjects.push(list);
+      out.push(list);
     }
+    return out;
   }
 
   private buildSky(): void {
@@ -488,7 +497,7 @@ export class ZombiesMap {
       l.light.intensity = intensity;
       if (l.bulb) l.bulb.material = lit && !blackout ? this.bulbOn : this.bulbOff;
     }
-    for (const step of this.eggObjects) for (const r of step) {
+    for (const egg of this.eggObjectsAll) for (const step of egg) for (const r of step) {
       if (!r.visible) continue;
       const s = r.userData.spin as THREE.Object3D | undefined;
       if (s) s.rotation.y = time * 2;

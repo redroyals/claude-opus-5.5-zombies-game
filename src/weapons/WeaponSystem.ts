@@ -13,7 +13,7 @@ import type { ViewModel } from './ViewModel';
 import { LIMB_MULT } from '../enemies/hitbox';
 import { BREATH, adsSway, penBudget, penetrate, recoilKick, sprayReset } from './gunplay';
 import {
-  canFire, cancelReload, damageAtRange, effectiveStats, fire, isReloading, reloadProgress, startReload, updateWeapon, type WeaponState,
+  WEAPON_MODS, canFire, cancelReload, damageAtRange, effectiveStats, fire, isReloading, reloadProgress, startReload, updateWeapon, type WeaponState,
 } from './WeaponState';
 
 export interface HitFeedback { kind: 'body' | 'head' | 'kill' | 'armor'; }
@@ -24,6 +24,10 @@ export interface WeaponCallbacks {
   onShot(): void;
   /** Launcher / wonder-weapon effect at the first pellet's impact point. */
   onSpecial?(kind: NonNullable<(typeof WEAPONS)[WeaponId]['special']>, w: WeaponState, hit: SpecialHit): void;
+  /** Once per zombie a shot damaged (after the damage; elemental rounds hook in here). */
+  onZombieHit?(z: Zombie, w: WeaponState, killed: boolean): void;
+  /** A switch to `to` is starting (Packmule rotates its third gun into that slot here). */
+  onSwitch?(to: 0 | 1): void;
 }
 
 const TRACER_COLORS = [new THREE.Color(1.0, 0.75, 0.4), new THREE.Color(0.4, 0.8, 1.6), new THREE.Color(1.6, 0.5, 0.2)];
@@ -88,6 +92,7 @@ export class WeaponSystem {
   requestSwitch(slot: 0 | 1): void {
     if (slot === this.loadout.active && this.switchDir === 0) return;
     if (!this.loadout.slots[slot]) return;
+    if (slot !== this.loadout.active) this.cb.onSwitch?.(slot);
     const cur = this.active;
     if (cur) cancelReload(cur);
     this.switchTarget = slot;
@@ -149,7 +154,7 @@ export class WeaponSystem {
     // Aim down sights
     const canAim = input.aimHeld && !player.sprinting && !blocked.plating && this.switchDir === 0 && this.throwT <= 0 && w.reloadPhase !== 'mag';
     const target = canAim ? 1 : 0;
-    const rate = dt / def.adsTime;
+    const rate = dt / (def.adsTime * WEAPON_MODS.adsMult);
     this.adsT = target > this.adsT ? Math.min(1, this.adsT + rate) : Math.max(0, this.adsT - rate * 1.3);
     player.aiming = this.adsT > 0.5;
     player.adsT = this.adsT;
@@ -264,7 +269,7 @@ export class WeaponSystem {
       if (zh) {
         endDist = zh.dist;
         let dmg = damageAtRange(w.id, baseDamage, zh.dist) * penMult;
-        if (zh.head) dmg *= def.headMult;
+        if (zh.head) dmg *= def.headMult * WEAPON_MODS.headMult;
         else if (zh.part === 'limb') dmg *= LIMB_MULT;
         const e = acc.get(zh.z);
         if (e) { e.dmg += dmg; e.head = e.head || zh.head; }
@@ -289,6 +294,7 @@ export class WeaponSystem {
       this.stats.hits++;
       if (e.head && !out.armor) this.stats.headshots++;
       const kind: HitFeedback['kind'] = out.killed ? 'kill' : out.armor ? 'armor' : e.head ? 'head' : 'body';
+      this.cb.onZombieHit?.(z, w, out.killed);
       if (best === null || rank[kind] > rank[best]) best = kind;
     }
     if (best) this.cb.onHit({ kind: best });
