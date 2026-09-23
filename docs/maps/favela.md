@@ -34,88 +34,93 @@ and are checked by `tests/maps/favela.test.ts`. North is **−Z and uphill**. `y
 
 ## 2. Height tiers
 
+The whole hill sits 4 m above the engine's solid ground plane (`y = 0`). That leaves room for the hidden yards
+that zombies climb up from, below the parapets.
+
 | Tier | Floor y | Areas | Mood / light |
 |---|---|---|---|
-| **T0** | 0 | Bottom street, the Lanchonete (snack bar), ground-floor rooms | Sodium streetlights (deep orange), bar fluorescent tube, lit fridge |
-| **T1** | 4 | Beco landing, house row B (kitchen, workshop) | Bare bulbs that flicker, warm tungsten |
-| **T2** | 8 | Beco top, house row C, **Quadra** (the pitch), bottom cable-car station | The pitch is dim before power and **floodlit cold-white** after. Tungsten in the houses. |
-| **T3** | 12 | **Big Laje** (roof slabs), stands walkway, ravine bridge, **Samba hall** | Dusk sky and festoon string lights (after power). The hall has magenta and cyan neon after power. |
-| **T4** | 16 | Samba stage catwalk, the middle of the station stair and escadaria landings | A transition tier with the escadaria's tiled landings under blue lamps |
-| **T5** | 20 | **Top cable-car station**, **Substation** (power), **Mirante** (lookout) | Red aviation beacons, cold blue station light, and the city glowing below the lookout |
-| *Peak* | 40 | Hidden summit (easter-egg reward only) | Moonlight above the clouds |
+| **T0** | 4 | Bottom street, the Lanchonete (snack bar), house row A | Sodium streetlights (deep orange, buzzing), the bar's fluorescent tube, a lit fridge |
+| **T1** | 8 | Beco landing, house row B (kitchen, workshop) | Bare bulbs that flicker, warm tungsten |
+| **T2** | 12 | Beco top, house row C, **the quadra** (the pitch), the bottom cable-car station (Reforger) | The pitch is dusk-dark until power, then **floodlit cold-white**. Tungsten in the houses. |
+| **T3** | 16 | **Big laje** (roof slabs, water tower), the stands walkway, the ravine bridge, **samba hall** | Dusk sky, then chasing festoon strings after power. The hall's neon is magenta, cyan and yellow. |
+| **T4** | 20 | Mid-flights of the station stair and the escadaria | Transition tier |
+| **T5** | 24 | **Top cable-car station**, **substation** (power), **the mirante** (lookout) | Red beacons before power, cold blue after. The city glows below the lookout. |
+| *Peak* | 44 | Hidden summit (easter-egg reward only) | Moonlight |
 
-Height is always legible: the higher you are, the cooler the light and the more of the sea you see.
+Height stays legible: the higher you go, the cooler the light and the more of the bay you see.
 
 ---
 
-## 3. Side elevation (looking west, south = downhill on the right)
+## 3. Plan and side elevation
+
+**`docs/maps/favela-layout.svg` is generated from the def** (`node scripts/map-svg.mjs src/zombies/maps/favela/def.ts FAVELA docs/maps/favela-layout.svg`),
+so it is the authoritative drawing. It shows rooms coloured by height, walls (dashed = parapets), doors and debris
+with prices, windows, spawn points, climb and drop links, the four ride lines, machines, and a side elevation.
+
+![Rio · Ridgelight plan and side elevation](favela-layout.svg)
+
+Side elevation (looking west; north and uphill on the left, the street and the sea on the right):
 
 ```
  y
- 40 |                                                                    * PEAK (hidden; EE cable line)
-    |                                                                  .´
- 32 |                                                               .´
-    |                                                            .´
- 24 |    [==TOP STATION==]~~~~~~~ main cable ~~~~~~~~~~~~~~~~~~~.
- 20 |T5  [ SUBSTATION  ]  +  [ MIRANTE ]   (bridge of wires)       ~~~~~.
-    |         \  station stair (2.4 m, chokepoint)                           ~~~~.
- 16 |T4        \_______ [ SAMBA HALL ]stage                                     ~~~~.
- 12 |T3                 [ SAMBA HALL ][====== BIG LAJE (water tower) ======]         ~~~ [LOWER STATION]
-    |                                    \   tin-roof slide (one way)  \               (Reforger)
-  8 |T2      (ravine)                     [row C rooms]                  \  QUADRA / beco top  ---^
-  4 |T1                                          [row B rooms] [beco landing]   \
-  0 |T0                                                  [row A]  BOTTOM STREET  [LANCHONETE] -> slope, city, sea
-    +-------------------------------------------------------------------------------------------------> z (+)
-      z=-56        -40         -24          -8           8          16    24     30   38   46      90
+ 44 |  * PEAK .                                                         (peak line, EE only)
+    |         `.
+ 28 |           `-.  ....cable car.........
+ 24 |T5 [MIRANTE][SUBSTATION][TOP STATION]    `......
+    |      \ escadaria            \ station stair      `.....
+ 16 |T3     \   [stands walkway]=bridge=[BIG LAJE ~water tower~][SAMBA HALL]   `....
+ 12 |T2      [ QUADRA / Reforger station ]   [row C]                           ....`[bottom station]
+  8 |T1                              [row B][beco landing]      \ tin-roof slide
+  4 |T0                                        [row A][BOTTOM STREET][LANCHONETE] -> slope, city, sea
+  0 |  (climb yards)                                         ^ zombies climb from here
+    +--------------------------------------------------------------------------------------> z (south)
 ```
 
-The cable runs diagonally from the bottom station on the pitch (x −42, z 10, y 8) to the top station
-(x 18, z −50, y 20). It hangs above the stands, the bridge and the samba roof, so you can see it from every
-tier. It is the map's compass.
+Top-down schematic (north and uphill at the top; the SVG has the exact geometry):
+
+```
+            x -48          -16  -12      4          34
+   z -60  +---------------------+--------+-----------+
+          |  MIRANTE (T5)  BOX6 | SUB-   | STATION   |   top tier: power, lookout, cable-car station
+          |  zipline start >    |STATION |  Hammerfall
+   z -35  +--+ lookout rail ....+--d11---+--d10----+ |
+          |E |  ravine (trees, pylon)     SAMBA HALL |S   T3: stage (BOX5), Quickhands, mural
+          |S |   ~~~ cable car ~~~        (T3)     d8|T   station stair up the east side
+   z -22  |C +==stands walkway==d6=bridge=+---d7---+ |A
+          |A |  STANDS  (BOX4, Bulwark)   | BIG LAJE (T3)   water tower, BOX3, rooftop jumps
+    z -8  +d9+----------------------------+  climb up the east parapet, drops off the hall roof
+          | QUADRA (T2) pitch + floodlights| zipline lands here     tin-roof slide starts SE
+          | REFORGER in the bottom station |         +-----d5 hatch-----+
+    z 16  +-- climb yard below ------d4--+  beco   | ROW C (T2) Hullbreaker
+                                        |  | d3   | ROW B (T1) BOX2
+    z 30  +-----------------------------+d1+------d2-------------------+  slide lands here
+          |      BOTTOM STREET (T0)  BOX1 · Warden · roof drops · climb yard below  |
+    z 46                  +---- LANCHONETE: Lifeline fridge, Magnus ----+
+```
 
 ---
 
-## 4. Top-down layout (1 char ≈ 2 m, north/uphill at the top)
+## 4. Door graph
 
-```
-x:  -46        -30        -16  -12    -2         10        22        34
-z
--56 +----------------------+ +------+ +------------------------------+
-    |       MIRANTE (T5)   | | SUB- | |    TOP CABLE-CAR STATION     |
-    |  lookout rail  [Box6]|=|STATN |=|  wheel  [PERK Hammerfall]    |
-    |     zipline >----.   |d11 PWR d10  (EE peak line ^)            |
--36 +---+ .............. `-.+-+------+ +-------------------------+ S |
-    | E |                    `-.  R A V I N E        SAMBA HALL   | T |
-    | S |                       `-. (no floor)     (T3, stage T4) | A |
-    | C |   STANDS TOP WALKWAY (T3)  `-.     [Box5 stage] [PERK   | I |
--22 | A +==========================[BRIDGE d6]=*    Quickhands]  | R |
-    | D |  STANDS  (T2 -> T3 rows)     |     `d7`-----------------+ d8|
--18 | A |  [PERK Bulwark] [Box4]       |  *land   BIG LAJE (T3)       |
-    | R |                              |  zip    (water tower O)     |
- -8 +d9-+------------------------------+          [Box3] ladder^     |
-    |  QUADRA (T2)  pitch 22 x 16      | R      satellite  tanks     |
-    |   goal |                | goal   | A     jumps  = =  laundry   |
-    |        |     (centre)   |        | V                     slide>|
-  3 | [LOWER |                |        |d4 +-------------d5 hatch---+ |
-    | STATION]                         | B | ROW C rooms (T2) [PERK  | |
- 14 | Reforger  (dead end)             | E |  Box2 ...]              | v
-    +------------------retaining wall--+ C +--+ ROW B rooms (T1)     | v
- 17                                      | O d3                      | v
- 24                                      |   | ROW A rooms (T0) d2   | v
- 30 +------------------------------------+d1-+------------------------+-v------+
-    |   BOTTOM STREET (T0)    [Box1]   street lamps     slide lands here -> *  |
- 38 +------------------+ LANCHONETE (bar) [PERK Lifeline fridge] +-------------+
- 46                    +------------------------------------------+
-                  downhill: roofs, city lights, the sea at dusk
-```
+Eleven purchases (the number is the price). Yellow means a door or gate, orange means debris:
 
-Door key (the number is the price): **d1** street→beco 750 (debris: collapsed shutter), **d2** street→houses 750
-(door), **d3** beco landing→row B 1000, **d4** beco top→quadra 1250 (gate), **d5** row C→laje hatch 1250,
-**d6** stands→bridge→laje 1000, **d7** laje→samba hall 1500, **d8** samba hall→station stair 1500 (debris),
-**d9** quadra→escadaria→mirante 1500 (gate), **d10** station→substation 1250 (debris), **d11**
-mirante→substation 1250 (gate).
+| Door | Links | Price | Where |
+|---|---|---|---|
+| `street_beco` (debris: collapsed shutter) | street → stair alley | 750 | beco mouth, T0 |
+| `street_houses` | street → stacked houses | 750 | row A front door, T0 |
+| `beco_houses` | stair alley → houses | 1000 | beco T1 landing |
+| `beco_quadra` (gate) | stair alley → quadra | 1250 | beco top landing, T2 |
+| `houses_laje` (roof hatch) | houses → big laje | 1250 | top of row C's stairwell, T3 |
+| `quadra_bridge` (debris) | quadra → big laje | 1000 | west end of the ravine bridge, T3 |
+| `laje_samba` | big laje → samba hall | 1500 | hall south wall, T3 |
+| `samba_station` (debris) | samba hall → station stair | 1500 | hall east wall, T3 |
+| `quadra_mirante` (gate) | quadra → escadaria/mirante | 1500 | escadaria foot, T2 |
+| `station_power` (debris) | station → substation | 1250 | T5 |
+| `mirante_power` (gate) | mirante → substation | 1250 | T5 |
 
----
+The graph is **2-edge-connected**: cutting any single door never isolates a zone, and every zone except the
+street can be opened from two neighbours (`tests/maps-favela.test.ts` asserts both). No wall-buy, machine or
+ride sits close enough to a door to steal its E prompt. The test also checks this; it caught two real cases during development.
 
 ## 5. Zones and unlock order
 
@@ -158,12 +163,11 @@ a reachable side):
 
 | Verb | From → To | Notes |
 |---|---|---|
-| **Cable car** | Bottom station (T2) ⇄ top station (T5) | Works after power. Costs 250 and the ride takes about 9 s. Two cars run in counter-motion. It is the natural trip to the Reforger after power. |
-| **Zipline** | Mirante (T5) → big laje (T3), across the ravine | One way and free. About 3 s. |
-| **Tin-roof slide** | Laje SE corner (T3) → street east end (T0) | One way and free. You slide down a cascade of corrugated roofs. It is the emergency exit from the laje. |
-| **Rooftop jumps** | Between laje slabs (gaps 1.2–1.6 m, up to 0.8 m of step) | Real jumps and mantles. Zombies take the plank walkways. |
-| **Ladder** | Laje → water-tower top (y 19) | A dead-end sniper perch and an EE step |
-| **Drops** | Escadaria landing (T4) → stands top (T3). Stands → pitch. | One-way shortcuts down |
+| **Cable car** | Bottom station (T2) ⇄ top station (T5) | Works after power. Costs 250 and the ride takes 14 s over the stands and the ravine, via a pylon. Two cabins run in counter-motion. It is the natural trip to the Reforger after power. |
+| **Zipline** | Mirante (T5) → big laje (T3), across the ravine | One way and free. 3.4 s. Needs both ends unlocked. |
+| **Tin-roof slide** | Laje SE corner (T3) → street east end (T0) | One way and free. 2.6 s down a cascade of corrugated roofs. It is the emergency exit from the laje. |
+| **Roof slabs** | Raised units on the laje (0.8 m and 1.6 m) | Players mantle up. Zombies vault via authored nav links. |
+| **Ladder** | Laje → water-tower roof (y 24.35) | A dead-end sniper perch and an EE step. Zombies climb it too. |
 
 **Zombie verticality.** Every zone mixes three entry kinds:
 
@@ -202,47 +206,79 @@ a reachable side):
 | **Quickhands Fizz** (3000) | Samba hall, T3 | A lime-green vending machine covered in lightning-shape graffiti |
 | **Hammerfall Root** (2000) | Top station, T5 | An orange machine with bold hammer-shape stencils |
 | **The Reforger** (PaP) | Bottom cable-car station (quadra, dead end) | A cable-winch motor covered in street art and driven by the station's bull wheel. It starts spinning when the power comes on. |
-| **The Cache** (box) | 6 spots, one per tier: street (start), row B kitchen, laje by the water tower, under the stands, the samba stage, the mirante | A wooden crate painted with colourful abstract shapes |
-| **Power switch** | Substation, T5 | A big knife switch between two transformers |
+| **The Cache** (box) | 6 spots on five floors: street (start), row B kitchen, laje by the water tower, the stands corner, the samba stage, the mirante | A wooden crate painted with abstract waves, a sun and triangles (Meshy, retextured) |
+| **Power switch** | Substation, T5 | The stock breaker between two Meshy transformers |
 
 Wall-buys are chalk outlines as usual. The early guns sit low and the rifles sit high: Warden (street), Magnus (bar),
-Wren (beco landing), Hullbreaker (row C), Kestrel (laje), Skiff (quadra), Corvid (samba hall), and Sentry DMR
-(mirante, for the long view).
+Wren (row A), Hullbreaker (row C), Kestrel (the laje face of the samba hall), Skiff (quadra), Corvid (samba hall),
+and Sentry DMR (mirante, for the long view).
 
 ---
 
 ## 9. Easter egg — "Last Ride to the Peak"
 
-1. **Turn on the power.** The main cable line wakes up. The third line from the station to the peak stays dead
-   because its grips are missing.
-2. **Find the three cable grips** (glowing clamp relics): one in the beco drain at the T1 landing, one inside the
-   big surdo drum on the samba stage, and one on top of the laje water tower (ladder).
-3. **Refit the peak line** at the station's third bull wheel. The line groans into life.
-4. **Hold the station.** Zombies pour off the station roof while the car comes down from the peak. You survive until it docks.
-5. **Ride to the peak** (y 40, above the clouds). The reward waits on a pedestal: a wonder weapon, a max ammo and
-   +5000. The car brings you back to the station.
+This runs on the generic egg step machine plus the ride API:
 
----
+1. **Find the three cable grips** (collect, needs power). They are in the beco drain at the T1 landing, beside the big drum
+   on the samba stage, and on the water-tower roof (up the ladder).
+2. **Refit the peak line** (interact) at the station's third bull wheel, NE corner of the top station.
+3. **Hold the station** (kill step: 24 kills inside the station zone). Zombies drop off the canopy while the car
+   comes down from the peak.
+4. The peak line opens (`requiresEggStep: 3`). **Ride it to the summit** (y 44, above the lit city) and **take what
+   the peak keeps** (interact). The reward is the Arc Projector (wonder weapon), +5000, a free reforge of the held
+   gun, full ammo and a Max Ammo drop. The ride back down is next to the pedestal.
 
-## 10. Asset plan
+## 10. Assets (as built)
 
-**Blender (procedural, `tools/blender/favela_kit.py`, no credits):** background house blocks A–F (exposed brick,
-painted plaster patches, window grilles, dark or lit window panes, rebar stubs, a slab parapet, small water tanks),
-rebar column stubs, parapet caps, window grille, door frame, tin roof, utility pole with crossarm and insulators,
-street lamp (sodium), floodlight mast, cable-line pylon, railing, festoon string, kite, laundry line, abstract mural
-panels (extruded colour shapes), a water tower landmark, the pitch goal frame and a ladder. Each piece exports
-collider proxies in `extras.colliders`.
+Everything lives in `public/models/favela/`: **7 MB for 48 GLBs**. The map geometry itself is procedural data, so the
+map is playable before any GLB arrives, and models stream in and replace their stand-ins. The whole download is
+far under the 40 MB target.
 
-**Reused (no new credits):** `r-house-block`, `r-barrel` and `r-gas-cylinder` (finished mp-assets Meshy tasks,
-fetched by id), `k-neon-frame` (abstract neon), `k-ac-cluster`, `k-water-tank`, `k-market-stall`, `l-bench` and
-`k-dumpster`. We also refine the finished `r-water-tank` and `r-satellite` previews (+10 credits each). The existing
-zombies, weapons, box and machines stay available as fallbacks.
+**Blender kit, 23 pieces, 0 credits** (`tools/blender/favela_kit.py`, meshopt via `scripts/compress-kit.mjs --dir public/models/favela`):
+- six background houses (`fv_house_a`–`f`, 1 to 4 storeys) with a concrete frame, clay-brick or painted-plaster
+  infill, windows (dark or lit), grilles, sills, rebar stubs, parapets, balconies, an outside stair and small water tanks;
+- a utility pole, sodium street lamp, wall lamp, floodlight mast, cable-line pylon, ladder, railing, tin roof,
+  rebar cluster, window grille, kite, laundry line, three **murals as geometry** (layered suns, waves, leaf fans,
+  zigzags and confetti; no text, no symbols), the station canopy and a goal-frame fallback.
 
-**Meshy heroes (cap 1,200 credits, about 30 each, in two render-checked stages):** gondola cabin, station bull-wheel
-drive, ground transformer, bar counter and stools, drinks fridge, motorbike, hanging wire bundle, futsal goal,
-plastic table and chairs, samba surdo drums, costume rack, speaker stack, and the themed perk machines ×4, Reforger
-and Cache.
+Materials are named `fv_*`. The decorate hook maps them onto the game's shared textured materials, and
+`fv_plaster` is tinted per house from a pastel palette through vertex colours.
 
-**Web budget:** meshopt plus quantized GLBs and WebP textures (≤ 1024 px, heroes ≤ 1.5 MB each). Background houses
-are instanced (5 variants give a few hundred instances in about 20 draw calls). The map geometry is procedural, so
-it is playable immediately, and the models stream in progressively. The download target is **≤ 40 MB**.
+**Meshy, 710 of the 1,200-credit cap** (ledger in `assets/gen-state.json`, batches in `assets/LOG.md`):
+
+| Batch | Credits | What |
+|---|---|---|
+| reuse from mp-assets | 20 | house block, barrel and gas cylinder fetched by finished task id (0); water tank and satellite previews refined (2 × 10) |
+| stage 1 | 390 | gondola cabin, bull wheel, transformer, bar counter, fridge, motorbike, wire bundle, goal, samba drums, speakers, costume rack, table + chairs, water tower |
+| stage 2 | 180 | perk machines ×4, Reforger, Cache |
+| retexture | 120 (logged at 20 each) | The "graffiti" prompts produced lettering ("PBR", tags), so all six machines were retextured with letter-free abstract-shapes prompts (`scripts/meshy-retexture.mjs`) |
+
+The gondola cabin's texture carried pseudo-lettering and is cleaned by `scripts/scrub-text.mjs` (a median filter on
+base colour, manifest field `scrub`). Lesson: never write "graffiti" or "tag" in a prompt. Per-asset triangle and
+texture budgets (1.5k–6k triangles, 512 px for small props) live in the manifest.
+
+**What the remaining 490 credits would buy** (not spent; the map does not need them): themed zombies
+(local-looking residents, 6 × ~50 with rigging), a hero samba float and costume mannequins, a real gondola top
+station structure instead of box and canopy, and a Meshy mural relief for the samba hall.
+
+## 11. Implementation notes
+
+- **Def**: `src/zombies/maps/favela/def.ts`, pure data plus two helpers (`cablePath`, `becoY`). Staging rooms
+  (`name: 'STAGING'`) give the off-map roofs and yards that zombies drop or climb from a zone, so the validator and
+  the director treat them properly.
+- **Decorate**: `src/zombies/maps/favela/decorate.ts`. It builds a visual hillside terrain (kept below every play
+  floor), about 300 kit houses **merged per material** into roughly 10 meshes, about 1,500 instanced far houses and
+  city blocks, 5,200 city lights as one `Points`, the sea and sunset, the cable line and cabins, the wire tangle as
+  one merged tube mesh, festoon strings as 3 instanced meshes, floodlights, murals, neon and **invisible fall guards**
+  (movement-only colliders above every parapet and across climb gaps).
+- **Update**: animates the cabins from the ride state, festoons chasing after power, neon flicker, sodium buzz
+  and the floodlight heads.
+- **Additive API extensions** (documented in `docs/MAP_API.md`): `machines` (per-map machine GLBs and perk
+  footprints), `rides` (+ `src/zombies/rides.ts`), `BoxDef.mat: null` (invisible colliders), `EggReward.weapon`,
+  `RideDef.requiresEggStep`, and `ride`/`egg` passed to the map update hook.
+- **Tests**: `tests/maps-favela.test.ts` covers the validator, the 2-edge-connected door graph, tiers, the power
+  cost, Reforger placement, box floors, spawn kinds, doors that must not be shadowed by other prompts, ride
+  clearance against compiled colliders and the egg gating. `tests/zombies-rides.test.ts` covers the pure ride logic.
+- **Play-through**: `e2e/favela-play.mjs` (headless, real E presses): rounds, all 11 doors in order, pre/post-power
+  zone shots, power, perks, Cache, cable car, Reforger, zipline, slide and the full egg. `e2e/favela-look.mjs` is a
+  quick camera tour.

@@ -14,6 +14,7 @@
 - [x] Zombie roster: shambler/runner/brute/crawler/Scuttler (special rounds)/Warden boss every 8th round; head pops, leg-loss crawlers, hit reactions
 - [x] Results screen ("YOU SURVIVED N ROUNDS"); easter egg (3 relics)
 - [x] Machines/zombies/weapons use the authored GLBs from `public/models/` when present (procedural fallbacks otherwise)
+- [x] Second map "Rio · Ridgelight" (`src/zombies/maps/favela/`, design `docs/maps/favela.md`): vertical favela at dusk, 9 zones on six terrace tiers, 2-edge-connected door graph, climb/drop/window spawns, cable car + zipline + tin-roof slide (map `rides` API), street-art machines (map `machines` API), peak-line easter egg
 - [ ] Down/bleed-out state + spectate (co-op), recoil patterns, wall penetration
 - [ ] Use `kit_barricade_window` / wall kit pieces for the map shell (currently procedural boxes)
 

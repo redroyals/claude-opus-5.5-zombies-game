@@ -146,6 +146,36 @@ powerups?: { exclude?: ['carpenter'], maxPerRound?: 4, dropChanceMult?: 1 },
 footprints come from the models (`PERK_FOOT` in `mapcompile.ts`), so the validator checks the spot in front is
 reachable. **Give `y` for anything on an upper floor.**
 
+### Map-specific machines
+```ts
+machines: {
+  box: 'favela/fv_mystery_box.glb',          // needs `lid` + `body` nodes (tools/blender/split_lid.py)
+  pap: 'favela/fv_reforger.glb',
+  power?: 'mymap/switch.glb',                 // a `lever` node animates if present
+  perks: { bulwark: { model: 'favela/perk_fv_bulwark.glb', foot: [0.88, 0.84] } },   // foot = collider w x d
+},
+```
+Omitted entries use the stock machines. `foot` replaces `PERK_FOOT` for that perk, so the collider, the
+validator's stand-point check and the model agree.
+
+### Rides (cable cars, ziplines, slides)
+```ts
+rides: [{
+  id: 'gondola_up', label: 'Ride the cable car up', at: { x, y, z }, radius?: 1.6,
+  path: [{ x, y, z }, ...],          // feet positions; the first point sits at `at`
+  seconds: 14, cost?: 250, cooldown?: 4,
+  requiresPower?: true, requiresZones?: [3, 7], requiresEgg?: true, requiresEggStep?: 3,
+}],
+```
+Press E at `at` to be carried along `path` (arc-length, eased in and out). Rides are one-way; add a second
+ride for the way back. Pure rules live in `src/zombies/rides.ts` (`rideBlock`, `ridePosition`). The map's
+`update(ctx)` hook receives `ctx.ride = { id, t }` (progress 0..1) to animate the vehicle, and `ctx.egg`.
+Test ride clearance against the compiled colliders (see `tests/maps-favela.test.ts`).
+
+### Invisible colliders
+`boxes: [{ box: [...], mat: null, collide: 'solid' | 'floor' }]` collides without drawing anything. Use it for
+the solid core of a GLB prop that draws itself (a water tower, canopy columns, a walkable tank roof).
+
 ### Easter egg (generic step machine)
 ```ts
 egg: {
@@ -155,7 +185,7 @@ egg: {
     { kind: 'kill', zone: 3, count: 12, requiresPower: true, toast: 'Feed the sanctum' },
     { kind: 'collect', objects: [{ x, y, z, model: 'zombies/relic.glb' }] },   // walk over to pick up
   ],
-  reward: { title: 'THE DIAMOND WAKES', sub: '...', points: 2500, reforge: true, refillAmmo: true, powerup: 'double_points' },
+  reward: { title: 'THE DIAMOND WAKES', sub: '...', points: 2500, reforge: true, refillAmmo: true, powerup: 'double_points', weapon?: 'ww_arc' },
 }
 ```
 Steps run in order; only the current step's objects are visible. `ordered` interact steps reset on a wrong
@@ -261,8 +291,11 @@ export const EXAMPLE_HOUSE: ZombiesMapDef = {
 };
 ```
 
-The full-size reference is `src/zombies/maps/nightfall/def.ts` (Nightfall Relay: five zones, a raised power
-room with stairs and an overlook, ten windows, a three-radio easter egg).
+The full-size references are `src/zombies/maps/nightfall/def.ts` (Nightfall Relay: five zones, a raised power
+room with stairs and an overlook, ten windows, a three-radio easter egg) and the vertical `src/zombies/maps/favela/`
+(Rio · Ridgelight: six terrace tiers, staging rooms for climb and drop spawns, rides, per-map machines, and a hillside
+`decorate` that merges every static kit piece per material). `node scripts/map-svg.mjs <def.ts> <EXPORT> out.svg`
+draws any def as a plan and a side elevation.
 
 ## Runtime API notes
 
