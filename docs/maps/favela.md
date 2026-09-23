@@ -313,9 +313,11 @@ and triangles are the numbers to watch:
 
 | Where | Draw calls | Triangles |
 |---|---|---|
-| Street fight (round 1–2) | ~270 | ~355k |
-| Zone tour, before / after power | ~250 | ~320–380k |
-| Summit view over the whole map with zombies about | ~380 | ~470k |
+| Street fight (round 1–2) | ~230 | ~450k |
+| Zone tour, before / after power | ~185–190 | ~325–355k |
+| Summit view over the whole map with zombies about | ~325 | ~425k |
+
+For comparison, the stock Nightfall map measured 327 draw calls and 132k triangles on this harness before zcore's perf pass.
 
 **Known issues**
 - Worst-case views (the summit, the laje looking down the hill) run over the DESIGN budget of ~150 calls and
