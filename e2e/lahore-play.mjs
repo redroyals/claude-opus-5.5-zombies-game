@@ -99,8 +99,10 @@ for (const id of ['quickhands', 'bulwark', 'hammerfall']) {
   await shot(`perk-${id}`);
 }
 
-// ---- Box: the casket in the baradari ----
-await front(def.box.spots[0], 1.2, -0.3);
+// ---- Box: the casket (hidden at the start; surfaced once doors are open) wherever it is now ----
+const boxNow = await ds('zm');
+check(boxNow.box.phase !== 'hidden', `the Cache has surfaced (${boxNow.box.phase} at spot ${boxNow.box.location})`);
+await front(def.box.spots[boxNow.box.location], 1.2, -0.3);
 await press();
 const spun = await until((z) => z.box.phase === 'spinning', 20000);
 check(!!spun, 'box spins');

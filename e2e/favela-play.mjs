@@ -187,7 +187,8 @@ await zoneShots('post');
 await frame('post-power-tour');
 
 // ---- Perks (all four) ----
-for (const [id, s] of Object.entries(def.perks)) {
+// The stock four fill the perk limit (4); the extra perks are covered by e2e/zombies-pacing.mjs.
+for (const [id, s] of Object.entries(def.perks).filter(([k]) => ['lifeline', 'bulwark', 'quickhands', 'hammerfall'].includes(k))) {
   await ds('clearZombies');
   const f = front(s, 1.3);
   await stand(f.x, f.z, f.y, s.x, s.z, -0.05);
